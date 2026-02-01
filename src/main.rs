@@ -1354,9 +1354,20 @@ async fn get_font_glyphs(
         }
     }
 
-    // No font found in the stack
-    tracing::debug!("Font not found: {} (tried: {:?})", params.range, fonts);
-    Err(TileServerError::FontNotFound(params.fontstack))
+    // Return empty PBF for missing glyph ranges — MapLibre Native requests all
+    // 256 possible ranges and fails hard on 404, even for unpopulated Unicode blocks
+    tracing::debug!(
+        "Font range not found, returning empty PBF: {} (tried: {:?})",
+        params.range,
+        fonts
+    );
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        CONTENT_TYPE,
+        HeaderValue::from_static("application/x-protobuf"),
+    );
+    headers.insert(CACHE_CONTROL, cache_control::tile_cache_headers());
+    Ok((headers, Vec::<u8>::new()).into_response())
 }
 
 /// Get a static file from the files directory
