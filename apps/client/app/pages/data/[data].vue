@@ -5,20 +5,14 @@
 
   const route = useRoute('data-data');
   const dataId = computed(() => String(route.params.data));
-  const { mapOptions, layerColors, onMapLoaded } = useDataInspector(dataId);
-
-  const panelOpen = ref(true);
-
-  function navigateBack() {
-    if (import.meta.client) {
-      history.replaceState(null, '', window.location.pathname);
-    }
-    navigateTo('/');
-  }
-
-  function togglePanel() {
-    panelOpen.value = !panelOpen.value;
-  }
+  const {
+    mapOptions,
+    layerColors,
+    panelOpen,
+    navigateBack,
+    togglePanel,
+    onMapLoaded,
+  } = useDataInspector(dataId);
 </script>
 
 <template>

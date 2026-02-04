@@ -27,5 +27,12 @@ export function useStyleViewer(styleId: Ref<string>, isRaster: Ref<boolean>) {
     };
   });
 
-  return { mapOptions, isLoading };
+  function navigateBack() {
+    if (import.meta.client) {
+      history.replaceState(null, '', window.location.pathname);
+    }
+    navigateTo('/');
+  }
+
+  return { mapOptions, isLoading, navigateBack };
 }

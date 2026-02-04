@@ -12,14 +12,7 @@
   const isRaster = computed(() => 'raster' in route.query);
   const isScreenshot = computed(() => 'screenshot' in route.query);
 
-  const { mapOptions, isLoading } = useStyleViewer(styleId, isRaster);
-
-  function navigateBack() {
-    if (import.meta.client) {
-      history.replaceState(null, '', window.location.pathname);
-    }
-    navigateTo('/');
-  }
+  const { mapOptions, isLoading, navigateBack } = useStyleViewer(styleId, isRaster);
 </script>
 
 <template>

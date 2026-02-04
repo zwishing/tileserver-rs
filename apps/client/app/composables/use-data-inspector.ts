@@ -11,6 +11,18 @@ import type { Data, LayerColor } from '~/types/data';
 
 export function useDataInspector(dataId: Ref<string>) {
   const layerColors = ref<LayerColor[]>([]);
+  const panelOpen = ref(true);
+
+  function navigateBack() {
+    if (import.meta.client) {
+      history.replaceState(null, '', window.location.pathname);
+    }
+    navigateTo('/');
+  }
+
+  function togglePanel() {
+    panelOpen.value = !panelOpen.value;
+  }
 
   const mapOptions = computed<MapOptions>(() => ({
     container: 'data-inspector-map',
@@ -66,6 +78,9 @@ export function useDataInspector(dataId: Ref<string>) {
   return {
     mapOptions,
     layerColors,
+    panelOpen,
+    navigateBack,
+    togglePanel,
     onMapLoaded,
   };
 }
