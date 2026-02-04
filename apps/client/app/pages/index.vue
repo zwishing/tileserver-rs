@@ -238,7 +238,7 @@
                         <!-- Action buttons -->
                         <div class="flex items-center gap-2">
                           <Button as-child size="sm" class="rounded-lg">
-                            <NuxtLink :to="`/styles/${style.id}/#2/0/0`">
+                            <NuxtLink :to="`/styles/${style.id}/`">
                               <Map class="mr-1.5 size-4" />
                               Viewer
                             </NuxtLink>
@@ -249,7 +249,7 @@
                       <!-- View mode links -->
                       <div class="mt-2 flex items-center gap-3">
                         <NuxtLink
-                          :to="`/styles/${style.id}/?raster#2/0/0`"
+                          :to="`/styles/${style.id}/?raster`"
                           class="flex items-center gap-1.5 rounded-lg bg-muted/50 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         >
                           <Image class="size-3.5" />
@@ -437,7 +437,7 @@
                           size="sm"
                           class="rounded-lg"
                         >
-                          <NuxtLink :to="`/data/${source.id}/#2/0/0`">
+                          <NuxtLink :to="`/data/${source.id}/`">
                             <Layers class="mr-1.5 size-4" />
                             Inspect
                           </NuxtLink>
