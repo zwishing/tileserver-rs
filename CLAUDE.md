@@ -155,13 +155,41 @@ components/
     └── Viewer.vue            → <MapViewer />       ✅
 ```
 
-### 🚨 Rule #6: Vue Components Must Be Under 100 Lines
+### 🚨 Rule #6: Vue Components Are Thin Templates
 
 **Vue component files (`.vue`) should NOT exceed ~100 lines of code.**
 
+Components are **presentation only** — they destructure from composables and bind to the template. **ALL logic, state, and functions belong in composables.**
+
+```vue
+<!-- ❌ WRONG - Logic in the component -->
+<script setup lang="ts">
+const panelOpen = ref(true);
+
+function togglePanel() {
+  panelOpen.value = !panelOpen.value;
+}
+
+function navigateBack() {
+  history.replaceState(null, '', window.location.pathname);
+  navigateTo('/');
+}
+</script>
+
+<!-- ✅ CORRECT - Destructure everything from composable -->
+<script setup lang="ts">
+const {
+  mapOptions,
+  panelOpen,
+  navigateBack,
+  togglePanel,
+} = useDataInspector(dataId);
+</script>
+```
+
 When a component grows too large:
-1. **Extract sub-components** into the same feature folder
-2. **Move logic to composables** (`composables/useFeature.ts`)
+1. **Move logic/state/functions to composables** (`composables/useFeature.ts`)
+2. **Extract sub-components** into the same feature folder
 3. **Move constants to composables** (not in `.vue` files)
 
 ### 🚨 Rule #7: No Inline Arrow Functions in Vue Templates
