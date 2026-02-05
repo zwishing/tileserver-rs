@@ -14,10 +14,7 @@ export function useDataInspector(dataId: Ref<string>) {
   const panelOpen = ref(true);
 
   function navigateBack() {
-    if (import.meta.client) {
-      history.replaceState(null, '', window.location.pathname);
-    }
-    navigateTo('/');
+    navigateTo({ path: '/', hash: '' }, { replace: true });
   }
 
   function togglePanel() {

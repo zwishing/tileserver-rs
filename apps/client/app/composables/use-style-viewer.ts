@@ -28,10 +28,7 @@ export function useStyleViewer(styleId: Ref<string>, isRaster: Ref<boolean>) {
   });
 
   function navigateBack() {
-    if (import.meta.client) {
-      history.replaceState(null, '', window.location.pathname);
-    }
-    navigateTo('/');
+    navigateTo({ path: '/', hash: '' }, { replace: true });
   }
 
   return { mapOptions, isLoading, navigateBack };
