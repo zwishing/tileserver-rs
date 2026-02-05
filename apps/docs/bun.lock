@@ -12,7 +12,7 @@
       "devDependencies": {
         "@nuxt/eslint": "^1.13.0",
         "@nuxtjs/plausible": "^2.0.1",
-        "agents": "^0.3.9",
+        "agents": "^0.3.10",
         "eslint": "^9.39.2",
         "eslint-plugin-oxlint": "^1.43.0",
         "oxlint": "^1.43.0",
@@ -1021,7 +1021,7 @@
 
     "agent-base": ["agent-base@7.1.4", "", {}, "sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ=="],
 
-    "agents": ["agents@0.3.9", "", { "dependencies": { "@cfworker/json-schema": "^4.1.1", "@modelcontextprotocol/sdk": "1.25.2", "cron-schedule": "^6.0.0", "json-schema": "^0.4.0", "json-schema-to-typescript": "^15.0.4", "mimetext": "^3.0.28", "nanoid": "^5.1.6", "partyserver": "^0.1.2", "partysocket": "1.1.11", "yargs": "^18.0.0" }, "peerDependencies": { "@ai-sdk/openai": "^3.0.0", "@ai-sdk/react": "^3.0.0", "@cloudflare/ai-chat": "^0.0.5", "@cloudflare/codemode": "^0.0.6", "ai": "^6.0.0", "react": "^19.0.0", "viem": ">=2.0.0", "x402": "^0.7.1", "zod": "^3.25.0 || ^4.0.0" }, "optionalPeers": ["@ai-sdk/openai", "@ai-sdk/react", "viem", "x402"], "bin": { "agents": "dist/cli/index.js" } }, "sha512-ffuixXuKlO9+tJKeA8cnZGnDRXRVBYbiJoh875oErw4WO+vg9IwTQAE31WSkXWmtH3XF7p6J6tRyvqMw4tQb1w=="],
+    "agents": ["agents@0.3.10", "", { "dependencies": { "@cfworker/json-schema": "^4.1.1", "@modelcontextprotocol/sdk": "1.25.2", "cron-schedule": "^6.0.0", "escape-html": "^1.0.3", "json-schema": "^0.4.0", "json-schema-to-typescript": "^15.0.4", "mimetext": "^3.0.28", "nanoid": "^5.1.6", "partyserver": "^0.1.2", "partysocket": "1.1.11", "yargs": "^18.0.0" }, "peerDependencies": { "@ai-sdk/openai": "^3.0.0", "@ai-sdk/react": "^3.0.0", "@cloudflare/ai-chat": "^0.0.6", "@cloudflare/codemode": "^0.0.6", "ai": "^6.0.0", "react": "^19.0.0", "viem": ">=2.0.0", "x402": "^0.7.1", "zod": "^3.25.0 || ^4.0.0" }, "optionalPeers": ["@ai-sdk/openai", "@ai-sdk/react", "viem", "x402"], "bin": { "agents": "dist/cli/index.js" } }, "sha512-hKj3nbej14GA2SgE6/stQheJF35LCS7DxMuHG0QDl1/npnnECYyG0Yf5DXl6AvJAZOFNDwT3iEzKi8yLZngPDA=="],
 
     "ai": ["ai@6.0.64", "", { "dependencies": { "@ai-sdk/gateway": "3.0.29", "@ai-sdk/provider": "3.0.6", "@ai-sdk/provider-utils": "4.0.11", "@opentelemetry/api": "1.9.0" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-eH+6FC2THf0rXamPOBAPGNBuMvqv4gE5+IKoWVBrO1TkrjwRiuP3+P6yl7/HcXzN9JLbVe3lL8yaTIfn0ZwvxQ=="],
 
