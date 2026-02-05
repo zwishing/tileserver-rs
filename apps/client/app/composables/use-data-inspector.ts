@@ -12,6 +12,7 @@ import type { Data, LayerColor } from '~/types/data';
 export function useDataInspector(dataId: Ref<string>) {
   const layerColors = ref<LayerColor[]>([]);
   const panelOpen = ref(true);
+  const mapRef = shallowRef<Map | null>(null);
 
   function navigateBack() {
     navigateTo({ path: '/', hash: '' }, { replace: true });
@@ -19,6 +20,29 @@ export function useDataInspector(dataId: Ref<string>) {
 
   function togglePanel() {
     panelOpen.value = !panelOpen.value;
+  }
+
+  function toggleLayerVisibility(layerId: string) {
+    const map = mapRef.value;
+    if (!map) return;
+
+    const layer = layerColors.value.find((l) => l.id === layerId);
+    if (!layer) return;
+
+    const newVisibility = !layer.visible;
+    layer.visible = newVisibility;
+
+    const allLayers = map.getStyle()?.layers || [];
+    const layersMatchingSourceLayer = allLayers.filter(
+      (l) => 'source-layer' in l && l['source-layer'] === layerId,
+    );
+    for (const mapLayer of layersMatchingSourceLayer) {
+      map.setLayoutProperty(
+        mapLayer.id,
+        'visibility',
+        newVisibility ? 'visible' : 'none',
+      );
+    }
   }
 
   const mapOptions = computed<MapOptions>(() => ({
@@ -36,18 +60,17 @@ export function useDataInspector(dataId: Ref<string>) {
     },
   }));
 
-  // Handler for when map is loaded - adds inspect control
   async function onMapLoaded(map: Map) {
+    mapRef.value = map;
+
     const [maplibregl, { default: MaplibreInspect }] = await Promise.all([
       import('maplibre-gl'),
       import('@maplibre/maplibre-gl-inspect'),
     ]);
 
-    // Fetch TileJSON to get vector_layers
     const tileJson = await $fetch<Data>(`/data/${dataId.value}.json`);
     const vectorLayerIds = tileJson.vector_layers?.map((l) => l.id) || [];
 
-    // Pre-populate sources so inspect knows about the layers
     const sources: Record<string, string[]> = {
       vector_layer_: vectorLayerIds,
     };
@@ -65,10 +88,10 @@ export function useDataInspector(dataId: Ref<string>) {
     map.addControl(inspect);
     inspect.render();
 
-    // Build layer colors
     layerColors.value = vectorLayerIds.map((layerId) => ({
       id: layerId,
       color: inspect.assignLayerColor(layerId, 1),
+      visible: true,
     }));
   }
 
@@ -78,6 +101,7 @@ export function useDataInspector(dataId: Ref<string>) {
     panelOpen,
     navigateBack,
     togglePanel,
+    toggleLayerVisibility,
     onMapLoaded,
   };
 }

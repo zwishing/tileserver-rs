@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { VMap, VControlNavigation, VControlScale } from '@geoql/v-maplibre';
-  import { ArrowLeft, Layers, PanelRightClose, PanelRightOpen } from 'lucide-vue-next';
+  import { ArrowLeft, Eye, EyeOff, Layers, PanelRightClose, PanelRightOpen } from 'lucide-vue-next';
   import { motion, AnimatePresence } from 'motion-v';
 
   const route = useRoute('data-data');
@@ -11,6 +11,7 @@
     panelOpen,
     navigateBack,
     togglePanel,
+    toggleLayerVisibility,
     onMapLoaded,
   } = useDataInspector(dataId);
 </script>
@@ -56,21 +57,30 @@
         class="absolute top-16 right-4 z-10 w-56 rounded-lg border bg-background/95 p-4 shadow-lg backdrop-blur-sm"
       >
         <h3 class="mb-3 text-sm font-semibold">Layers</h3>
-        <div class="space-y-1.5">
-          <div
+        <div class="space-y-1">
+          <button
             v-for="layer in layerColors"
             :key="layer.id"
-            class="flex items-center gap-2 text-sm"
+            class="flex w-full items-center gap-2 rounded px-1.5 py-1 text-sm transition-colors hover:bg-accent"
+            :class="{ 'opacity-40': !layer.visible }"
+            @click="toggleLayerVisibility(layer.id)"
           >
             <div
               class="size-3.5 shrink-0 rounded-sm"
               :style="{ backgroundColor: layer.color }"
             ></div>
-            <span class="truncate text-muted-foreground">{{ layer.id }}</span>
-          </div>
+            <span
+              class="flex-1 truncate text-left text-muted-foreground"
+              :class="{ 'line-through': !layer.visible }"
+            >
+              {{ layer.id }}
+            </span>
+            <Eye v-if="layer.visible" class="size-3.5 shrink-0 text-muted-foreground" />
+            <EyeOff v-else class="size-3.5 shrink-0 text-muted-foreground" />
+          </button>
           <div
             v-if="layerColors.length === 0"
-            class="text-sm text-muted-foreground"
+            class="px-1.5 py-1 text-sm text-muted-foreground"
           >
             Loading layers...
           </div>

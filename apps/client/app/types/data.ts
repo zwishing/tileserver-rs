@@ -26,4 +26,5 @@ export interface Data {
 export interface LayerColor {
   id: string;
   color: string;
+  visible: boolean;
 }
