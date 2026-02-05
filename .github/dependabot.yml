@@ -27,7 +27,7 @@ updates:
       prefix-development: chore
       include: scope
 
-  # Bun - Root workspace (catalogs define all dep versions)
+  # Bun - Root workspace + all apps (Dependabot ignores Bun's !apps/docs exclusion)
   - package-ecosystem: npm
     versioning-strategy: increase
     directory: "/"
@@ -41,16 +41,3 @@ updates:
       prefix-development: chore
       include: scope
 
-  # Bun - Documentation (isolated from workspace, has own lockfile)
-  - package-ecosystem: npm
-    versioning-strategy: increase
-    directory: "/apps/docs"
-    schedule:
-      interval: daily
-      time: "00:00"
-    assignees:
-      - vinayakkulkarni
-    commit-message:
-      prefix: fix
-      prefix-development: chore
-      include: scope
