@@ -74,7 +74,7 @@ jobs:
         run: bun run --filter @tileserver-rs/client generate
 
       - name: Build Rust binary
-        run: cargo build --release --target x86_64-apple-darwin
+        run: cargo build --release --target x86_64-apple-darwin --features frontend
 
       - name: Prepare release
         run: |
