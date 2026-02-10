@@ -7,7 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install build dependencies for MapLibre Native
 # Using clang as required by MapLibre Native CMake presets
-RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \
+RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests --fix-missing \
     build-essential \
     clang \
     cmake \
@@ -84,7 +84,7 @@ FROM ubuntu:24.04 AS rust-builder
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install Rust and deps needed for linking
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     # Required for rustup
     ca-certificates \
     curl \
@@ -163,7 +163,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install runtime dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends --no-install-suggests \
+    apt-get install -y --no-install-recommends --no-install-suggests --fix-missing \
     ca-certificates \
     curl \
     xvfb \
