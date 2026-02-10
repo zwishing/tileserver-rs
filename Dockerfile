@@ -134,7 +134,7 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs
 COPY --from=node-builder /app/apps/client/.output/public ./apps/client/.output/public
 
 # Features are now enabled by default in Cargo.toml (postgres, raster)
-ARG FEATURES=""
+ARG FEATURES="frontend"
 
 # Build dependencies only (may fail on first try, that's ok)
 RUN if [ -n "$FEATURES" ]; then \
