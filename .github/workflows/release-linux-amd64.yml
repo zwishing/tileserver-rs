@@ -90,7 +90,7 @@ jobs:
         run: bun run --filter @tileserver-rs/client generate
 
       - name: Build Rust binary
-        run: cargo build --release
+        run: cargo build --release --features frontend
 
       - name: Prepare release
         run: |
