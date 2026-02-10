@@ -2,12 +2,15 @@ use axum::{
     extract::{Path, Query, State},
     http::{
         header::{ACCEPT, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_TYPE},
-        HeaderMap, HeaderValue, Method, StatusCode, Uri,
+        HeaderMap, HeaderValue, Method, StatusCode,
     },
-    response::{Html, IntoResponse, Response},
+    response::{IntoResponse, Response},
     routing::get,
     Json, Router,
 };
+#[cfg(feature = "frontend")]
+use axum::{http::Uri, response::Html};
+#[cfg(feature = "frontend")]
 use rust_embed::Embed;
 use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 use tokio::net::TcpListener;
@@ -39,6 +42,7 @@ use sources::{SourceManager, TileJson};
 use styles::{StyleInfo, StyleManager, UrlQueryParams};
 
 /// Embedded SPA assets (built from apps/client)
+#[cfg(feature = "frontend")]
 #[derive(Embed)]
 #[folder = "apps/client/.output/public"]
 struct Assets;
@@ -219,8 +223,16 @@ async fn main() -> anyhow::Result<()> {
         router.merge(SwaggerUi::new("/_openapi").url("/openapi.json", openapi::ApiDoc::openapi()));
 
     // Add embedded SPA if UI is enabled
+    #[cfg(feature = "frontend")]
     if ui_enabled {
         router = router.fallback(serve_spa);
+    }
+    #[cfg(not(feature = "frontend"))]
+    if ui_enabled {
+        tracing::warn!(
+            "Web UI requested but binary was compiled without the 'frontend' feature. \
+             Rebuild with `cargo build --features frontend` to enable the embedded UI."
+        );
     }
 
     let router = router
@@ -272,6 +284,7 @@ async fn shutdown_signal() {
 }
 
 /// Serve embedded SPA assets
+#[cfg(feature = "frontend")]
 async fn serve_spa(uri: Uri) -> impl IntoResponse {
     let path = uri.path().trim_start_matches('/');
 
