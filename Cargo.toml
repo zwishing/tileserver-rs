@@ -16,26 +16,26 @@ members = [".", "maplibre-native-sys"]
 [dependencies]
 # MapLibre Native bindings for server-side rendering
 maplibre-native-sys = { path = "maplibre-native-sys" }
-anyhow = "1.0.100"
+anyhow = "1.0.101"
 async-trait = "0.1.89"
 axum = "0.8.8"
-bytes = "1.11"
-clap = { version = "4.5", features = ["derive", "env"] }
+bytes = "1.11.1"
+clap = { version = "4.5.57", features = ["derive", "env"] }
 dotenvy = "0.15.7"
 futures = "0.3"
-image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+image = { version = "0.25.9", default-features = false, features = ["png", "jpeg", "webp"] }
 mime_guess = "2.0.5"
 pmtiles = { version = "0.19.2", default-features = false, features = ["http-async", "mmap-async-tokio", "tilejson"] }
-reqwest = { version = "0.13.1", default-features = false, features = ["rustls"] }
-shellexpand = { version = "3.1", default-features = false, features = ["base-0"] }
-rust-embed = { version = "8.11", features = ["axum"], optional = true }
+reqwest = { version = "0.13.2", default-features = false, features = ["rustls"] }
+shellexpand = { version = "3.1.1", default-features = false, features = ["base-0"] }
+rust-embed = { version = "8.11.0", features = ["axum"], optional = true }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 thiserror = "2.0.18"
-geozero = { version = "0.14", features = ["with-mvt", "with-geojson"] }
-flate2 = "1.1"
+geozero = { version = "0.15.1", features = ["with-mvt", "with-geojson"] }
+flate2 = "1.1.9"
 tokio = { version = "1.49", features = ["full"] }
-toml = "0.9.6"
+toml = "0.9.12"
 tower-http = { version = "0.6.8", features = ["fs", "cors", "compression-gzip", "compression-br", "trace", "set-header"] }
 urlencoding = "2.1"
 tracing = "0.1.44"
@@ -50,7 +50,7 @@ opentelemetry = "0.31"
 opentelemetry_sdk = { version = "0.31", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.31", features = ["grpc-tonic", "metrics", "logs"] }
 opentelemetry-semantic-conventions = "0.31"
-tracing-opentelemetry = "0.32"
+tracing-opentelemetry = "0.32.1"
 
 # MBTiles support (SQLite)
 rusqlite = { version = "0.38", features = ["bundled"] }
@@ -79,9 +79,9 @@ raster = ["gdal"]
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
-axum-test = "17"
+axum-test = "18.7"
 tempfile = "3"
-insta = { version = "1.46", features = ["json"] }
+insta = { version = "1.46.3", features = ["json"] }
 
 [profile.release]
 lto = true
