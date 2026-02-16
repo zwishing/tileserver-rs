@@ -2,3 +2,6 @@
 	path = maplibre-native-sys/vendor/maplibre-native
 	url = https://github.com/maplibre/maplibre-native.git
 	ignore = dirty
+[submodule ".claude/skills/rust-skills"]
+	path = .claude/skills/rust-skills
+	url = https://github.com/leonardomso/rust-skills.git

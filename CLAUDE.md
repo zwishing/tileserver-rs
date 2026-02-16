@@ -366,6 +366,9 @@ tileserver-rs/
 
 ## Rust Backend Conventions
 
+> **When modifying files under `src/`, follow the 179 Rust best practice rules in [`.claude/skills/rust-skills/SKILL.md`](.claude/skills/rust-skills/SKILL.md).**
+> Priority: Ownership & Borrowing, Error Handling, Memory Optimization (CRITICAL) > API Design, Async, Compiler Optimization (HIGH) > the rest.
+
 ### 1. Error Handling - Use Custom Error Types
 
 ```rust
