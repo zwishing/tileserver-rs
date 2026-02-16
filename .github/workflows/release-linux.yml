@@ -1,4 +1,4 @@
-name: "Release (Linux ARM64)"
+name: "Release (Linux)"
 
 on:
   workflow_dispatch:
@@ -17,9 +17,34 @@ env:
 
 jobs:
   build:
-    name: Build Linux ARM64
-    runs-on: ubuntu-24.04-arm
+    name: Build ${{ matrix.arch }} (${{ matrix.variant }})
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: amd64
+            target: x86_64-unknown-linux-gnu
+            variant: full
+            features: frontend
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            target: aarch64-unknown-linux-gnu
+            variant: full
+            features: frontend
+          - runner: ubuntu-latest
+            arch: amd64
+            target: x86_64-unknown-linux-gnu
+            variant: headless
+            features: ''
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            target: aarch64-unknown-linux-gnu
+            variant: headless
+            features: ''
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -28,6 +53,7 @@ jobs:
           ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Setup Bun
+        if: matrix.variant == 'full'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -62,8 +88,8 @@ jobs:
         uses: actions/cache@v5
         with:
           path: maplibre-native-sys/vendor/maplibre-native/build-linux-opengl
-          key: maplibre-linux-arm64-${{ hashFiles('maplibre-native-sys/vendor/maplibre-native/CMakeLists.txt') }}
-          restore-keys: maplibre-linux-arm64-
+          key: maplibre-linux-${{ matrix.arch }}-${{ hashFiles('maplibre-native-sys/vendor/maplibre-native/CMakeLists.txt') }}
+          restore-keys: maplibre-linux-${{ matrix.arch }}-
 
       - name: Build MapLibre Native
         run: |
@@ -81,33 +107,42 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          key: linux-arm64
+          key: linux-${{ matrix.arch }}-${{ matrix.variant }}
 
       - name: Install dependencies
+        if: matrix.variant == 'full'
         run: bun install --frozen-lockfile
 
       - name: Build client
+        if: matrix.variant == 'full'
         run: bun run --filter @tileserver-rs/client generate
 
       - name: Build Rust binary
-        run: cargo build --release --features frontend
+        run: |
+          if [ -n "${{ matrix.features }}" ]; then
+            cargo build --release --features "${{ matrix.features }}"
+          else
+            cargo build --release
+          fi
 
       - name: Prepare release
         run: |
+          SUFFIX="${{ matrix.variant == 'headless' && '-headless' || '' }}"
+          ARTIFACT_NAME="tileserver-rs-${{ matrix.target }}${SUFFIX}"
           mkdir -p dist
           cp target/release/tileserver-rs dist/tileserver-rs
           chmod +x dist/tileserver-rs
           cd dist
-          tar -czvf tileserver-rs-aarch64-unknown-linux-gnu.tar.gz tileserver-rs
-          sha256sum tileserver-rs-aarch64-unknown-linux-gnu.tar.gz > tileserver-rs-aarch64-unknown-linux-gnu.tar.gz.sha256
+          tar -czvf "${ARTIFACT_NAME}.tar.gz" tileserver-rs
+          sha256sum "${ARTIFACT_NAME}.tar.gz" > "${ARTIFACT_NAME}.tar.gz.sha256"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
-          name: tileserver-rs-aarch64-unknown-linux-gnu
+          name: tileserver-rs-${{ matrix.target }}${{ matrix.variant == 'headless' && '-headless' || '' }}
           path: |
-            dist/tileserver-rs-aarch64-unknown-linux-gnu.tar.gz
-            dist/tileserver-rs-aarch64-unknown-linux-gnu.tar.gz.sha256
+            dist/tileserver-rs-${{ matrix.target }}${{ matrix.variant == 'headless' && '-headless' || '' }}.tar.gz
+            dist/tileserver-rs-${{ matrix.target }}${{ matrix.variant == 'headless' && '-headless' || '' }}.tar.gz.sha256
           retention-days: 30
 
       - name: Upload to release
@@ -115,8 +150,8 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           files: |
-            dist/tileserver-rs-aarch64-unknown-linux-gnu.tar.gz
-            dist/tileserver-rs-aarch64-unknown-linux-gnu.tar.gz.sha256
+            dist/tileserver-rs-${{ matrix.target }}${{ matrix.variant == 'headless' && '-headless' || '' }}.tar.gz
+            dist/tileserver-rs-${{ matrix.target }}${{ matrix.variant == 'headless' && '-headless' || '' }}.tar.gz.sha256
           draft: false
           prerelease: ${{ contains(github.event.inputs.tag || github.ref_name, '-alpha') || contains(github.event.inputs.tag || github.ref_name, '-beta') || contains(github.event.inputs.tag || github.ref_name, '-rc') }}
         env:
