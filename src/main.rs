@@ -786,7 +786,7 @@ async fn get_tile_as_geojson(
     let raw_data = match tile.compression {
         TileCompression::Gzip => {
             let mut decoder = GzDecoder::new(&tile.data[..]);
-            let mut decompressed = Vec::new();
+            let mut decompressed = Vec::with_capacity(tile.data.len() * 4);
             decoder.read_to_end(&mut decompressed).map_err(|e| {
                 TileServerError::RenderError(format!("Failed to decompress tile: {}", e))
             })?;

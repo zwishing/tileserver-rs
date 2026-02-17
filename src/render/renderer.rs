@@ -169,7 +169,8 @@ impl Renderer {
 
         let rgb = img.to_rgb8();
 
-        let mut buffer = Vec::new();
+        let estimated = (rgb.width() * rgb.height()) as usize;
+        let mut buffer = Vec::with_capacity(estimated);
         {
             let mut encoder =
                 image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buffer, quality);
@@ -200,7 +201,8 @@ impl Renderer {
             .map_err(|e| TileServerError::RenderError(format!("Failed to decode PNG: {}", e)))?;
 
         // Use DynamicImage to write WebP
-        let mut buffer = Cursor::new(Vec::new());
+        let estimated = (img.width() * img.height()) as usize;
+        let mut buffer = Cursor::new(Vec::with_capacity(estimated));
         img.write_to(&mut buffer, image::ImageFormat::WebP)
             .map_err(|e| TileServerError::RenderError(format!("WebP encoding failed: {}", e)))?;
 

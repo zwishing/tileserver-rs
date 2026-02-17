@@ -14,6 +14,7 @@ pub mod postgres;
 pub use manager::SourceManager;
 
 /// Tile format enum
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TileFormat {
@@ -26,6 +27,7 @@ pub enum TileFormat {
 }
 
 impl TileFormat {
+    #[inline]
     pub fn content_type(&self) -> &'static str {
         match self {
             TileFormat::Pbf => "application/x-protobuf",
@@ -37,6 +39,7 @@ impl TileFormat {
         }
     }
 
+    #[inline]
     pub fn extension(&self) -> &'static str {
         match self {
             TileFormat::Pbf => "pbf",
@@ -65,6 +68,7 @@ impl FromStr for TileFormat {
 }
 
 /// Tile compression enum
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TileCompression {
     None,
@@ -74,6 +78,7 @@ pub enum TileCompression {
 }
 
 impl TileCompression {
+    #[inline]
     pub fn content_encoding(&self) -> Option<&'static str> {
         match self {
             TileCompression::None => None,

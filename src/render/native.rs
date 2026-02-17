@@ -220,7 +220,8 @@ impl RenderedImage {
             })?;
 
         // Encode to PNG using the DynamicImage interface
-        let mut buffer = Cursor::new(Vec::new());
+        let estimated = (self.width * self.height) as usize;
+        let mut buffer = Cursor::new(Vec::with_capacity(estimated));
         image::DynamicImage::ImageRgba8(img)
             .write_to(&mut buffer, image::ImageFormat::Png)
             .map_err(|e| TileServerError::RenderError(format!("PNG encoding failed: {}", e)))?;
@@ -246,7 +247,8 @@ impl RenderedImage {
             })?;
 
         // Encode to JPEG
-        let mut buffer = Vec::new();
+        let estimated = (self.width * self.height) as usize;
+        let mut buffer = Vec::with_capacity(estimated);
         {
             let mut encoder =
                 image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buffer, quality);
@@ -276,7 +278,8 @@ impl RenderedImage {
             })?;
 
         // Encode to WebP using DynamicImage interface
-        let mut buffer = Cursor::new(Vec::new());
+        let estimated = (self.width * self.height) as usize;
+        let mut buffer = Cursor::new(Vec::with_capacity(estimated));
         image::DynamicImage::ImageRgba8(img)
             .write_to(&mut buffer, image::ImageFormat::WebP)
             .map_err(|e| TileServerError::RenderError(format!("WebP encoding failed: {}", e)))?;
