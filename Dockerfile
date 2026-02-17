@@ -58,9 +58,11 @@ RUN cmake --preset linux-opengl \
     && cmake --build build-linux-opengl -j$(nproc)
 
 # =============================================================================
-# Stage 2: Build Nuxt frontend (SPA)
+# Stage 2: Build Nuxt frontend (SPA) - skipped for headless builds
 # =============================================================================
 FROM oven/bun:1 AS node-builder
+
+ARG FEATURES="frontend"
 
 WORKDIR /app
 
@@ -68,11 +70,15 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY apps/client ./apps/client
 
-# Install only client dependencies
-RUN bun install --filter '@tileserver-rs/client'
-
-# Build the client as static SPA
-RUN bun run --filter @tileserver-rs/client generate
+# Only build frontend when the "frontend" feature is enabled
+# For headless builds (FEATURES=""), create an empty output directory
+# so the COPY --from=node-builder in the rust-builder stage still works
+RUN if echo "$FEATURES" | grep -q "frontend"; then \
+      bun install --filter '@tileserver-rs/client' && \
+      bun run --filter @tileserver-rs/client generate; \
+    else \
+      mkdir -p apps/client/.output/public; \
+    fi
 
 # =============================================================================
 # Stage 3: Build Rust backend
