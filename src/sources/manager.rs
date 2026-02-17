@@ -112,7 +112,8 @@ impl SourceManager {
         });
         self.tile_cache = tile_cache.clone();
 
-        let mut function_sources: Vec<PostgresFunctionSource> = Vec::new();
+        let mut function_sources: Vec<PostgresFunctionSource> =
+            Vec::with_capacity(config.functions.len());
         for func_config in &config.functions {
             match PostgresFunctionSource::new(pool.clone(), func_config, tile_cache.clone()).await {
                 Ok(source) => {
@@ -134,7 +135,7 @@ impl SourceManager {
             }
         }
 
-        let mut table_sources: Vec<PostgresTableSource> = Vec::new();
+        let mut table_sources: Vec<PostgresTableSource> = Vec::with_capacity(config.tables.len());
         for table_config in &config.tables {
             match PostgresTableSource::new(pool.clone(), table_config, tile_cache.clone()).await {
                 Ok(source) => {
@@ -157,7 +158,8 @@ impl SourceManager {
         }
 
         #[cfg(feature = "raster")]
-        let mut outdb_raster_sources: Vec<PostgresOutDbRasterSource> = Vec::new();
+        let mut outdb_raster_sources: Vec<PostgresOutDbRasterSource> =
+            Vec::with_capacity(config.outdb_rasters.len());
         #[cfg(feature = "raster")]
         for outdb_config in &config.outdb_rasters {
             match PostgresOutDbRasterSource::new(pool.clone(), outdb_config).await {
@@ -264,8 +266,8 @@ impl SourceManager {
     }
 
     /// Get all source IDs
-    pub fn ids(&self) -> Vec<&String> {
-        self.sources.keys().collect()
+    pub fn ids(&self) -> Vec<&str> {
+        self.sources.keys().map(|s| s.as_str()).collect()
     }
 
     /// Get metadata for all sources

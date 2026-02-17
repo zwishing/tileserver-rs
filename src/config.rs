@@ -319,7 +319,11 @@ impl ColorMapConfig {
             }
             ColorMapType::Continuous => {
                 let mut sorted: Vec<_> = self.entries.iter().collect();
-                sorted.sort_by(|a, b| a.value.partial_cmp(&b.value).unwrap());
+                sorted.sort_by(|a, b| {
+                    a.value
+                        .partial_cmp(&b.value)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
 
                 if value <= sorted[0].value {
                     return Self::parse_color(&sorted[0].color).unwrap_or([0, 0, 0, 0]);

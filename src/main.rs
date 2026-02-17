@@ -292,7 +292,9 @@ async fn serve_spa(uri: Uri) -> impl IntoResponse {
     if let Some(content) = Assets::get(path) {
         let mime = mime_guess::from_path(path).first_or_octet_stream();
         let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_str(mime.as_ref()).unwrap());
+        let content_type = HeaderValue::from_str(mime.as_ref())
+            .unwrap_or(HeaderValue::from_static("application/octet-stream"));
+        headers.insert(CONTENT_TYPE, content_type);
 
         // Cache static assets (hashed files) for 1 year
         if path.starts_with("_nuxt/") {
@@ -373,7 +375,7 @@ async fn get_index_json(
     State(state): State<AppState>,
     Query(query): Query<IndexQueryParams>,
 ) -> Json<Vec<IndexEntry>> {
-    let mut entries = Vec::new();
+    let mut entries = Vec::with_capacity(state.sources.len() + state.styles.len());
 
     // Build key query string
     let key_query = query

@@ -5,6 +5,7 @@ use axum::{
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum TileServerError {
     #[error("Source not found: {0}")]
     SourceNotFound(String),

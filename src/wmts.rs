@@ -103,7 +103,7 @@ pub fn generate_wmts_capabilities(
 "#,
         wmts_url, wmts_url
     )
-    .unwrap();
+    .expect("write to String");
 
     // Contents section
     xml.push_str("  <Contents>\n");
@@ -121,7 +121,7 @@ pub fn generate_wmts_capabilities(
     xml.push_str("  </Contents>\n");
 
     // Service Metadata URL
-    writeln!(xml, r#"  <ServiceMetadataURL xlink:href="{}"/>"#, wmts_url).unwrap();
+    writeln!(xml, r#"  <ServiceMetadataURL xlink:href="{}"/>"#, wmts_url).expect("write to String");
 
     xml.push_str("</Capabilities>\n");
 
@@ -178,7 +178,7 @@ fn write_layer(
 "#,
         layer_title, layer_id, matrix_set, tile_template
     )
-    .unwrap();
+    .expect("write to String");
 }
 
 /// Write a TileMatrixSet for Google Maps Compatible (EPSG:3857)
@@ -195,7 +195,7 @@ fn write_tile_matrix_set_google_maps(xml: &mut String, tile_size: u16, min_zoom:
 "#,
         identifier, identifier, identifier
     )
-    .unwrap();
+    .expect("write to String");
 
     // Write TileMatrix for each zoom level
     let max_z = (max_zoom as usize).min(SCALE_DENOMINATORS_256.len() - 1);
@@ -217,18 +217,18 @@ fn write_tile_matrix_set_google_maps(xml: &mut String, tile_size: u16, min_zoom:
         write!(
             xml,
             r#"      <TileMatrix>
-        <ows:Identifier>{}</ows:Identifier>
-        <ScaleDenominator>{}</ScaleDenominator>
-        <TopLeftCorner>-20037508.34 20037508.34</TopLeftCorner>
-        <TileWidth>{}</TileWidth>
-        <TileHeight>{}</TileHeight>
-        <MatrixWidth>{}</MatrixWidth>
-        <MatrixHeight>{}</MatrixHeight>
-      </TileMatrix>
+         <ows:Identifier>{}</ows:Identifier>
+         <ScaleDenominator>{}</ScaleDenominator>
+         <TopLeftCorner>-20037508.34 20037508.34</TopLeftCorner>
+         <TileWidth>{}</TileWidth>
+         <TileHeight>{}</TileHeight>
+         <MatrixWidth>{}</MatrixWidth>
+         <MatrixHeight>{}</MatrixHeight>
+       </TileMatrix>
 "#,
             z, scale, tile_size, tile_size, matrix_size, matrix_size
         )
-        .unwrap();
+        .expect("write to String");
     }
 
     xml.push_str("    </TileMatrixSet>\n");

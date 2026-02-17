@@ -234,7 +234,7 @@ fn render_tile_from_dataset(
     let mut img: RgbaImage = ImageBuffer::new(tile_size, tile_size);
 
     if use_colormap {
-        let cmap = colormap.unwrap();
+        let cmap = colormap.expect("colormap verified by use_colormap flag");
         let band = warped
             .rasterband(1)
             .map_err(|e| TileServerError::RasterError(format!("Failed to get band: {}", e)))?;

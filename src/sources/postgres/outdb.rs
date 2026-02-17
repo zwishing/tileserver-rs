@@ -379,7 +379,7 @@ impl PostgresOutDbRasterSource {
         let mut img: RgbaImage = ImageBuffer::new(tile_size, tile_size);
 
         if use_colormap {
-            let cmap = colormap.unwrap();
+            let cmap = colormap.expect("colormap verified by use_colormap flag");
             let band = warped
                 .rasterband(1)
                 .map_err(|e| TileServerError::RasterError(format!("Failed to get band: {}", e)))?;
@@ -400,7 +400,10 @@ impl PostgresOutDbRasterSource {
                 && rescale_max.is_some();
             let use_no_rescale = cmap.rescale_mode == RescaleMode::None;
             let (dyn_min, dyn_max) = if use_dynamic_rescale {
-                (rescale_min.unwrap(), rescale_max.unwrap())
+                (
+                    rescale_min.expect("checked by use_dynamic_rescale"),
+                    rescale_max.expect("checked by use_dynamic_rescale"),
+                )
             } else {
                 (0.0, 1.0)
             };
