@@ -1,0 +1,85 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the sections below so we can reproduce and fix it.
+
+  - type: input
+    id: version
+    attributes:
+      label: tileserver-rs version
+      description: Output of `tileserver-rs --version` or Docker image tag
+      placeholder: "v2.7.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation method
+      options:
+        - Pre-built binary
+        - Docker
+        - Built from source
+        - Homebrew
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Linux (x86_64)
+        - Linux (ARM64)
+        - Windows (WSL)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of the bug
+      placeholder: What happened? What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to reproduce the behavior
+      placeholder: |
+        1. Start server with `tileserver-rs --config config.toml`
+        2. Request tile at `/data/source/14/8192/5461.pbf`
+        3. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: Relevant parts of your `config.toml` (redact sensitive values)
+      render: toml
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Error output
+      description: Relevant log output (run with `RUST_LOG=debug` for verbose logs)
+      render: shell
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Any other context — screenshots, related issues, tile source details, etc.

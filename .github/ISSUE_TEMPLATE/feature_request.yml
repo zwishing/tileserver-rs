@@ -1,0 +1,58 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please describe the problem you're solving and the solution you'd like.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem does this feature solve? What's the use case?
+      placeholder: I'm trying to ... but currently ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the feature you'd like. Include API examples, config snippets, or UI mockups if applicable.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of tileserver-rs does this affect?
+      multiple: true
+      options:
+        - Backend (Rust / Axum)
+        - Frontend (Nuxt / Vue)
+        - Configuration
+        - CLI
+        - Docker / Deployment
+        - Documentation
+        - API Endpoints
+        - Tile Sources (PMTiles / MBTiles / PostGIS)
+        - Rendering (MapLibre Native)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What alternatives have you considered? Are there workarounds?
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Any other context — links to similar features in other projects, screenshots, diagrams, etc.
