@@ -1,5 +1,61 @@
 # Changelog
 
+## [2.8.0](https://github.com/vinayakkulkarni/tileserver-rs/compare/v2.7.1...v2.8.0) (2026-02-20)
+
+
+### Features
+
+* add MapLibre Tiles (MLT) format support ([88593fa](https://github.com/vinayakkulkarni/tileserver-rs/commit/88593faf49682cdeac14c5f900a40b15cd0621f8))
+* **ci:** add headless build variants and consolidate Linux release workflows ([a55e281](https://github.com/vinayakkulkarni/tileserver-rs/commit/a55e281849b0b259c4dffee2bc350f2ab12fb2bd))
+* **client:** add encoding field to Data type for MLT sources ([3597934](https://github.com/vinayakkulkarni/tileserver-rs/commit/3597934d074155660f45f3bec9dd0e45dcb7bb1f))
+* **mbtiles:** detect MLT format from metadata ([cf92e8d](https://github.com/vinayakkulkarni/tileserver-rs/commit/cf92e8da8fb49dcff55a005d950b4373e41c226e))
+* **pmtiles:** auto-detect MLT format for Unknown tile type ([ed25589](https://github.com/vinayakkulkarni/tileserver-rs/commit/ed255896879ec20e9b49870e5cb20db24c748e27))
+* **server:** add zero-config auto-detect and hot-reload ([dab2b1f](https://github.com/vinayakkulkarni/tileserver-rs/commit/dab2b1fd4f8fdcc214e83cdda76c221b280b4df2)), closes [#593](https://github.com/vinayakkulkarni/tileserver-rs/issues/593)
+* **server:** version footer with git hash and build hardening ([#618](https://github.com/vinayakkulkarni/tileserver-rs/issues/618)) ([18e16a4](https://github.com/vinayakkulkarni/tileserver-rs/commit/18e16a4d91591198c27653831f74cd42949ae132))
+* **server:** zero-config auto-detect and hot-reload ([c51973a](https://github.com/vinayakkulkarni/tileserver-rs/commit/c51973ab38bdcc9bb78e052f2bd7746657e56a9d))
+* **sources:** add MLT tile format variant with detection and TileJSON encoding ([e484fb2](https://github.com/vinayakkulkarni/tileserver-rs/commit/e484fb2087476cb3c87c7d1fd491f31d904712a4))
+* **styles:** add MLT encoding to rewritten style sources ([d94bd5c](https://github.com/vinayakkulkarni/tileserver-rs/commit/d94bd5cedebfb9ca75cb3ec0fce38956906f6a36))
+* **ui:** show version and git hash in footer via /ping endpoint ([a6f01cb](https://github.com/vinayakkulkarni/tileserver-rs/commit/a6f01cbf2e04f1c96783d1c6a6273139dec622ef))
+
+
+### Bug Fixes
+
+* **docker:** copy build.rs into rust-builder stage ([2123f4b](https://github.com/vinayakkulkarni/tileserver-rs/commit/2123f4b49ee5ec264f56eca9e59e486c4fc02b86))
+* **docker:** remove duplicate -headless suffix in manifest inspect step ([aebc16a](https://github.com/vinayakkulkarni/tileserver-rs/commit/aebc16a84c8f18a6f3d5d450f29280c026e1077c))
+* **docker:** skip frontend build for headless variant ([08d669e](https://github.com/vinayakkulkarni/tileserver-rs/commit/08d669eb69e887f7a976f603a5a92dee78b1663e))
+* **server:** embed git hash at build time and fix OpenAPI version ([7134314](https://github.com/vinayakkulkarni/tileserver-rs/commit/71343144152696ac94324db16dba95697ec0cc59))
+* **server:** use library crate imports in binary to fix clippy CI ([eb3e996](https://github.com/vinayakkulkarni/tileserver-rs/commit/eb3e996e9e0cc748c1f7c110a9453837604e219f))
+* **src:** apply rust-skills best practice fixes ([22b605e](https://github.com/vinayakkulkarni/tileserver-rs/commit/22b605e2370807c000478555449ddcea5c0e541e))
+
+
+### Performance Improvements
+
+* **src:** add #[inline], #[non_exhaustive], and Vec::with_capacity for hot paths ([d767fe3](https://github.com/vinayakkulkarni/tileserver-rs/commit/d767fe363a2118f4e2418264ada35b9967853b48))
+
+
+### Documentation
+
+* add MLT format to API endpoints and feature comparison ([b504b48](https://github.com/vinayakkulkarni/tileserver-rs/commit/b504b489bb6a168b0cba72c96c8d8f7a28538feb))
+* **benchmarks:** update comparison tables with latest benchmark results ([2c65e62](https://github.com/vinayakkulkarni/tileserver-rs/commit/2c65e62f93c6b8e31640c6250119cb76dfabf4b3))
+* **guides:** add auto-detect and hot-reload documentation ([2ab3c79](https://github.com/vinayakkulkarni/tileserver-rs/commit/2ab3c79d414d1ad7ec1fc6aedd94bb04da4d995a))
+* **guides:** add PostgreSQL reload behavior to hot-reload guide ([9663f2d](https://github.com/vinayakkulkarni/tileserver-rs/commit/9663f2d955a99a76087536647e5edf6d8c2f3dff))
+* **marketing:** add MLT format to features and API endpoints ([93b2cc5](https://github.com/vinayakkulkarni/tileserver-rs/commit/93b2cc5adb9c4b87ccfb142a650f0377b7c44c97))
+
+
+### Miscellaneous
+
+* add GitHub issue templates for bug reports and feature requests ([984e349](https://github.com/vinayakkulkarni/tileserver-rs/commit/984e34972572a6c6268cbc1db5bcdff5c8129d37))
+* add rust-skills submodule for Rust best practice enforcement ([7a62de8](https://github.com/vinayakkulkarni/tileserver-rs/commit/7a62de8a985bb9c4eb1014895d04b83ab2c60e35))
+* **deps-dev:** bump agents from 0.4.1 to 0.5.0 ([f2161a6](https://github.com/vinayakkulkarni/tileserver-rs/commit/f2161a6b95be65c1bbe2175cae403f43fab6e2a1))
+* **deps-dev:** bump agents from 0.4.1 to 0.5.0 ([48f7d17](https://github.com/vinayakkulkarni/tileserver-rs/commit/48f7d171b3a82dcfdaf4602c70c57b3e1a67506d))
+* **deps-dev:** update wrangler requirement from ^4.65.0 to ^4.66.0 ([#607](https://github.com/vinayakkulkarni/tileserver-rs/issues/607)) ([da2b516](https://github.com/vinayakkulkarni/tileserver-rs/commit/da2b516ea2a12ec990dd59754e6615b69a72298a))
+* **deps:** update cargo and bun dependencies ([16e0157](https://github.com/vinayakkulkarni/tileserver-rs/commit/16e01575d76cf7136247a996d4251215aaabc627))
+* **deps:** update cargo and bun dependencies ([64fada4](https://github.com/vinayakkulkarni/tileserver-rs/commit/64fada44d6e201966efe7ecd19c00423efe2bb2d))
+* **deps:** update cargo and bun dependencies ([5083d25](https://github.com/vinayakkulkarni/tileserver-rs/commit/5083d250fbbf4f53a62d313dac90e649f41b00b2))
+* **deps:** update cargo and bun dependencies ([d464658](https://github.com/vinayakkulkarni/tileserver-rs/commit/d464658701e13bdedb1b823470ff08837cd9e4b1))
+* **docs:** bump dependencies ✨ ([a86320b](https://github.com/vinayakkulkarni/tileserver-rs/commit/a86320b54a705554625da629015a7d779fe72576))
+* **homebrew:** update formula to v2.7.1 ([51729de](https://github.com/vinayakkulkarni/tileserver-rs/commit/51729de46a699adc161951804607a1d86152a95e))
+
 ## [2.7.1](https://github.com/vinayakkulkarni/tileserver-rs/compare/v2.7.0...v2.7.1) (2026-02-11)
 
 
