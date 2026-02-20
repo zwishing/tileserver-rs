@@ -22,31 +22,26 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-mod admin;
-mod autodetect;
-mod cache_control;
 mod cli;
-mod config;
-mod error;
 mod logging;
-mod openapi;
-mod reload;
-mod render;
-mod sources;
-mod startup;
-mod styles;
 mod telemetry;
-mod wmts;
 
 use cli::Cli;
-use error::TileServerError;
-use reload::{
-    build_app_state, now_unix_seconds, AppState, ReloadController, ReloadMeta, RuntimeSettings,
-    SharedState,
+use tileserver_rs::admin;
+use tileserver_rs::autodetect;
+use tileserver_rs::cache_control;
+use tileserver_rs::config;
+use tileserver_rs::error::TileServerError;
+use tileserver_rs::openapi;
+use tileserver_rs::reload::{
+    self, build_app_state, now_unix_seconds, AppState, ReloadController, ReloadMeta,
+    RuntimeSettings, SharedState,
 };
-use render::{ImageFormat, RenderOptions, StaticQueryParams, StaticType};
-use sources::TileJson;
-use styles::{StyleInfo, UrlQueryParams};
+use tileserver_rs::render::{ImageFormat, RenderOptions, StaticQueryParams, StaticType};
+use tileserver_rs::sources::{self, TileJson};
+use tileserver_rs::startup;
+use tileserver_rs::styles::{self, StyleInfo, UrlQueryParams};
+use tileserver_rs::wmts;
 
 #[cfg(feature = "frontend")]
 #[derive(Embed)]
