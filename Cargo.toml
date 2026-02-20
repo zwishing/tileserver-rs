@@ -16,12 +16,12 @@ members = [".", "maplibre-native-sys"]
 [dependencies]
 # MapLibre Native bindings for server-side rendering
 maplibre-native-sys = { path = "maplibre-native-sys" }
-anyhow = "1.0.101"
+anyhow = "1.0.102"
 arc-swap = "1.7.1"
 async-trait = "0.1.89"
 axum = "0.8.8"
 bytes = "1.11.1"
-clap = { version = "4.5.59", features = ["derive", "env"] }
+clap = { version = "4.5.60", features = ["derive", "env"] }
 dotenvy = "0.15.7"
 futures = "0.3"
 image = { version = "0.25.9", default-features = false, features = ["png", "jpeg", "webp"] }
