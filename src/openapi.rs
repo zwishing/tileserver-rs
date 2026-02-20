@@ -166,7 +166,8 @@ pub struct ApiError {
     "loaded_sources": 3,
     "loaded_styles": 2,
     "renderer_enabled": true,
-    "version": "0.2.1"
+    "version": "2.7.1",
+    "git_hash": "9663f2d"
 }))]
 pub struct PingResponse {
     pub status: String,
@@ -176,6 +177,7 @@ pub struct PingResponse {
     pub loaded_styles: usize,
     pub renderer_enabled: bool,
     pub version: String,
+    pub git_hash: String,
 }
 
 // ============================================================
@@ -515,7 +517,9 @@ mod tests {
 
         // Check basic structure
         assert_eq!(spec.info.title, "tileserver-rs API");
-        assert_eq!(spec.info.version, "0.2.1");
+        // The version in the derive macro is a placeholder; main.rs overrides it
+        // at runtime with CARGO_PKG_VERSION. Here we just check the placeholder exists.
+        assert!(!spec.info.version.is_empty());
 
         // Check that paths exist
         let paths = spec.paths.paths;
