@@ -2,17 +2,22 @@
 //!
 //! This module exposes the core functionality for testing and embedding.
 
+pub mod admin;
+pub mod autodetect;
 pub mod cache_control;
 pub mod config;
 pub mod error;
 pub mod openapi;
+pub mod reload;
 pub mod render;
 pub mod sources;
+pub mod startup;
 pub mod styles;
 pub mod wmts;
 
 pub use config::Config;
 pub use error::{Result, TileServerError};
+pub use reload::AppState;
 pub use sources::{SourceManager, TileCompression, TileData, TileFormat, TileJson, TileSource};
 pub use styles::{rewrite_style_for_api, Style, StyleInfo, StyleManager, UrlQueryParams};
 

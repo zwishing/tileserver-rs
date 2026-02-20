@@ -31,6 +31,9 @@ host = "0.0.0.0"
 port = 8080
 # Allowed CORS origins (use ["*"] for all origins)
 cors_origins = ["*"]
+# Admin server bind address for hot-reload endpoint (default: disabled)
+# Set to a loopback address to enable: POST /__admin/reload
+# admin_bind = "127.0.0.1:9099"
 # Public URL for tile URLs in TileJSON responses (optional)
 # Use this when running behind a reverse proxy or Docker with port mapping
 # Example: If Docker maps 4000:8080, set public_url = "http://localhost:4000"
