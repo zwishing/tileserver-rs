@@ -131,8 +131,8 @@ COPY --from=maplibre-builder /build/maplibre-native/build-linux-opengl /app/mapl
 # Copy MapLibre Native headers (needed for build.rs)
 COPY maplibre-native-sys ./maplibre-native-sys
 
-# Copy Cargo files for dependency caching
-COPY Cargo.toml Cargo.lock ./
+# Copy Cargo files and build script for dependency caching
+COPY Cargo.toml Cargo.lock build.rs ./
 
 # Create dummy source file for dependency caching
 RUN mkdir src && echo "fn main() {}" > src/main.rs
