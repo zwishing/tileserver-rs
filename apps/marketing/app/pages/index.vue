@@ -52,7 +52,7 @@
       icon: Globe,
       title: 'PMTiles & MBTiles',
       description:
-        'Native support for modern PMTiles and classic MBTiles tile archives.',
+        'Native support for modern PMTiles and classic MBTiles tile archives with MVT and MLT format support.',
     },
     {
       icon: Database,
@@ -109,6 +109,7 @@
       title: 'Vector Tiles',
       endpoints: [
         { method: 'GET', path: '/data/{source}/{z}/{x}/{y}.pbf' },
+        { method: 'GET', path: '/data/{source}/{z}/{x}/{y}.mlt' },
         { method: 'GET', path: '/data/{source}.json' },
       ],
     },
