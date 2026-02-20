@@ -182,8 +182,9 @@ async fn main() -> anyhow::Result<()> {
     let mut router = Router::new().merge(api_router(shared.clone()));
 
     // Add Swagger UI at /_openapi with bundled assets (works in air-gapped environments)
-    router =
-        router.merge(SwaggerUi::new("/_openapi").url("/openapi.json", openapi::ApiDoc::openapi()));
+    let mut openapi_spec = openapi::ApiDoc::openapi();
+    openapi_spec.info.version = env!("CARGO_PKG_VERSION").to_string();
+    router = router.merge(SwaggerUi::new("/_openapi").url("/openapi.json", openapi_spec));
 
     // Add embedded SPA if UI is enabled
     #[cfg(feature = "frontend")]

@@ -91,9 +91,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install Rust and deps needed for linking
 RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
-    # Required for rustup
+    # Required for rustup and build.rs (git hash embedding)
     ca-certificates \
     curl \
+    git \
     build-essential \
     pkg-config \
     # Core libraries
