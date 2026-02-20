@@ -90,6 +90,18 @@
       description:
         'Run on your own infrastructure. No vendor lock-in, no API keys required.',
     },
+    {
+      icon: Sparkles,
+      title: 'Zero-Config Startup',
+      description:
+        'Point at a directory or file and start serving. Auto-detects PMTiles, MBTiles, styles, and fonts.',
+    },
+    {
+      icon: Terminal,
+      title: 'Hot-Reload',
+      description:
+        'Reload configuration without downtime via SIGHUP or admin API. Zero-request-drop with ArcSwap.',
+    },
   ];
 
   const apiEndpoints = [

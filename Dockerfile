@@ -91,9 +91,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install Rust and deps needed for linking
 RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
-    # Required for rustup
+    # Required for rustup and build.rs (git hash embedding)
     ca-certificates \
     curl \
+    git \
     build-essential \
     pkg-config \
     # Core libraries
@@ -130,8 +131,8 @@ COPY --from=maplibre-builder /build/maplibre-native/build-linux-opengl /app/mapl
 # Copy MapLibre Native headers (needed for build.rs)
 COPY maplibre-native-sys ./maplibre-native-sys
 
-# Copy Cargo files for dependency caching
-COPY Cargo.toml Cargo.lock ./
+# Copy Cargo files and build script for dependency caching
+COPY Cargo.toml Cargo.lock build.rs ./
 
 # Create dummy source file for dependency caching
 RUN mkdir src && echo "fn main() {}" > src/main.rs

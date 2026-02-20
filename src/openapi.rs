@@ -21,7 +21,7 @@ use utoipa::OpenApi;
         contact(name = "Vinayak Kulkarni", url = "https://github.com/vinayakkulkarni/tileserver-rs")
     ),
     tags(
-        (name = "Health", description = "Health check endpoints"),
+        (name = "Health", description = "Health check and runtime metadata endpoints"),
         (name = "Data", description = "Tile data sources: vector (PMTiles, MBTiles, PostgreSQL), raster (COG), and OutDB raster (PostGIS)"),
         (name = "Styles", description = "Map styles and raster tile rendering"),
         (name = "Fonts", description = "Font glyphs for map labels"),
@@ -29,6 +29,7 @@ use utoipa::OpenApi;
     ),
     paths(
         health_check,
+        ping_check,
         get_index,
         list_data_sources,
         get_data_source,
@@ -51,6 +52,7 @@ use utoipa::OpenApi;
         StyleInfo,
         GeoJSON,
         ApiError,
+        PingResponse,
     ))
 )]
 pub struct ApiDoc;
@@ -155,6 +157,29 @@ pub struct ApiError {
     pub error: String,
 }
 
+/// Runtime metadata from /ping
+#[derive(utoipa::ToSchema)]
+#[schema(example = json!({
+    "status": "ok",
+    "config_hash": "a1b2c3d4e5f6...",
+    "loaded_at_unix": 1700000000,
+    "loaded_sources": 3,
+    "loaded_styles": 2,
+    "renderer_enabled": true,
+    "version": "2.7.1",
+    "git_hash": "9663f2d"
+}))]
+pub struct PingResponse {
+    pub status: String,
+    pub config_hash: String,
+    pub loaded_at_unix: u64,
+    pub loaded_sources: usize,
+    pub loaded_styles: usize,
+    pub renderer_enabled: bool,
+    pub version: String,
+    pub git_hash: String,
+}
+
 // ============================================================
 // Path operations (documentation only - actual handlers in main.rs)
 // ============================================================
@@ -171,6 +196,20 @@ pub struct ApiError {
     )
 )]
 pub async fn health_check() {}
+
+/// Runtime metadata
+///
+/// Returns runtime metadata including config hash, loaded sources/styles count,
+/// renderer status, and server version. Useful for monitoring and automation.
+#[utoipa::path(
+    get,
+    path = "/ping",
+    tag = "Health",
+    responses(
+        (status = 200, description = "Runtime metadata", body = PingResponse)
+    )
+)]
+pub async fn ping_check() {}
 
 /// Get all sources and styles
 ///
@@ -478,7 +517,9 @@ mod tests {
 
         // Check basic structure
         assert_eq!(spec.info.title, "tileserver-rs API");
-        assert_eq!(spec.info.version, "0.2.1");
+        // The version in the derive macro is a placeholder; main.rs overrides it
+        // at runtime with CARGO_PKG_VERSION. Here we just check the placeholder exists.
+        assert!(!spec.info.version.is_empty());
 
         // Check that paths exist
         let paths = spec.paths.paths;
@@ -496,6 +537,7 @@ mod tests {
         // All expected endpoints
         let expected_paths = [
             "/health",
+            "/ping",
             "/index.json",
             "/data.json",
             "/data/{source}",
@@ -543,5 +585,6 @@ mod tests {
         assert!(schemas.contains_key("VectorLayer"));
         assert!(schemas.contains_key("GeoJSON"));
         assert!(schemas.contains_key("ApiError"));
+        assert!(schemas.contains_key("PingResponse"));
     }
 }
