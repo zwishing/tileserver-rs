@@ -16,7 +16,7 @@ use utoipa::OpenApi;
     info(
         title = "tileserver-rs API",
         description = "High-performance vector and raster tile server with native MapLibre rendering",
-        version = "0.2.1",
+        version = "2.8.0",
         license(name = "MIT", url = "https://github.com/vinayakkulkarni/tileserver-rs/blob/main/LICENSE"),
         contact(name = "Vinayak Kulkarni", url = "https://github.com/vinayakkulkarni/tileserver-rs")
     ),
@@ -166,8 +166,7 @@ pub struct ApiError {
     "loaded_sources": 3,
     "loaded_styles": 2,
     "renderer_enabled": true,
-    "version": "2.7.1",
-    "git_hash": "9663f2d"
+    "version": "2.8.0"
 }))]
 pub struct PingResponse {
     pub status: String,
@@ -177,7 +176,6 @@ pub struct PingResponse {
     pub loaded_styles: usize,
     pub renderer_enabled: bool,
     pub version: String,
-    pub git_hash: String,
 }
 
 // ============================================================

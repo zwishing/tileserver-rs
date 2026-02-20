@@ -6,5 +6,4 @@ export interface PingResponse {
   loaded_styles: number;
   renderer_enabled: boolean;
   version: string;
-  git_hash: string;
 }

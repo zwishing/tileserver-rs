@@ -22,7 +22,6 @@ pub struct PingResponse {
     loaded_styles: usize,
     renderer_enabled: bool,
     version: &'static str,
-    git_hash: &'static str,
 }
 
 #[derive(serde::Serialize)]
@@ -59,7 +58,6 @@ pub async fn ping_check(State(shared): State<SharedState>) -> Json<PingResponse>
         loaded_styles: meta.loaded_styles,
         renderer_enabled: meta.renderer_enabled,
         version: env!("CARGO_PKG_VERSION"),
-        git_hash: env!("GIT_HASH"),
     })
 }
 

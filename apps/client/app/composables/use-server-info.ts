@@ -5,9 +5,7 @@ export function useServerInfo() {
 
   const versionLabel = computed(() => {
     if (!data.value) return '';
-    const v = data.value.version;
-    const hash = data.value.git_hash;
-    return hash ? `v${v} (${hash})` : `v${v}`;
+    return `v${data.value.version}`;
   });
 
   return {
