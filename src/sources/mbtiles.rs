@@ -94,6 +94,7 @@ impl MbTilesSource {
                         "jpg" | "jpeg" => TileFormat::Jpeg,
                         "webp" => TileFormat::Webp,
                         "avif" => TileFormat::Avif,
+                        "mlt" | "application/vnd.maplibre-vector-tile" => TileFormat::Mlt,
                         _ => TileFormat::Pbf,
                     };
                 }

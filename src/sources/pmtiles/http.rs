@@ -49,7 +49,7 @@ impl HttpPmTilesSource {
         let header = reader.get_header();
 
         // Determine tile format
-        let format = match header.tile_type {
+        let mut format = match header.tile_type {
             TileType::Mvt => TileFormat::Pbf,
             TileType::Png => TileFormat::Png,
             TileType::Jpeg => TileFormat::Jpeg,
@@ -57,6 +57,21 @@ impl HttpPmTilesSource {
             TileType::Avif => TileFormat::Avif,
             TileType::Unknown => TileFormat::Unknown,
         };
+
+        // For Unknown tile type, probe a tile to detect MLT format
+        if format == TileFormat::Unknown {
+            if let Ok(coord) = TileCoord::new(header.min_zoom, 0, 0) {
+                if let Ok(Some(sample)) = reader.get_tile(coord).await {
+                    if crate::sources::detect_mlt_format(&sample) {
+                        format = TileFormat::Mlt;
+                        tracing::info!(
+                            "Auto-detected MLT format for source '{}' via tile probe",
+                            config.id
+                        );
+                    }
+                }
+            }
+        }
 
         // Store tile compression for later use
         let tile_compression = convert_compression(header.tile_compression);

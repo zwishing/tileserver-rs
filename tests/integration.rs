@@ -161,7 +161,7 @@ mod url_parameters {
     fn test_api_key_parameter_format() {
         let valid_keys = [
             "abc123",
-            "pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw",
+            "pk.eyJ1IjoiZmFrZSIsImEiOiJmYWtlIn0.fake_signature_for_test",
             "sk_test_123456789",
         ];
 
@@ -911,5 +911,216 @@ mod async_config_tests {
             !config.telemetry.enabled,
             "Telemetry should be disabled in test config"
         );
+    }
+}
+
+// ============================================================
+// MLT Format Integration Tests
+// ============================================================
+
+mod mlt_format_tests {
+    use tileserver_rs::{detect_mlt_format, TileFormat};
+
+    #[test]
+    fn test_mlt_format_properties() {
+        assert_eq!(
+            TileFormat::Mlt.content_type(),
+            "application/vnd.maplibre-vector-tile"
+        );
+        assert_eq!(TileFormat::Mlt.extension(), "mlt");
+        assert!(TileFormat::Mlt.is_vector());
+    }
+
+    #[test]
+    fn test_mlt_format_from_str() {
+        let format: TileFormat = "mlt".parse().unwrap();
+        assert_eq!(format, TileFormat::Mlt);
+    }
+
+    #[test]
+    fn test_detect_mlt_valid_tiles() {
+        // Minimal valid MLT: size=1 (tag only), tag=0x01
+        assert!(detect_mlt_format(&[0x01, 0x01]));
+
+        // MLT with 3-byte payload: size=4 (tag + 3 bytes)
+        assert!(detect_mlt_format(&[0x04, 0x01, 0xAA, 0xBB, 0xCC]));
+    }
+
+    #[test]
+    fn test_detect_mlt_rejects_non_mlt() {
+        assert!(!detect_mlt_format(&[]));
+        assert!(!detect_mlt_format(&[0x00]));
+        // gzip magic
+        assert!(!detect_mlt_format(&[0x1f, 0x8b]));
+        // protobuf field 1, wire type 2
+        assert!(!detect_mlt_format(&[0x0a]));
+    }
+
+    #[test]
+    fn test_mlt_tilejson_encoding() {
+        use tileserver_rs::sources::TileMetadata;
+
+        let metadata = TileMetadata {
+            id: "test-mlt".to_string(),
+            name: "Test MLT".to_string(),
+            description: None,
+            attribution: None,
+            format: TileFormat::Mlt,
+            minzoom: 0,
+            maxzoom: 14,
+            bounds: None,
+            center: None,
+            vector_layers: None,
+        };
+
+        let tilejson = metadata.to_tilejson("http://localhost:8080");
+        assert_eq!(tilejson.encoding.as_deref(), Some("mlt"));
+        assert!(tilejson.tiles[0].ends_with("/{z}/{x}/{y}.mlt"));
+    }
+
+    #[test]
+    fn test_pbf_tilejson_no_encoding() {
+        use tileserver_rs::sources::TileMetadata;
+
+        let metadata = TileMetadata {
+            id: "test-pbf".to_string(),
+            name: "Test PBF".to_string(),
+            description: None,
+            attribution: None,
+            format: TileFormat::Pbf,
+            minzoom: 0,
+            maxzoom: 14,
+            bounds: None,
+            center: None,
+            vector_layers: None,
+        };
+
+        let tilejson = metadata.to_tilejson("http://localhost:8080");
+        assert!(tilejson.encoding.is_none());
+        assert!(tilejson.tiles[0].ends_with("/{z}/{x}/{y}.pbf"));
+    }
+}
+
+mod mlt_mbtiles_tests {
+    use rusqlite::Connection;
+    use tempfile::NamedTempFile;
+    use tileserver_rs::config::{SourceConfig, SourceType};
+    use tileserver_rs::{TileFormat, TileSource};
+
+    fn create_mlt_mbtiles() -> NamedTempFile {
+        let tmp = NamedTempFile::new().expect("Should create temp file");
+        let conn = Connection::open(tmp.path()).expect("Should open SQLite");
+
+        conn.execute_batch(
+            "CREATE TABLE metadata (name TEXT, value TEXT);
+             INSERT INTO metadata VALUES ('name', 'Test MLT');
+             INSERT INTO metadata VALUES ('format', 'mlt');
+             INSERT INTO metadata VALUES ('minzoom', '0');
+             INSERT INTO metadata VALUES ('maxzoom', '2');
+             INSERT INTO metadata VALUES ('bounds', '-180,-85,180,85');
+             INSERT INTO metadata VALUES ('center', '0,0,0');
+             CREATE TABLE tiles (zoom_level INTEGER, tile_column INTEGER, tile_row INTEGER, tile_data BLOB);
+             INSERT INTO tiles VALUES (0, 0, 0, x'0101');",
+        )
+        .expect("Should create MLT MBTiles schema");
+
+        tmp
+    }
+
+    fn mlt_source_config(path: &str) -> SourceConfig {
+        SourceConfig {
+            id: "test-mlt".to_string(),
+            source_type: SourceType::MBTiles,
+            path: path.to_string(),
+            name: Some("Test MLT Source".to_string()),
+            attribution: None,
+            resampling: None,
+            #[cfg(feature = "raster")]
+            colormap: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_mbtiles_detects_mlt_format() {
+        let tmp = create_mlt_mbtiles();
+        let config = mlt_source_config(tmp.path().to_str().unwrap());
+
+        let source = tileserver_rs::sources::mbtiles::MbTilesSource::from_file(&config)
+            .await
+            .expect("Should load MLT MBTiles source");
+
+        assert_eq!(source.metadata().format, TileFormat::Mlt);
+    }
+
+    #[tokio::test]
+    async fn test_mbtiles_mlt_tile_serving() {
+        let tmp = create_mlt_mbtiles();
+        let config = mlt_source_config(tmp.path().to_str().unwrap());
+
+        let source = tileserver_rs::sources::mbtiles::MbTilesSource::from_file(&config)
+            .await
+            .expect("Should load MLT MBTiles source");
+
+        let tile = source
+            .get_tile(0, 0, 0)
+            .await
+            .expect("Should not error")
+            .expect("Tile 0/0/0 should exist");
+
+        assert_eq!(tile.format, TileFormat::Mlt);
+        assert_eq!(&*tile.data, &[0x01, 0x01]);
+    }
+
+    #[tokio::test]
+    async fn test_mbtiles_mlt_tilejson_has_encoding() {
+        let tmp = create_mlt_mbtiles();
+        let config = mlt_source_config(tmp.path().to_str().unwrap());
+
+        let source = tileserver_rs::sources::mbtiles::MbTilesSource::from_file(&config)
+            .await
+            .expect("Should load MLT MBTiles source");
+
+        let tilejson = source.metadata().to_tilejson("http://localhost:8080");
+
+        assert_eq!(tilejson.encoding.as_deref(), Some("mlt"));
+        assert!(tilejson.tiles[0].ends_with("/{z}/{x}/{y}.mlt"));
+    }
+
+    #[tokio::test]
+    async fn test_mbtiles_mlt_missing_tile_returns_none() {
+        let tmp = create_mlt_mbtiles();
+        let config = mlt_source_config(tmp.path().to_str().unwrap());
+
+        let source = tileserver_rs::sources::mbtiles::MbTilesSource::from_file(&config)
+            .await
+            .expect("Should load MLT MBTiles source");
+
+        let tile = source.get_tile(1, 0, 0).await.expect("Should not error");
+
+        assert!(tile.is_none(), "Non-existent tile should return None");
+    }
+
+    #[tokio::test]
+    async fn test_mbtiles_mime_type_string_detects_mlt() {
+        let tmp = NamedTempFile::new().expect("Should create temp file");
+        let conn = Connection::open(tmp.path()).expect("Should open SQLite");
+
+        conn.execute_batch(
+            "CREATE TABLE metadata (name TEXT, value TEXT);
+             INSERT INTO metadata VALUES ('name', 'MIME MLT');
+             INSERT INTO metadata VALUES ('format', 'application/vnd.maplibre-vector-tile');
+             INSERT INTO metadata VALUES ('minzoom', '0');
+             INSERT INTO metadata VALUES ('maxzoom', '0');
+             CREATE TABLE tiles (zoom_level INTEGER, tile_column INTEGER, tile_row INTEGER, tile_data BLOB);
+             INSERT INTO tiles VALUES (0, 0, 0, x'0101');",
+        )
+        .expect("Should create schema");
+
+        let config = mlt_source_config(tmp.path().to_str().unwrap());
+        let source = tileserver_rs::sources::mbtiles::MbTilesSource::from_file(&config)
+            .await
+            .expect("Should load source with MIME type format");
+
+        assert_eq!(source.metadata().format, TileFormat::Mlt);
     }
 }

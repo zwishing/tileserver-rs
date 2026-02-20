@@ -10,6 +10,7 @@ export interface Data {
   tiles: string[];
   name: string;
   format: string;
+  encoding?: string;
   basename: string;
   id: string;
   type: string;
@@ -19,7 +20,6 @@ export interface Data {
   maxzoom: number;
   bounds: number[];
   center: number[];
-  /** Vector layers - only present for vector tile sources (PMTiles, MBTiles) */
   vector_layers?: VectorLayer[];
 }
 

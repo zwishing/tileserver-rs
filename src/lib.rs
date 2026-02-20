@@ -18,7 +18,9 @@ pub mod wmts;
 pub use config::Config;
 pub use error::{Result, TileServerError};
 pub use reload::AppState;
-pub use sources::{SourceManager, TileCompression, TileData, TileFormat, TileJson, TileSource};
+pub use sources::{
+    detect_mlt_format, SourceManager, TileCompression, TileData, TileFormat, TileJson, TileSource,
+};
 pub use styles::{rewrite_style_for_api, Style, StyleInfo, StyleManager, UrlQueryParams};
 
 #[cfg(feature = "postgres")]
