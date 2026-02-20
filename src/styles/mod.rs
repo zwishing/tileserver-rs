@@ -388,6 +388,10 @@ fn rewrite_source(
     source_obj.remove("url");
     source_obj.insert("tiles".to_string(), serde_json::json!([tile_url]));
 
+    if metadata.format == crate::sources::TileFormat::Mlt {
+        source_obj.insert("encoding".to_string(), serde_json::json!("mlt"));
+    }
+
     // Add additional metadata if not already present
     if !source_obj.contains_key("minzoom") {
         source_obj.insert("minzoom".to_string(), serde_json::json!(metadata.minzoom));
