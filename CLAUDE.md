@@ -524,11 +524,18 @@ path = "/data/styles/osm-bright/style.json"
 
 ## API Endpoints
 
+### Health & Admin Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Health check (returns `OK`) |
+| `GET /ping` | Runtime metadata (config hash, loaded sources/styles, version) |
+| `POST /__admin/reload` | Hot-reload configuration (admin server only) |
+
 ### Data Endpoints (Vector Tiles)
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /health` | Health check |
 | `GET /data.json` | List all tile sources |
 | `GET /data/{source}.json` | TileJSON for a source |
 | `GET /data/{source}/{z}/{x}/{y}.{format}` | Get a vector tile |

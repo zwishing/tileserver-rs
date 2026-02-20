@@ -14,6 +14,8 @@ High-performance vector tile server built in Rust with a modern Nuxt 4 frontend.
 - **Native Raster Rendering** - Generate PNG/JPEG/WebP tiles using MapLibre Native (C++ FFI)
 - **PostgreSQL Out-DB Rasters** - Serve VRT/COG tiles via PostGIS functions with dynamic filtering
 - **Static Map Images** - Create embeddable map screenshots (like Mapbox/Maptiler Static API)
+- **Zero-Config Auto-Detect** - Point at a directory or file and start serving instantly
+- **Hot Reload** - Reload configuration via `SIGHUP` signal or admin API without downtime
 - **High Performance** - ~100ms per tile (warm cache), ~800ms cold cache
 - **TileJSON 3.0** - Full TileJSON metadata API
 - **MapLibre GL JS** - Built-in map viewer and data inspector
@@ -89,13 +91,17 @@ You should see `Building with real MapLibre Native renderer` in the build output
 ## Quick Start
 
 ```bash
+# Zero-config: point at a directory of tile files
+./tileserver-rs /path/to/data
+
+# Or with an explicit config file
+./tileserver-rs --config config.toml
+
 # Using Docker
 docker compose up -d
-
-# Or build from source
-cargo build --release
-./target/release/tileserver-rs --config config.toml
 ```
+
+The server auto-detects `.pmtiles`, `.mbtiles`, `style.json`, fonts, and GeoJSON files from the given path. See the [Auto-Detect Guide](https://docs.tileserver.app/guides/auto-detect) for details.
 
 ## Installation
 
@@ -206,6 +212,8 @@ files = "/data/files"
 host = "0.0.0.0"
 port = 8080
 cors_origins = ["*", "https://example.com"]  # Supports multiple origins
+# Admin server bind address for hot-reload endpoint (default: disabled)
+# admin_bind = "127.0.0.1:9099"
 
 [telemetry]
 enabled = false
@@ -238,15 +246,34 @@ schema = "public"
 name = "Satellite Imagery"
 ```
 
+### Admin Server (Hot Reload)
+
+Enable the admin server by setting `admin_bind` in `[server]`:
+
+```toml
+[server]
+admin_bind = "127.0.0.1:9099"
+```
+
+This exposes `POST /__admin/reload` on a separate port for reloading configuration without restarting the server. You can also send `SIGHUP` to the process for the same effect. See the [Hot Reload Guide](https://docs.tileserver.app/guides/hot-reload) for details.
+
 See [config.example.toml](./config.example.toml) for a complete example, or [config.offline.toml](./config.offline.toml) for a local development setup.
 
 ## API Endpoints
+
+### Health & Admin Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Health check (returns `OK`) |
+| `GET /ping` | Runtime metadata (config hash, loaded sources/styles, version) |
+| `POST /__admin/reload` | Hot-reload configuration (admin server only) |
+| `POST /__admin/reload?flush=true` | Force reload even if config unchanged |
 
 ### Data Endpoints (Vector Tiles)
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /health` | Health check |
 | `GET /data.json` | List all tile sources |
 | `GET /data/{source}.json` | TileJSON for a source |
 | `GET /data/{source}/{z}/{x}/{y}.{format}` | Get a vector tile (`.pbf`, `.mvt`) |
@@ -360,8 +387,12 @@ tileserver-rs/
 │   └── vendor/maplibre-native/  # MapLibre Native source (submodule)
 ├── src/                     # Rust backend
 │   ├── main.rs              # Entry point, routes
+│   ├── admin.rs             # Admin server + /ping endpoint
+│   ├── autodetect.rs        # Zero-config auto-detection
 │   ├── config.rs            # Configuration
 │   ├── error.rs             # Error types
+│   ├── reload.rs            # Hot-reload (ArcSwap + SIGHUP)
+│   ├── startup.rs           # Config resolution priority chain
 │   ├── render/              # Native MapLibre rendering
 │   │   ├── pool.rs          # Renderer pool (per scale factor)
 │   │   ├── renderer.rs      # High-level render API

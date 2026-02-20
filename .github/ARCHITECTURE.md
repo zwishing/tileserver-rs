@@ -7,19 +7,31 @@ This document describes the build and release architecture for tileserver-rs.
 tileserver-rs is distributed as a **single self-contained binary**, similar to [martin](https://maplibre.org/martin/) and [tileserver-gl](https://tileserver.readthedocs.io/). The web UI (Nuxt SPA) is embedded directly into the Rust binary at compile time using `rust-embed`.
 
 ```
-┌─────────────────────────────────────────┐
-│           tileserver-rs binary          │
-├─────────────────────────────────────────┤
-│  ┌───────────────┐  ┌────────────────┐  │
-│  │  Tile Server  │  │  Embedded SPA  │  │
-│  │    (Axum)     │  │    (Nuxt)      │  │
-│  │               │  │                │  │
-│  │  /health      │  │  /             │  │
-│  │  /data.json   │  │  /styles/:id   │  │
-│  │  /data/:id/.. │  │  /data/:id     │  │
-│  └───────────────┘  └────────────────┘  │
-└─────────────────────────────────────────┘
-         Single port (default: 8080)
+┌──────────────────────────────────────────────────────┐
+│                  tileserver-rs binary                 │
+├──────────────────────────────────────────────────────┤
+│  ┌───────────────┐  ┌────────────────┐               │
+│  │  Tile Server  │  │  Embedded SPA  │               │
+│  │    (Axum)     │  │    (Nuxt)      │               │
+│  │               │  │                │               │
+│  │  /health      │  │  /             │               │
+│  │  /ping        │  │  /styles/:id   │               │
+│  │  /data.json   │  │  /data/:id     │               │
+│  │  /data/:id/.. │  │                │               │
+│  └───────────────┘  └────────────────┘               │
+│         Main port (default: 8080)                    │
+│                                                      │
+│  ┌──────────────────────────────────┐                │
+│  │  Admin Server (optional)        │                │
+│  │  POST /__admin/reload           │                │
+│  │  Separate port (admin_bind)     │                │
+│  └──────────────────────────────────┘                │
+│                                                      │
+│  ┌──────────────────────────────────┐                │
+│  │  Hot Reload (SIGHUP handler)    │                │
+│  │  ArcSwap-based state swap       │                │
+│  └──────────────────────────────────┘                │
+└──────────────────────────────────────────────────────┘
 ```
 
 ## Supported Platforms
@@ -89,28 +101,42 @@ tileserver-rs-windows-x64.zip.sha256
 curl -LO https://github.com/.../tileserver-rs-macos-arm64.tar.gz
 tar -xzf tileserver-rs-macos-arm64.tar.gz
 
-# Run (UI enabled by default)
-./tileserver-rs-macos-arm64 --config config.toml
+# Zero-config: auto-detect sources from a directory
+./tileserver-rs /path/to/data
+
+# Run with explicit config (UI enabled by default)
+./tileserver-rs --config config.toml
 
 # Run without UI (API only)
-./tileserver-rs-macos-arm64 --no-ui --config config.toml
+./tileserver-rs --no-ui --config config.toml
 ```
 
 ## CLI Options
 
 ```
-tileserver-rs [OPTIONS]
+tileserver-rs [PATH] [OPTIONS]
+
+Arguments:
+  [PATH]  Path to a tile file or directory to auto-detect sources/styles from
 
 Options:
-  -c, --config <FILE>   Path to configuration file
-      --host <HOST>     Host to bind to [env: TILESERVER_HOST]
-  -p, --port <PORT>     Port to bind to [env: TILESERVER_PORT]
-      --ui              Enable the web UI (default: true)
-      --no-ui           Disable the web UI
-  -v, --verbose         Enable verbose logging
-  -h, --help            Print help
-  -V, --version         Print version
+  -c, --config <FILE>       Path to configuration file [env: TILESERVER_CONFIG]
+      --host <HOST>         Host to bind to [env: TILESERVER_HOST]
+  -p, --port <PORT>         Port to bind to [env: TILESERVER_PORT]
+      --public-url <URL>    Public URL for tile URLs in TileJSON [env: TILESERVER_PUBLIC_URL]
+      --ui                  Enable the web UI (default: true) [env: TILESERVER_UI]
+      --no-ui               Disable the web UI
+  -v, --verbose             Enable verbose logging
+  -h, --help                Print help
+  -V, --version             Print version
 ```
+
+### Config Resolution Priority
+
+1. `--config <FILE>` — explicit config path (fail-fast if missing)
+2. Positional `PATH` — auto-detect from that path
+3. Default locations: `./config.toml`, `/etc/tileserver-rs/config.toml`
+4. CWD auto-detect — scan current directory
 
 ## Workflow Files
 
