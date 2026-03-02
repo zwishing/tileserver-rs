@@ -13,7 +13,7 @@
       "vue-tsc": "^3.2.5",
       "typescript": "^5.9.3",
       "oxlint": "^1.51.0",
-      "oxfmt": "^0.33.0",
+      "oxfmt": "^0.36.0",
       "nuxt": "^4.3.1",
       "maplibre-gl": "^5.19.0",
       "@nuxtjs/color-mode": "^4.0.0",
@@ -22,7 +22,7 @@
       "motion-v": "^2.0.0",
       "class-variance-authority": "^0.7.1",
       "clsx": "^2.1.1",
-      "lucide-vue-next": "^0.564.0",
+      "lucide-vue-next": "^0.576.0",
       "radix-vue": "^1.9.17",
       "reka-ui": "^2.8.2",
       "tailwind-merge": "^3.5.0",
@@ -51,7 +51,7 @@
         "@luma.gl/engine": "^9.2.6",
         "@maplibre/maplibre-gl-inspect": "^1.8.2",
         "@tanstack/query-db-collection": "^1.0.27",
-        "@tanstack/vue-db": "^0.0.103",
+        "@tanstack/vue-db": "^0.0.107",
         "@tanstack/vue-query": "^5.92.9"
       },
       "marketing": {
