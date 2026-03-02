@@ -17,7 +17,7 @@ members = [".", "maplibre-native-sys"]
 # MapLibre Native bindings for server-side rendering
 maplibre-native-sys = { path = "maplibre-native-sys" }
 anyhow = "1.0.102"
-arc-swap = "1.7.1"
+arc-swap = "1.8.2"
 async-trait = "0.1.89"
 axum = "0.8.8"
 bytes = "1.11.1"
@@ -28,7 +28,7 @@ image = { version = "0.25.9", default-features = false, features = ["png", "jpeg
 mime_guess = "2.0.5"
 pmtiles = { version = "0.19.2", default-features = false, features = ["http-async", "mmap-async-tokio", "tilejson"] }
 reqwest = { version = "0.13.2", default-features = false, features = ["rustls"] }
-shellexpand = { version = "3.1.1", default-features = false, features = ["base-0"] }
+shellexpand = { version = "3.1.2", default-features = false, features = ["base-0"] }
 rust-embed = { version = "8.11.0", features = ["axum"], optional = true }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
