@@ -46,12 +46,14 @@ export type { TanStackUIMessage as UIMessage };
  * WebLLM model configuration
  */
 export interface LlmModelConfig {
-  /** Model identifier for WebLLM (e.g., 'Qwen2.5-3B-Instruct-q4f16_1-MLC') */
+  /** Model identifier for WebLLM (e.g., 'Hermes-3-Llama-3.1-8B-q4f16_1-MLC') */
   id: string;
   /** Human-readable display name */
   name: string;
   /** Approximate download size in GB */
   sizeGb: number;
+  /** Whether this model supports native tool calling (Hermes models do) */
+  supportsTools: boolean;
 }
 
 /**
@@ -74,16 +76,7 @@ export type LlmEngineStatus = 'idle' | 'loading' | 'ready' | 'error';
 // ============================================================================
 
 /**
- * Map tool definition for LLM tool calling
- */
-export interface MapToolDefinition {
-  name: string;
-  description: string;
-  parameters: Record<string, unknown>;
-}
-
-/**
- * Map tool call result
+ * Map tool call result from client tool execution
  */
 export interface MapToolResult {
   toolCallId: string;

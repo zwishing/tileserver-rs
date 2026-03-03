@@ -12,22 +12,31 @@ import { CreateMLCEngine } from '@mlc-ai/web-llm';
 import type { MLCEngine } from '@mlc-ai/web-llm';
 import type { LlmEngineStatus, LlmLoadProgress, LlmModelConfig } from '~/types/llm';
 
-/** Available models for the chat */
+/** Available models for the chat — Hermes models support native tool calling */
 const AVAILABLE_MODELS: LlmModelConfig[] = [
   {
+    id: 'Hermes-3-Llama-3.1-8B-q4f16_1-MLC',
+    name: 'Hermes 3 8B (recommended, tools)',
+    sizeGb: 4.9,
+    supportsTools: true,
+  },
+  {
+    id: 'Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC',
+    name: 'Hermes 2 Pro 8B (tools)',
+    sizeGb: 5.0,
+    supportsTools: true,
+  },
+  {
     id: 'Qwen2.5-3B-Instruct-q4f16_1-MLC',
-    name: 'Qwen 2.5 3B (recommended)',
+    name: 'Qwen 2.5 3B (lightweight, no tools)',
     sizeGb: 2.0,
+    supportsTools: false,
   },
   {
     id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
-    name: 'Qwen 2.5 1.5B (lightweight)',
+    name: 'Qwen 2.5 1.5B (minimal, no tools)',
     sizeGb: 1.0,
-  },
-  {
-    id: 'Llama-3.2-3B-Instruct-q4f16_1-MLC',
-    name: 'Llama 3.2 3B',
-    sizeGb: 2.0,
+    supportsTools: false,
   },
 ];
 

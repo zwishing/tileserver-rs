@@ -47,16 +47,17 @@ const SUGGESTIONS: SuggestedPrompt[] = [
 
 /**
  * Extract text content from TanStack AI message parts.
- * Strips [MAP_ACTION] blocks from the display text.
  * Accepts readonly array to support DeepReadonly messages from useChat.
+ * For tool-capable models, text is clean. For fallback models,
+ * strips [MAP_ACTION] blocks from the display text.
  */
 export function getTextContent(parts: readonly MessagePart[]): string {
   const raw = parts
     .filter((part) => part.type === 'text')
     .map((part) => (part as { type: 'text'; content: string }).content)
     .join('');
-  // Strip complete [MAP_ACTION]{...}[/MAP_ACTION] blocks from displayed text
-  // Also strip trailing incomplete [MAP_ACTION]... that hasn't closed yet (during streaming)
+  // Strip [MAP_ACTION] blocks from non-tool model output (Qwen fallback)
+  // For tool-capable models (Hermes), these blocks won't exist
   return raw
     .replace(/\[MAP_ACTION\]\{[\s\S]*?\}\[\/MAP_ACTION\]/g, '')
     .replace(/\[MAP_ACTION\][\s\S]*$/g, '')

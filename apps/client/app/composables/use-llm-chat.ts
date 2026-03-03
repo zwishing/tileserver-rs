@@ -5,92 +5,41 @@
  * Uses the `stream()` adapter to convert WebLLM's OpenAI-compatible
  * streaming output to AG-UI protocol events.
  *
- * @see https://tanstack.com/ai/latest
+ * Tool-capable models (Hermes) use native tool calling via `toolDefinition().client()`.
+ * Non-tool models (Qwen) use text-based [MAP_ACTION] blocks as fallback.
+ *
+ * @see https://tanstack.com/ai/latest/docs/guides/client-tools
  * @see https://webllm.mlc.ai/
  */
 
 import { useChat, stream } from '@tanstack/ai-vue';
-import type { UseChatReturn, UIMessage } from '@tanstack/ai-vue';
+import type { UIMessage } from '@tanstack/ai-vue';
+import type { MessagePart } from '@tanstack/ai';
 import type { Map as MaplibreMap } from 'maplibre-gl';
+import { createMapClientTools, WEBLLM_TOOLS } from '~/lib/map-tools';
+import type { UseChatReturn } from '~/types/llm';
 
 /**
- * Map tool definitions for OpenAI-compatible tool calling.
- * These let the LLM interact with the MapLibre GL map instance.
- */
-const MAP_TOOLS = [
-  {
-    type: 'function' as const,
-    function: {
-      name: 'fly_to',
-      description: 'Animate the map camera to a specific location',
-      parameters: {
-        type: 'object',
-        properties: {
-          lng: { type: 'number', description: 'Longitude (-180 to 180)' },
-          lat: { type: 'number', description: 'Latitude (-90 to 90)' },
-          zoom: { type: 'number', description: 'Zoom level (0-22)', default: 12 },
-          bearing: { type: 'number', description: 'Bearing in degrees', default: 0 },
-          pitch: { type: 'number', description: 'Pitch in degrees (0-85)', default: 0 },
-        },
-        required: ['lng', 'lat'],
-      },
-    },
-  },
-  {
-    type: 'function' as const,
-    function: {
-      name: 'fit_bounds',
-      description: 'Fit the map camera to a bounding box',
-      parameters: {
-        type: 'object',
-        properties: {
-          west: { type: 'number', description: 'West longitude' },
-          south: { type: 'number', description: 'South latitude' },
-          east: { type: 'number', description: 'East longitude' },
-          north: { type: 'number', description: 'North latitude' },
-          padding: { type: 'number', description: 'Padding in pixels', default: 50 },
-        },
-        required: ['west', 'south', 'east', 'north'],
-      },
-    },
-  },
-  {
-    type: 'function' as const,
-    function: {
-      name: 'get_map_state',
-      description: 'Get the current map center, zoom, bearing, pitch, and visible layers',
-      parameters: {
-        type: 'object',
-        properties: {},
-      },
-    },
-  },
-];
-
-/**
- * Model prefixes known to support tool calling in WebLLM.
- * WebLLM throws "not supported for ChatCompletionRequest.tools" for others.
- * @see https://webllm.mlc.ai/
- */
-const TOOL_CAPABLE_PREFIXES = [
-  'Hermes-2-Pro-',
-  'Hermes-3-Llama-',
-];
-
-function modelSupportsTools(modelId: string): boolean {
-  return TOOL_CAPABLE_PREFIXES.some((prefix) => modelId.startsWith(prefix));
-}
-
-/**
- * System prompt for tool-capable models (Hermes)
+ * System prompt for tool-capable models (Hermes).
+ * These models use native OpenAI-format tool calling.
  */
 const SYSTEM_PROMPT_WITH_TOOLS = `You are a helpful map assistant embedded in tileserver-rs, a vector tile server.
-You can help users explore the map by flying to locations, adjusting the view, and answering questions about geography.
+You can help users explore the map by flying to locations, adjusting the view, querying features, and modifying styles.
+
+Available tools:
+- fly_to: Navigate to a specific location
+- fit_bounds: Fit the view to a bounding box
+- get_map_state: Get current map state (center, zoom, layers)
+- set_layer_visibility: Show or hide a layer
+- set_layer_paint: Change a layer's paint property (color, opacity, etc.)
+- set_layer_filter: Apply a filter expression to a layer
+- query_rendered_features: Query visible features in the viewport
+- add_highlight: Temporarily highlight features matching a filter
+- generate_style: Apply multiple style changes from a description
 
 When users ask to see a place, use fly_to with coordinates.
 When users ask to see a region, use fit_bounds with a bounding box.
-Use get_map_state to understand what the user is currently looking at.
-
+Use get_map_state to understand what the user is currently looking at before making changes.
 Keep responses concise and helpful. You're a map expert.`;
 
 /**
@@ -114,20 +63,93 @@ ALWAYS include the [MAP_ACTION] block when the user asks to go somewhere, fly to
 Keep responses concise and helpful. You're a map expert.`;
 
 /**
- * Extract text content from a UIMessage
+ * Convert TanStack AI UIMessage parts to OpenAI-format messages for WebLLM.
+ *
+ * Handles three part types:
+ * - text → { role, content }
+ * - tool-call → { role: 'assistant', tool_calls: [...] }
+ * - tool-result → { role: 'tool', tool_call_id, content }
+ */
+function convertMessagesToOpenAI(
+  messages: UIMessage[],
+  systemPrompt: string,
+): Array<{ role: string; content: string; tool_calls?: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }>; tool_call_id?: string }> {
+  const result: Array<{ role: string; content: string; tool_calls?: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }>; tool_call_id?: string }> = [
+    { role: 'system', content: systemPrompt },
+  ];
+
+  for (const msg of messages) {
+    // Group parts by type for each message
+    const textParts: string[] = [];
+    const toolCallParts: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }> = [];
+    const toolResultParts: Array<{ toolCallId: string; result: unknown }> = [];
+
+    for (const part of msg.parts as MessagePart[]) {
+      switch (part.type) {
+        case 'text':
+          textParts.push(part.content);
+          break;
+        case 'tool-call':
+          toolCallParts.push({
+            id: part.toolCallId,
+            type: 'function',
+            function: {
+              name: part.toolName,
+              arguments: JSON.stringify(part.args),
+            },
+          });
+          break;
+        case 'tool-result':
+          toolResultParts.push({
+            toolCallId: part.toolCallId,
+            result: part.result,
+          });
+          break;
+      }
+    }
+
+    // Emit text content as a regular message
+    if (textParts.length > 0) {
+      result.push({ role: msg.role, content: textParts.join('') });
+    }
+
+    // Emit tool calls as assistant message with tool_calls
+    if (toolCallParts.length > 0) {
+      result.push({
+        role: 'assistant',
+        content: '',
+        tool_calls: toolCallParts,
+      });
+    }
+
+    // Emit tool results as individual tool messages
+    for (const tr of toolResultParts) {
+      result.push({
+        role: 'tool',
+        content: JSON.stringify(tr.result),
+        tool_call_id: tr.toolCallId,
+      });
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Extract text content from a UIMessage (for non-tool fallback)
  */
 function extractText(message: UIMessage): string {
   return message.parts
-    .filter((p) => p.type === 'text')
-    .map((p) => (p as { type: 'text'; content: string }).content)
+    .filter((p): p is { type: 'text'; content: string } => p.type === 'text')
+    .map((p) => p.content)
     .join('');
 }
 
 /**
  * Parse [MAP_ACTION]{...}[/MAP_ACTION] blocks from LLM response text.
- * Returns parsed action objects and the cleaned text without action blocks.
+ * Used as fallback for non-tool models (Qwen).
  */
-function parseMapActions(text: string): { actions: Array<{ action: string } & Record<string, unknown>>; cleanText: string } {
+function parseMapActions(text: string): Array<{ action: string } & Record<string, unknown>> {
   const regex = /\[MAP_ACTION\](\{[\s\S]*?\})\[\/MAP_ACTION\]/g;
   const actions: Array<{ action: string } & Record<string, unknown>> = [];
   let match: RegExpExecArray | null;
@@ -143,79 +165,77 @@ function parseMapActions(text: string): { actions: Array<{ action: string } & Re
     }
   }
 
-  // Remove action blocks from displayed text
-  const cleanText = text.replace(/\[MAP_ACTION\]\{[\s\S]*?\}\[\/MAP_ACTION\]/g, '').trim();
-
-  return { actions, cleanText };
+  return actions;
 }
 
 /**
- * Execute a map tool call against the MapLibre instance
+ * Execute a text-based map action (fallback for non-tool models).
+ * Only handles fly_to and fit_bounds — the basic text-based tools.
  */
-function executeMapTool(
-  toolName: string,
-  args: Record<string, unknown>,
+function executeFallbackAction(
+  action: { action: string } & Record<string, unknown>,
   map: MaplibreMap | null,
-): unknown {
-  if (!map) return { error: 'Map not available' };
+): string {
+  if (!map) return 'Map not available';
 
-  switch (toolName) {
+  switch (action.action) {
     case 'fly_to': {
-      const { lng, lat, zoom = 12, bearing = 0, pitch = 0 } = args as {
-        lng: number;
-        lat: number;
-        zoom?: number;
-        bearing?: number;
-        pitch?: number;
-      };
+      const lng = Number(action.lng);
+      const lat = Number(action.lat);
+      const zoom = Number(action.zoom ?? 12);
+      const bearing = Number(action.bearing ?? 0);
+      const pitch = Number(action.pitch ?? 0);
       map.flyTo({ center: [lng, lat], zoom, bearing, pitch, duration: 2000 });
-      return { success: true, message: `Flying to [${lng}, ${lat}] at zoom ${zoom}` };
+      return `Flying to [${lng}, ${lat}] at zoom ${zoom}`;
     }
     case 'fit_bounds': {
-      const { west, south, east, north, padding = 50 } = args as {
-        west: number;
-        south: number;
-        east: number;
-        north: number;
-        padding?: number;
-      };
+      const west = Number(action.west);
+      const south = Number(action.south);
+      const east = Number(action.east);
+      const north = Number(action.north);
+      const padding = Number(action.padding ?? 50);
       map.fitBounds([[west, south], [east, north]], { padding, duration: 2000 });
-      return { success: true, message: `Fitting to bounds [${west},${south},${east},${north}]` };
-    }
-    case 'get_map_state': {
-      const center = map.getCenter();
-      const zoom = map.getZoom();
-      const bearing = map.getBearing();
-      const pitch = map.getPitch();
-      const layers = map.getStyle()?.layers?.map((l) => l.id).slice(0, 20) ?? [];
-      return {
-        center: { lng: center.lng, lat: center.lat },
-        zoom: Math.round(zoom * 100) / 100,
-        bearing: Math.round(bearing),
-        pitch: Math.round(pitch),
-        visibleLayers: layers,
-      };
+      return `Fitting to bounds [${west},${south},${east},${north}]`;
     }
     default:
-      return { error: `Unknown tool: ${toolName}` };
+      return `Unknown action: ${action.action}`;
   }
 }
 
 /**
  * Composable for LLM chat with map tool integration.
  *
- * Creates a TanStack AI `useChat` instance connected to WebLLM
- * via the `stream()` adapter. Supports map tool calling.
+ * For tool-capable models (Hermes):
+ *   - Creates client tools via `toolDefinition().client()` from map-tools.ts
+ *   - Passes tools to `useChat({ tools })` for auto-execution
+ *   - WebLLM receives WEBLLM_TOOLS in OpenAI format
+ *   - useChat auto-executes matching client tools and re-invokes adapter with results
+ *
+ * For non-tool models (Qwen):
+ *   - Uses text-based [MAP_ACTION] blocks
+ *   - Parses and executes actions after streaming completes
  *
  * @param mapRef - Ref to the MapLibre GL map instance
  */
 export function useLlmChat(mapRef: Ref<MaplibreMap | null>): UseChatReturn {
   const { engine, status, selectedModel } = useLlmEngine();
 
+  // Create client tools bound to the map ref
+  const clientTools = createMapClientTools(() => mapRef.value);
+
   /**
    * Create the connection adapter that bridges WebLLM → AG-UI events.
-   * The `stream()` helper from @tanstack/ai-vue converts an async generator
-   * into a ConnectionAdapter compatible with useChat.
+   * The `stream()` helper converts an async generator into a ConnectionAdapter.
+   *
+   * For tool-capable models:
+   *   - Passes WEBLLM_TOOLS to engine.chat.completions.create()
+   *   - Yields TOOL_CALL_START/ARGS/END events for tool calls
+   *   - useChat auto-executes matching client tools
+   *   - useChat re-invokes this adapter with updated messages (incl. tool results)
+   *
+   * For non-tool models:
+   *   - Text-only streaming
+   *   - [MAP_ACTION] blocks parsed and executed after streaming
    */
   const connection = stream(async function* (messages: UIMessage[]) {
     const currentEngine = engine.value;
@@ -225,28 +245,25 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>): UseChatReturn {
 
     const runId = crypto.randomUUID();
     const messageId = crypto.randomUUID();
+    const useTools = selectedModel.value.supportsTools;
+    const systemPrompt = useTools ? SYSTEM_PROMPT_WITH_TOOLS : SYSTEM_PROMPT_NO_TOOLS;
 
     yield { type: 'RUN_STARTED' as const, runId, timestamp: Date.now() };
     yield { type: 'TEXT_MESSAGE_START' as const, messageId, role: 'assistant' as const, timestamp: Date.now() };
 
-    // Select system prompt based on tool support
-    const useTools = modelSupportsTools(selectedModel.value.id);
-    const systemPrompt = useTools ? SYSTEM_PROMPT_WITH_TOOLS : SYSTEM_PROMPT_NO_TOOLS;
-
-    // Convert UIMessage[] → OpenAI format for WebLLM
-    const openaiMessages: Array<{ role: string; content: string }> = [
-      { role: 'system', content: systemPrompt },
-      ...messages.map((m) => ({
-        role: m.role,
-        content: extractText(m),
-      })),
-    ];
-
     try {
+      // Convert UIMessage[] → OpenAI format for WebLLM
+      const openaiMessages = useTools
+        ? convertMessagesToOpenAI(messages, systemPrompt)
+        : [
+            { role: 'system', content: systemPrompt },
+            ...messages.map((m) => ({ role: m.role, content: extractText(m) })),
+          ];
+
       const response = await currentEngine.chat.completions.create({
         messages: openaiMessages,
         stream: true,
-        ...(useTools ? { tools: MAP_TOOLS } : {}),
+        ...(useTools ? { tools: WEBLLM_TOOLS } : {}),
         temperature: 0.7,
         max_tokens: 1024,
       });
@@ -288,56 +305,26 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>): UseChatReturn {
 
       // --- Native tool calls (Hermes models) ---
       if (pendingToolCalls.length > 0) {
-        // End the text message first, then handle tool calls as separate events
+        // End text message, then emit tool call events
         yield { type: 'TEXT_MESSAGE_END' as const, messageId, timestamp: Date.now() };
 
         for (const toolCall of pendingToolCalls) {
-          const toolCallId = toolCall.id;
-          const toolName = toolCall.function.name;
-
-          yield { type: 'TOOL_CALL_START' as const, toolCallId, toolName, timestamp: Date.now() };
-          yield { type: 'TOOL_CALL_ARGS' as const, toolCallId, delta: toolCall.function.arguments, timestamp: Date.now() };
-          yield { type: 'TOOL_CALL_END' as const, toolCallId, timestamp: Date.now() };
-
-          let toolArgs: Record<string, unknown> = {};
-          try {
-            toolArgs = JSON.parse(toolCall.function.arguments);
-          } catch {
-            // Invalid JSON args
-          }
-
-          const result = executeMapTool(toolName, toolArgs, mapRef.value);
-          const resultMsgId = crypto.randomUUID();
-          yield { type: 'TEXT_MESSAGE_START' as const, messageId: resultMsgId, role: 'assistant' as const, timestamp: Date.now() };
-
-          const resultText = typeof result === 'object' && result !== null && 'message' in result
-            ? String((result as Record<string, unknown>).message)
-            : JSON.stringify(result);
-
-          yield { type: 'TEXT_MESSAGE_CONTENT' as const, messageId: resultMsgId, delta: `\u2705 ${resultText}`, timestamp: Date.now() };
-          yield { type: 'TEXT_MESSAGE_END' as const, messageId: resultMsgId, timestamp: Date.now() };
+          yield { type: 'TOOL_CALL_START' as const, toolCallId: toolCall.id, toolName: toolCall.function.name, timestamp: Date.now() };
+          yield { type: 'TOOL_CALL_ARGS' as const, toolCallId: toolCall.id, delta: toolCall.function.arguments, timestamp: Date.now() };
+          yield { type: 'TOOL_CALL_END' as const, toolCallId: toolCall.id, timestamp: Date.now() };
         }
+
+        // useChat will auto-execute matching client tools and re-invoke this adapter
         pendingToolCalls = [];
       } else if (!useTools && accumulatedText) {
         // --- Text-based action parsing (Qwen / non-tool models) ---
-        // Parse [MAP_ACTION] blocks and execute them, appending result to SAME message
-        const { actions } = parseMapActions(accumulatedText);
+        const actions = parseMapActions(accumulatedText);
         for (const action of actions) {
-          const { action: toolName, ...toolArgs } = action;
-          const result = executeMapTool(toolName, toolArgs, mapRef.value);
-
-          const resultText = typeof result === 'object' && result !== null && 'message' in result
-            ? String((result as Record<string, unknown>).message)
-            : JSON.stringify(result);
-
-          // Append action result to the SAME message (not a new one)
-          yield { type: 'TEXT_MESSAGE_CONTENT' as const, messageId, delta: `\n\n\u2705 ${resultText}`, timestamp: Date.now() };
+          const resultText = executeFallbackAction(action, mapRef.value);
+          yield { type: 'TEXT_MESSAGE_CONTENT' as const, messageId, delta: `\n\n✅ ${resultText}`, timestamp: Date.now() };
         }
-
-        // End the message AFTER appending action results
         yield { type: 'TEXT_MESSAGE_END' as const, messageId, timestamp: Date.now() };
       } else {
-        // No actions — just end the message
         yield { type: 'TEXT_MESSAGE_END' as const, messageId, timestamp: Date.now() };
       }
     } catch (err) {
@@ -351,6 +338,10 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>): UseChatReturn {
 
   const chat = useChat({
     connection,
+    // Pass client tools for auto-execution by useChat
+    // When the adapter yields TOOL_CALL events, useChat matches them
+    // to these client tools, executes them, and re-invokes the adapter.
+    tools: clientTools,
   });
 
   // Also expose engine status for the UI
