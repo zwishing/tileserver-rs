@@ -105,10 +105,7 @@
       <div
         class="mx-auto flex h-14 max-w-6xl items-center justify-between px-6"
       >
-        <NuxtLink
-          to="/"
-          class="flex items-center gap-2.5"
-        >
+        <NuxtLink to="/" class="flex items-center gap-2.5">
           <Globe class="size-5 text-primary" />
           <span
             class="font-display text-sm font-semibold uppercase tracking-[0.15em]"
@@ -214,10 +211,7 @@
             :key="feature.title"
             class="bg-background p-6"
           >
-            <component
-              :is="feature.icon"
-              class="mb-3 size-5 text-primary"
-            />
+            <component :is="feature.icon" class="mb-3 size-5 text-primary" />
             <h3 class="mb-2 font-display text-sm font-semibold tracking-tight">
               {{ feature.title }}
             </h3>

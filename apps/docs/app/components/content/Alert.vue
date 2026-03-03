@@ -50,10 +50,7 @@
 <template>
   <div :class="['my-6 border-l-2 p-4', config.border, config.bg]">
     <div class="mb-1 flex items-center gap-2">
-      <component
-        :is="config.icon"
-        :class="['size-4', config.labelColor]"
-      />
+      <component :is="config.icon" :class="['size-4', config.labelColor]" />
       <span
         :class="[
           'font-mono text-xs font-medium uppercase tracking-wider',

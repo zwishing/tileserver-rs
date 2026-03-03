@@ -22,10 +22,7 @@
 
 <template>
   <div class="not-prose my-6 border border-border">
-    <div
-      v-if="tabs.length > 1"
-      class="flex border-b border-border bg-muted/30"
-    >
+    <div v-if="tabs.length > 1" class="flex border-b border-border bg-muted/30">
       <button
         v-for="tab in tabs"
         :key="tab.index"
@@ -41,10 +38,7 @@
       </button>
     </div>
     <div class="[&_pre]:my-0 [&_pre]:border-0">
-      <template
-        v-for="(tab, i) in tabs"
-        :key="i"
-      >
+      <template v-for="(tab, i) in tabs" :key="i">
         <div v-show="activeTab === i">
           <component :is="tab.node" />
         </div>
