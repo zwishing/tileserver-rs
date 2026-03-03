@@ -1,10 +1,12 @@
 <script setup lang="ts">
-  import { Github, Globe } from 'lucide-vue-next';
+  import { Github, Globe, Moon, Sun } from 'lucide-vue-next';
+
+  const { isDark, toggle } = useThemeToggle();
 </script>
 
 <template>
   <nav
-    class="fixed top-0 z-50 w-full border-b border-white/5 bg-background/80 backdrop-blur-md"
+    class="fixed top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md"
   >
     <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
       <NuxtLink to="/" class="flex items-center gap-2.5">
@@ -41,10 +43,20 @@
           size="sm"
           as="a"
           href="https://github.com/vinayakkulkarni/tileserver-rs"
-          class="gap-1.5 border-white/10 bg-transparent font-mono text-xs tracking-wider uppercase hover:border-white/20 hover:bg-white/5"
+          class="gap-1.5 border-border bg-transparent font-mono text-xs tracking-wider uppercase hover:border-foreground/20 hover:bg-accent"
         >
           <Github class="size-3.5" />
           GitHub
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          class="size-9"
+          aria-label="Toggle theme"
+          @click="toggle"
+        >
+          <Sun v-if="isDark" class="size-4" />
+          <Moon v-else class="size-4" />
         </Button>
       </div>
     </div>
