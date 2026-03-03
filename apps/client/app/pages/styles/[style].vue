@@ -12,7 +12,10 @@
   const isRaster = computed(() => 'raster' in route.query);
   const isScreenshot = computed(() => 'screenshot' in route.query);
 
-  const { mapOptions, isLoading, navigateBack } = useStyleViewer(styleId, isRaster);
+  const { mapOptions, isLoading, navigateBack } = useStyleViewer(
+    styleId,
+    isRaster,
+  );
 </script>
 
 <template>
@@ -20,7 +23,7 @@
     <!-- Floating back button (hidden for screenshots) -->
     <button
       v-if="!isScreenshot"
-      class="absolute top-4 left-4 z-10 flex items-center gap-2 rounded-lg border bg-background/95 px-3 py-2 text-sm font-medium shadow-lg backdrop-blur-sm transition-colors hover:bg-accent"
+      class="absolute top-4 left-4 z-10 flex items-center gap-2 border border-border bg-background px-3 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent"
       @click="navigateBack"
     >
       <ArrowLeft class="size-4" />
