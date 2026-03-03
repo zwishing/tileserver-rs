@@ -14,6 +14,7 @@
     Database,
     MapIcon,
     HardDrive,
+    RefreshCw,
   } from 'lucide-vue-next';
   import { Button } from '~/components/ui/button';
   import { Badge } from '~/components/ui/badge';
@@ -53,6 +54,12 @@
       title: 'PMTiles & MBTiles',
       description:
         'Native support for modern PMTiles and classic MBTiles tile archives with MVT and MLT format support.',
+    },
+    {
+      icon: RefreshCw,
+      title: 'MLT Transcoding',
+      description:
+        'On-the-fly MLT↔MVT transcoding. Serve next-gen MapLibre Tiles from existing MVT sources — up to 6x smaller tiles.',
     },
     {
       icon: Database,
@@ -435,6 +442,7 @@
 id = <span class="token-string">"openmaptiles"</span>
 type = <span class="token-string">"pmtiles"</span>
 path = <span class="token-string">"/data/tiles.pmtiles"</span>
+serve_as = <span class="token-string">"mlt"</span>  <span class="token-comment"># MVT→MLT on the fly</span>
 
 <span class="token-comment"># PostgreSQL / PostGIS</span>
 <span class="token-keyword">[postgres]</span>
