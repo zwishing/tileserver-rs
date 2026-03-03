@@ -101,7 +101,7 @@
 </script>
 
 <template>
-  <div class="min-h-screen bg-background text-foreground">
+  <div class="min-h-dvh bg-background text-foreground">
     <!-- Nav -->
     <nav
       class="fixed top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md"
