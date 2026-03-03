@@ -28,8 +28,14 @@
       aria-label="Copy code"
       @click="copy(code)"
     >
-      <Check v-if="copied" class="size-3.5" />
-      <Copy v-else class="size-3.5" />
+      <Check
+        v-if="copied"
+        class="size-3.5"
+      />
+      <Copy
+        v-else
+        class="size-3.5"
+      />
     </button>
     <pre :class="$attrs.class"><slot /></pre>
   </div>

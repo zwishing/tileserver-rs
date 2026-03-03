@@ -10,11 +10,19 @@
 <template>
   <section class="border-t border-border py-20">
     <div class="mx-auto max-w-6xl px-6">
-      <div class="grid items-start gap-12 lg:grid-cols-2">
+      <div
+class="
+  grid items-start gap-12
+  lg:grid-cols-2
+">
         <div>
           <p class="hud-label mb-4">Configuration</p>
           <h2
-            class="mb-4 font-display text-3xl leading-[1.15] font-bold tracking-[-0.03em] sm:text-4xl"
+            class="
+              mb-4 font-display text-3xl leading-[1.15] font-bold
+              tracking-[-0.03em]
+              sm:text-4xl
+            "
           >
             Simple <span class="text-gradient">Setup</span>
           </h2>

@@ -58,7 +58,10 @@
 </script>
 
 <template>
-  <div v-if="page" class="mx-auto max-w-3xl px-6 py-12">
+  <div
+    v-if="page"
+    class="mx-auto max-w-3xl px-6 py-12"
+  >
     <!-- Breadcrumb -->
     <NuxtLink
       to="/"

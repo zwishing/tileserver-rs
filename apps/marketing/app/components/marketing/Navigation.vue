@@ -6,7 +6,10 @@
 
 <template>
   <nav
-    class="fixed top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md"
+    class="
+      fixed top-0 z-50 w-full border-b border-border bg-background/80
+      backdrop-blur-md
+    "
   >
     <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
       <NuxtLink to="/" class="flex items-center gap-2.5">
@@ -24,7 +27,10 @@
           size="sm"
           as="a"
           href="https://docs.tileserver.app"
-          class="font-mono text-xs tracking-wider text-muted-foreground uppercase hover:text-foreground"
+          class="
+            font-mono text-xs tracking-wider text-muted-foreground uppercase
+            hover:text-foreground
+          "
         >
           Docs
         </Button>
@@ -34,7 +40,10 @@
           as="a"
           href="https://demo.tileserver.app"
           target="_blank"
-          class="font-mono text-xs tracking-wider text-muted-foreground uppercase hover:text-foreground"
+          class="
+            font-mono text-xs tracking-wider text-muted-foreground uppercase
+            hover:text-foreground
+          "
         >
           Demo
         </Button>
@@ -43,7 +52,11 @@
           size="sm"
           as="a"
           href="https://github.com/vinayakkulkarni/tileserver-rs"
-          class="gap-1.5 border-border bg-transparent font-mono text-xs tracking-wider uppercase hover:border-foreground/20 hover:bg-accent"
+          class="
+            gap-1.5 border-border bg-transparent font-mono text-xs
+            tracking-wider uppercase
+            hover:border-foreground/20 hover:bg-accent
+          "
         >
           <Github class="size-3.5" />
           GitHub

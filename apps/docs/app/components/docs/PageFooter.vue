@@ -22,7 +22,7 @@
     <div
       class="flex items-center justify-center gap-1.5 text-xs lg:gap-2 lg:text-sm"
     >
-      <div class="h-px flex-1 bg-border/50"></div>
+      <div class="h-px flex-1 bg-border/50" />
       <a
         :href="editUrl"
         target="_blank"
@@ -41,7 +41,7 @@
         <CircleDot class="size-3 lg:size-3.5" />
         Report
       </a>
-      <div class="h-px flex-1 bg-border/50"></div>
+      <div class="h-px flex-1 bg-border/50" />
     </div>
 
     <!-- Prev / Next -->
@@ -60,7 +60,7 @@
         >
           <div
             class="absolute -inset-px bg-linear-to-b from-primary/10 via-transparent to-transparent"
-          ></div>
+          />
         </div>
         <div
           class="relative mb-1.5 flex items-center gap-1.5 lg:mb-3 lg:gap-2"
@@ -89,7 +89,7 @@
           </span>
         </div>
       </NuxtLink>
-      <div v-else></div>
+      <div v-else />
 
       <NuxtLink
         v-if="next"
@@ -102,7 +102,7 @@
         >
           <div
             class="absolute -inset-px bg-linear-to-b from-primary/10 via-transparent to-transparent"
-          ></div>
+          />
         </div>
         <div
           class="relative mb-1.5 flex items-center gap-1.5 lg:mb-3 lg:gap-2"

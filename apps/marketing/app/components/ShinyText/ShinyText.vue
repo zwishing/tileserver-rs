@@ -23,7 +23,10 @@
   <span
     :class="
       cn(
-        'shiny-text inline-block bg-clip-text text-transparent bg-[length:200%_100%]',
+        `
+          shiny-text inline-block bg-size-[200%_100%] bg-clip-text
+          text-transparent
+        `,
         !disabled && 'animate-[shiny-sweep_var(--shiny-speed)_linear_infinite]',
         props.class,
       )

@@ -32,10 +32,19 @@
             class="text-muted-foreground hover:text-foreground lg:hidden"
             @click="toggleSidebar()"
           >
-            <Menu v-if="!sidebarOpen" class="size-5" />
-            <X v-else class="size-5" />
+            <Menu
+              v-if="!sidebarOpen"
+              class="size-5"
+            />
+            <X
+              v-else
+              class="size-5"
+            />
           </button>
-          <NuxtLink to="/" class="flex items-center gap-2.5">
+          <NuxtLink
+            to="/"
+            class="flex items-center gap-2.5"
+          >
             <Globe class="size-5 text-primary" />
             <span
               class="font-display text-sm font-semibold uppercase tracking-[0.15em]"
@@ -71,8 +80,14 @@
             aria-label="Toggle theme"
             @click="toggleTheme"
           >
-            <Sun v-if="isDark" class="size-4" />
-            <Moon v-else class="size-4" />
+            <Sun
+              v-if="isDark"
+              class="size-4"
+            />
+            <Moon
+              v-else
+              class="size-4"
+            />
           </button>
         </div>
       </div>
@@ -94,14 +109,20 @@
       ]"
     >
       <nav class="space-y-6">
-        <div v-for="section in sections" :key="section.path">
+        <div
+          v-for="section in sections"
+          :key="section.path"
+        >
           <p
             class="mb-2 font-mono text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground"
           >
             {{ section.title }}
           </p>
           <ul class="space-y-0.5">
-            <li v-for="item in section.children" :key="item.path">
+            <li
+              v-for="item in section.children"
+              :key="item.path"
+            >
               <NuxtLink
                 :to="item.path"
                 :class="[

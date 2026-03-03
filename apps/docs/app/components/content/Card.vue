@@ -30,7 +30,10 @@
       />
     </span>
   </NuxtLink>
-  <div v-else class="border border-border p-4">
+  <div
+    v-else
+    class="border border-border p-4"
+  >
     <h4 class="mb-1.5 font-display text-sm font-semibold tracking-tight">
       {{ title }}
     </h4>
