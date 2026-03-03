@@ -4,6 +4,11 @@
 @plugin "tailwindcss-animate";
 
 @theme {
+  --font-sans: 'Switzer', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+  --font-display: 'General Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Source Serif 4', ui-serif, Georgia, serif;
+
   --color-background: hsl(0 0% 100%);
   --color-foreground: hsl(224 71% 4%);
   --color-card: hsl(0 0% 100%);
@@ -23,35 +28,39 @@
   --color-border: hsl(220 13% 91%);
   --color-input: hsl(220 13% 91%);
   --color-ring: hsl(224 71% 4%);
-  --radius-lg: 0.5rem;
-  --radius-md: calc(var(--radius-lg) - 2px);
-  --radius-sm: calc(var(--radius-lg) - 4px);
+  --radius-lg: 0;
+  --radius-md: 0;
+  --radius-sm: 0;
+  --radius-xs: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+  --radius-3xl: 0;
+  --radius-4xl: 0;
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border outline-ring/50;
+    scrollbar-color: oklch(0.7 0 0) transparent;
+    scrollbar-width: thin;
+  }
+  .dark * {
+    scrollbar-color: oklch(0.3 0.005 270) transparent;
   }
 
-  html {
-    font-family:
-      Inter,
-      -apple-system,
-      BlinkMacSystemFont,
-      'Segoe UI',
-      Roboto,
-      'Helvetica Neue',
-      Arial,
-      sans-serif;
-    text-size-adjust: 100%;
-    -moz-osx-font-smoothing: grayscale;
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   html,
   body,
   #__nuxt {
-    @apply h-full m-0 p-0;
+    @apply m-0 min-h-screen p-0;
   }
 
   body {
