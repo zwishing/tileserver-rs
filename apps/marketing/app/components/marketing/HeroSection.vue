@@ -18,7 +18,7 @@
       <div class="mx-auto max-w-4xl text-center">
         <Badge
           variant="outline"
-          class="mb-8 gap-2 border-white/10 bg-white/5 px-4 py-1.5 font-mono text-xs tracking-wider uppercase backdrop-blur-sm"
+          class="mb-8 gap-2 border-border bg-muted/50 px-4 py-1.5 font-mono text-xs tracking-wider uppercase backdrop-blur-sm"
         >
           <span class="status-online"></span>
           <span class="text-muted-foreground">Available on</span>
@@ -34,10 +34,9 @@
           class="mb-8 font-display text-5xl leading-[1.1] font-bold tracking-[-0.04em] sm:text-6xl lg:text-7xl"
         >
           <span class="text-foreground">Serve Vector Tiles</span>
-          <GradientText
+          <ShinyText
             text="At Lightning Speed"
-            :colors="['#a78bfa', '#7c3aed', '#a78bfa', '#7c3aed', '#a78bfa']"
-            :speed="6"
+            :speed="4"
             class="mt-2 block pb-2 font-display leading-[1.1]"
           />
         </h1>
@@ -70,7 +69,7 @@
             size="lg"
             as="a"
             href="https://github.com/vinayakkulkarni/tileserver-rs"
-            class="gap-2 border-white/10 bg-transparent hover:border-white/20 hover:bg-white/5"
+            class="gap-2 border-border bg-transparent hover:border-foreground/20 hover:bg-accent"
           >
             <Github class="size-4" />
             View on GitHub
@@ -90,7 +89,7 @@
 
         <div class="mx-auto mt-14 max-w-xl">
           <div
-            class="flex items-center gap-4 border border-white/10 bg-white/2 p-4"
+            class="flex items-center gap-4 border border-border bg-muted/30 p-4"
           >
             <Terminal class="size-4 shrink-0 text-primary" />
             <code class="flex-1 text-left font-mono text-sm text-foreground">
@@ -109,7 +108,7 @@
                     <Copy v-else class="size-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent class="border-white/10 bg-card">
+                <TooltipContent class="border-border bg-card">
                   <p>{{ copied ? 'Copied!' : 'Copy to clipboard' }}</p>
                 </TooltipContent>
               </Tooltip>

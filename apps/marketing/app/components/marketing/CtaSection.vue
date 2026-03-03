@@ -3,7 +3,7 @@
 </script>
 
 <template>
-  <section class="border-t border-white/5 py-20">
+  <section class="border-t border-border py-20">
     <div class="mx-auto max-w-6xl px-6 text-center">
       <div class="mx-auto max-w-2xl">
         <p class="hud-label mb-4">Get Started</p>
@@ -35,7 +35,7 @@
             size="lg"
             as="a"
             href="https://github.com/vinayakkulkarni/tileserver-rs"
-            class="gap-2 border-white/10 bg-transparent hover:border-white/20 hover:bg-white/5"
+            class="gap-2 border-border bg-transparent hover:border-foreground/20 hover:bg-accent"
           >
             <Github class="size-4" />
             Star on GitHub

@@ -3,7 +3,7 @@
 </script>
 
 <template>
-  <section class="border-t border-white/5 py-20">
+  <section class="border-t border-border py-20">
     <div class="mx-auto max-w-6xl px-6">
       <div class="mb-16 text-center">
         <p class="hud-label mb-4">Features</p>

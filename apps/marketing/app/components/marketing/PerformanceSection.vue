@@ -5,7 +5,7 @@
 </script>
 
 <template>
-  <section class="border-t border-white/5 py-20">
+  <section class="border-t border-border py-20">
     <div class="mx-auto max-w-6xl px-6">
       <div class="mb-16 text-center">
         <p class="hud-label mb-4">Performance</p>
@@ -22,11 +22,11 @@
         </p>
       </div>
 
-      <div class="grid gap-px bg-white/5 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <div
           v-for="stat in performanceStats"
           :key="stat.label"
-          class="bg-background p-8 text-center"
+          class="border border-border bg-background p-8 text-center"
         >
           <div
             class="mx-auto mb-3 inline-flex size-10 items-center justify-center border border-primary/20 bg-primary/5 text-primary"
@@ -48,7 +48,7 @@
           size="sm"
           as="a"
           href="https://docs.tileserver.app/benchmarks/performance"
-          class="gap-2 border-white/10 bg-transparent font-mono text-xs tracking-wider uppercase hover:border-white/20 hover:bg-white/5"
+          class="gap-2 border-border bg-transparent font-mono text-xs tracking-wider uppercase hover:border-foreground/20 hover:bg-accent"
         >
           View Full Benchmarks
           <ArrowRight class="size-3.5" />

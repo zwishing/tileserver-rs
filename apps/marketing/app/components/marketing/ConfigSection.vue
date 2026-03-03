@@ -8,7 +8,7 @@
 </script>
 
 <template>
-  <section class="border-t border-white/5 py-20">
+  <section class="border-t border-border py-20">
     <div class="mx-auto max-w-6xl px-6">
       <div class="grid items-start gap-12 lg:grid-cols-2">
         <div>
@@ -33,9 +33,9 @@
             </li>
           </ul>
         </div>
-        <div class="border border-white/10 bg-white/2">
+        <div class="border border-border bg-muted/30">
           <div
-            class="flex items-center gap-2 border-b border-white/10 px-4 py-2.5"
+            class="flex items-center gap-2 border-b border-border px-4 py-2.5"
           >
             <span class="size-2.5 rounded-full bg-red-500/60"></span>
             <span class="size-2.5 rounded-full bg-yellow-500/60"></span>
