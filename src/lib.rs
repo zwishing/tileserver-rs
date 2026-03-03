@@ -13,6 +13,8 @@ pub mod render;
 pub mod sources;
 pub mod startup;
 pub mod styles;
+#[cfg(feature = "mlt")]
+pub mod transcode;
 pub mod wmts;
 
 pub use config::Config;
@@ -22,6 +24,8 @@ pub use sources::{
     detect_mlt_format, SourceManager, TileCompression, TileData, TileFormat, TileJson, TileSource,
 };
 pub use styles::{rewrite_style_for_api, Style, StyleInfo, StyleManager, UrlQueryParams};
+#[cfg(feature = "mlt")]
+pub use transcode::{transcode_tile, MvtProto};
 
 #[cfg(feature = "postgres")]
 pub use config::{PostgresConfig, PostgresFunctionConfig};

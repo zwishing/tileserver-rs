@@ -769,6 +769,37 @@ async fn get_tile(
         tile
     };
 
+    // MLT transcoding: if the requested format differs from the source format
+    // and the `mlt` feature is enabled, attempt on-the-fly transcoding.
+    #[cfg(feature = "mlt")]
+    let tile = {
+        let requested_format = format.parse::<tileserver_rs::sources::TileFormat>().ok();
+        if let Some(target) = requested_format {
+            if tile.format != target && tile.format.is_vector() && target.is_vector() {
+                match tileserver_rs::transcode::transcode_tile(&tile, target) {
+                    Ok(transcoded) => transcoded,
+                    Err(e) => {
+                        tracing::warn!(
+                            "transcoding {:?} -> {:?} failed for {}/{}/{}/{}: {}",
+                            tile.format,
+                            target,
+                            params.source,
+                            params.z,
+                            params.x,
+                            y,
+                            e
+                        );
+                        tile
+                    }
+                }
+            } else {
+                tile
+            }
+        } else {
+            tile
+        }
+    };
+
     let mut headers = HeaderMap::new();
     headers.insert(
         CONTENT_TYPE,
