@@ -133,8 +133,8 @@ COPY maplibre-native-sys ./maplibre-native-sys
 # Copy Cargo files and build script for dependency caching
 COPY Cargo.toml Cargo.lock ./
 
-# Create dummy source file for dependency caching
-RUN mkdir src && echo "fn main() {}" > src/main.rs
+# Create dummy source and bench files for dependency caching
+RUN mkdir -p src benches && echo "fn main() {}" > src/main.rs && echo "fn main() {}" > benches/mlt.rs
 
 # Copy the embedded SPA
 COPY --from=node-builder /app/apps/client/.output/public ./apps/client/.output/public
@@ -150,8 +150,9 @@ RUN if [ -n "$FEATURES" ]; then \
     fi
 RUN rm -rf src
 
-# Copy actual source code
+# Copy actual source code and benchmarks
 COPY src ./src
+COPY benches ./benches
 
 RUN touch src/main.rs && \
     if [ -n "$FEATURES" ]; then \
