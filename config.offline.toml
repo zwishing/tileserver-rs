@@ -37,3 +37,14 @@ attribution = "<a href=\"https://protomaps.com\">Protomaps</a> | <a href=\"https
 id = "protomaps"
 path = "./styles/protomaps/style.json"
 name = "Protomaps Light"
+
+
+# MLT transcoding example (requires --features mlt)
+# Serves the same PMTiles source as MLT tiles via on-the-fly transcoding.
+# Request: GET /data/protomaps-mlt/{z}/{x}/{y}.mlt
+# [[sources]]
+# id = "protomaps-mlt"
+# type = "pmtiles"
+# path = "./data/tiles/protomaps-sample.pmtiles"
+# name = "Protomaps Firenze Sample (MLT)"
+# serve_as = "mlt"

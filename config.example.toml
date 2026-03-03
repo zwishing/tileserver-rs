@@ -81,6 +81,37 @@ sample_rate = 1.0
 # name = "Terrain RGB"
 
 # ============================================================================
+# MLT (MapLibre Tiles) TRANSCODING (requires --features mlt)
+# Serve existing MVT tiles as MLT, or vice versa, via on-the-fly transcoding
+# ============================================================================
+
+# Example: Serve MVT source as MLT tiles (MVT→MLT transcoding)
+# Clients requesting /data/osm-mlt/{z}/{x}/{y}.mlt get transcoded tiles.
+# [[sources]]
+# id = "osm-mlt"
+# type = "pmtiles"
+# path = "/data/osm.pmtiles"
+# name = "OpenStreetMap (MLT)"
+# serve_as = "mlt"  # Transcode MVT→MLT on the fly
+
+# Example: MLT source (auto-detected from tile data)
+# PMTiles with TileType::Unknown are probed — if the first tile matches the
+# MLT binary signature (7-bit varint + tag 0x01), format is set to MLT.
+# [[sources]]
+# id = "vector-mlt"
+# type = "pmtiles"
+# path = "/data/vector.mlt.pmtiles"
+# name = "Vector Tiles (MLT native)"
+
+# Example: MBTiles with MLT format
+# Set format = "mlt" or "application/vnd.maplibre-vector-tile" in MBTiles metadata.
+# [[sources]]
+# id = "mbtiles-mlt"
+# type = "mbtiles"
+# path = "/data/tiles.mlt.mbtiles"
+# name = "MBTiles MLT Source"
+
+# ============================================================================
 # RASTER SOURCES (requires --features raster and GDAL system library)
 # Supports COG (Cloud Optimized GeoTIFF) and VRT (Virtual Raster) files
 # ============================================================================
