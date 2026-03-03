@@ -3,7 +3,9 @@ export default defineNuxtConfig({
     'shadcn-nuxt',
     '@vueuse/nuxt',
     '@nuxt/eslint',
+    '@nuxt/fonts',
     '@nuxtjs/color-mode',
+    'motion-v/nuxt',
     [
       '@nuxtjs/plausible',
       {
@@ -33,7 +35,7 @@ export default defineNuxtConfig({
           content:
             'tileserver, vector tiles, pmtiles, mbtiles, maplibre, rust, gis, mapping, tile server',
         },
-        { name: 'theme-color', content: '#3b82f6' },
+        { name: 'theme-color', content: '#111119' },
         {
           property: 'og:title',
           content: 'Tileserver RS - High-Performance Vector Tile Server',
@@ -66,6 +68,23 @@ export default defineNuxtConfig({
     classSuffix: '',
     preference: 'dark',
     fallback: 'dark',
+  },
+
+  fonts: {
+    families: [
+      {
+        name: 'General Sans',
+        provider: 'fontshare',
+        weights: [200, 300, 400, 500, 600, 700],
+      },
+      {
+        name: 'Switzer',
+        provider: 'fontshare',
+        weights: [300, 400, 500, 600, 700],
+      },
+      { name: 'JetBrains Mono', provider: 'google' },
+      { name: 'Source Serif 4', provider: 'google' },
+    ],
   },
 
   future: {
