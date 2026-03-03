@@ -515,3 +515,219 @@ export const WEBLLM_TOOLS: Array<{
     },
   },
 ];
+
+// =============================================================================
+// SERVER-SIDE TOOL DEFINITIONS (call Rust backend spatial API)
+// =============================================================================
+
+export const getSourceSchemaDef = toolDefinition({
+  name: 'get_source_schema',
+  description: 'Get the schema of a tile source: available layers, field names/types, zoom range, and bounds.',
+  inputSchema: z.object({
+    source: z.string().describe('Source ID to get schema for'),
+  }),
+  outputSchema: z.object({
+    source: z.string(),
+    format: z.string(),
+    minzoom: z.number(),
+    maxzoom: z.number(),
+    bounds: z.array(z.number()).nullable(),
+    layers: z.array(z.object({
+      id: z.string(),
+      description: z.string().nullable().optional(),
+      minzoom: z.number().nullable().optional(),
+      maxzoom: z.number().nullable().optional(),
+      fields: z.array(z.object({
+        name: z.string(),
+        type: z.string(),
+      })),
+    })),
+  }),
+});
+
+export const getSourceStatsDef = toolDefinition({
+  name: 'get_source_stats',
+  description: 'Get statistics for a tile source: bounds, zoom range, layer count, attribution.',
+  inputSchema: z.object({
+    source: z.string().describe('Source ID to get stats for'),
+  }),
+  outputSchema: z.object({
+    source: z.string(),
+    format: z.string(),
+    minzoom: z.number(),
+    maxzoom: z.number(),
+    bounds: z.array(z.number()).nullable(),
+    center: z.array(z.number()).nullable(),
+    layer_count: z.number(),
+    name: z.string().nullable(),
+    description: z.string().nullable(),
+    attribution: z.string().nullable(),
+  }),
+});
+
+export const spatialQueryDef = toolDefinition({
+  name: 'spatial_query',
+  description: 'Query features from a tile source within a bounding box. Returns feature properties from vector tiles.',
+  inputSchema: z.object({
+    source: z.string().describe('Source ID to query'),
+    bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]).optional().describe('Bounding box [west, south, east, north]'),
+    zoom: z.number().optional().describe('Zoom level for tile resolution (default 14)'),
+    layers: z.array(z.string()).optional().describe('Layer IDs to query (omit for all)'),
+    limit: z.number().optional().describe('Max features to return (default 100)'),
+  }),
+  outputSchema: z.object({
+    source: z.string(),
+    features: z.array(z.object({
+      layer: z.string(),
+      geometry_type: z.string().nullable().optional(),
+      properties: z.record(z.unknown()),
+    })),
+    total: z.number(),
+    truncated: z.boolean(),
+  }),
+});
+
+/**
+ * Create server-side tool implementations that call the Rust backend API.
+ * These use $fetch (Nuxt) or fetch to call the spatial endpoints.
+ */
+export function createServerClientTools() {
+  const getSourceSchema = getSourceSchemaDef.client(async ({ source }) => {
+    try {
+      const response = await fetch(`/api/spatial/schema/${encodeURIComponent(source)}`);
+      if (!response.ok) {
+        return {
+          source,
+          format: 'unknown',
+          minzoom: 0,
+          maxzoom: 0,
+          bounds: null,
+          layers: [],
+        };
+      }
+      return await response.json();
+    } catch {
+      return {
+        source,
+        format: 'unknown',
+        minzoom: 0,
+        maxzoom: 0,
+        bounds: null,
+        layers: [],
+      };
+    }
+  });
+
+  const getSourceStats = getSourceStatsDef.client(async ({ source }) => {
+    try {
+      const response = await fetch(`/api/spatial/stats/${encodeURIComponent(source)}`);
+      if (!response.ok) {
+        return {
+          source,
+          format: 'unknown',
+          minzoom: 0,
+          maxzoom: 0,
+          bounds: null,
+          center: null,
+          layer_count: 0,
+          name: null,
+          description: null,
+          attribution: null,
+        };
+      }
+      return await response.json();
+    } catch {
+      return {
+        source,
+        format: 'unknown',
+        minzoom: 0,
+        maxzoom: 0,
+        bounds: null,
+        center: null,
+        layer_count: 0,
+        name: null,
+        description: null,
+        attribution: null,
+      };
+    }
+  });
+
+  const spatialQuery = spatialQueryDef.client(async ({ source, bbox, zoom, layers, limit }) => {
+    try {
+      const response = await fetch('/api/spatial/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source, bbox, zoom, layers, limit }),
+      });
+      if (!response.ok) {
+        return { source, features: [], total: 0, truncated: false };
+      }
+      return await response.json();
+    } catch {
+      return { source, features: [], total: 0, truncated: false };
+    }
+  });
+
+  return [getSourceSchema, getSourceStats, spatialQuery];
+}
+
+// Add server tools to WebLLM format
+export const WEBLLM_SERVER_TOOLS: Array<{
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+}> = [
+  {
+    type: 'function',
+    function: {
+      name: 'get_source_schema',
+      description: 'Get the schema of a tile source: available layers, field names/types, zoom range, and bounds.',
+      parameters: {
+        type: 'object',
+        properties: {
+          source: { type: 'string', description: 'Source ID to get schema for' },
+        },
+        required: ['source'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_source_stats',
+      description: 'Get statistics for a tile source: bounds, zoom range, layer count, attribution.',
+      parameters: {
+        type: 'object',
+        properties: {
+          source: { type: 'string', description: 'Source ID to get stats for' },
+        },
+        required: ['source'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'spatial_query',
+      description: 'Query features from a tile source within a bounding box.',
+      parameters: {
+        type: 'object',
+        properties: {
+          source: { type: 'string', description: 'Source ID to query' },
+          bbox: {
+            type: 'array',
+            items: { type: 'number' },
+            description: 'Bounding box [west, south, east, north]',
+          },
+          zoom: { type: 'number', description: 'Zoom level for tile resolution (default 14)' },
+          layers: { type: 'array', items: { type: 'string' }, description: 'Layer IDs to query' },
+          limit: { type: 'number', description: 'Max features to return (default 100)' },
+        },
+        required: ['source'],
+      },
+    },
+  },
+];

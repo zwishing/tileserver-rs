@@ -26,6 +26,7 @@
     loadProgress,
     loadStageText,
     selectedModel,
+    availableModels,
     engineError,
     input,
     suggestions,
@@ -34,6 +35,7 @@
     stop,
     handleSubmit,
     handlePromptSelect,
+    selectModel,
   } = useLlmPanel(computed(() => props.mapRef));
 
   const ICON_COMPONENTS = { Map, Layers, Search, Globe } as const;
@@ -63,7 +65,12 @@
           </span>
         </UiSheetTitle>
         <UiSheetDescription class="text-xs">
-          Chat with your map using a local AI model
+          <LlmModelSelect
+            :models="availableModels"
+            :selected-id="selectedModel.id"
+            :disabled="engineStatus === 'loading'"
+            @select="selectModel"
+          />
         </UiSheetDescription>
       </UiSheetHeader>
 

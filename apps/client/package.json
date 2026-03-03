@@ -48,7 +48,7 @@
     "motion-v": "catalog:",
     "nuxt": "catalog:",
     "radix-vue": "catalog:",
-    "reka-ui": "catalog:",
+    "reka-ui": "^2.9.0",
     "tailwind-merge": "catalog:",
     "tailwindcss-animate": "catalog:",
     "tw-animate-css": "catalog:",

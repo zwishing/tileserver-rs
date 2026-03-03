@@ -90,7 +90,7 @@ export function formatMessageTime(date: Date | undefined): string {
  * ```
  */
 export function useLlmPanel(mapRef: Ref<MaplibreMap | null>) {
-  const { status: engineStatus, loadProgress, errorMessage, selectedModel, initEngine } = useLlmEngine();
+  const { status: engineStatus, loadProgress, errorMessage, selectedModel, availableModels, initEngine, resetEngine } = useLlmEngine();
   const chat = useLlmChat(mapRef);
 
   // Panel open/close state
@@ -193,6 +193,16 @@ export function useLlmPanel(mapRef: Ref<MaplibreMap | null>) {
     panelOpen.value = !panelOpen.value;
   }
 
+  /**
+   * Switch to a different model. Resets the current engine and loads the new model.
+   */
+  async function selectModel(modelId: string) {
+    const model = availableModels.find((m) => m.id === modelId);
+    if (!model || model.id === selectedModel.value.id) return;
+    await resetEngine();
+    await initEngine(model);
+  }
+
   return {
     // Panel state
     panelOpen,
@@ -209,8 +219,10 @@ export function useLlmPanel(mapRef: Ref<MaplibreMap | null>) {
     loadProgress,
     loadStageText,
     selectedModel,
+    availableModels,
     engineError: errorMessage,
     initEngine,
+    selectModel,
 
     // Input
     input,

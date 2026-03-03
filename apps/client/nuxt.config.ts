@@ -91,7 +91,7 @@ export default defineNuxtConfig({
       include: ['maplibre-gl', '@geoql/v-maplibre'],
     },
     ssr: {
-      external: ['maplibre-gl', '@geoql/v-maplibre', 'markstream-vue'],
+      external: ['maplibre-gl', '@geoql/v-maplibre', 'markstream-vue', '@tanstack/vue-db', '@tanstack/db'],
     },
     server: {
       proxy: {
@@ -108,6 +108,8 @@ export default defineNuxtConfig({
         '^/styles/[^/]+/static/': 'http://localhost:8080',
         '^/styles/[^/]+/\\d+/\\d+/\\d+': 'http://localhost:8080',
         '^/fonts/': 'http://localhost:8080',
+        // Spatial API for LLM tool integration
+        '^/api/spatial/': 'http://localhost:8080',
       },
     },
   },

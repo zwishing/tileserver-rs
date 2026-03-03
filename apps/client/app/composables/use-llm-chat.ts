@@ -16,8 +16,9 @@ import { useChat, stream } from '@tanstack/ai-vue';
 import type { UIMessage } from '@tanstack/ai-vue';
 import type { MessagePart } from '@tanstack/ai';
 import type { Map as MaplibreMap } from 'maplibre-gl';
-import { createMapClientTools, WEBLLM_TOOLS } from '~/lib/map-tools';
-import type { UseChatReturn } from '~/types/llm';
+import { createMapClientTools, createServerClientTools, WEBLLM_TOOLS, WEBLLM_SERVER_TOOLS } from '~/lib/map-tools';
+import { chatCollection } from '~/lib/chat-db';
+import type { UseChatReturn, StoredToolCall } from '~/types/llm';
 
 /**
  * System prompt for tool-capable models (Hermes).
@@ -37,9 +38,16 @@ Available tools:
 - add_highlight: Temporarily highlight features matching a filter
 - generate_style: Apply multiple style changes from a description
 
+Server-side tools (query tile data):
+- get_source_schema: Get available layers, fields, zoom range for a data source
+- get_source_stats: Get bounds, attribution, and layer count for a data source
+- spatial_query: Query features from a data source within a bounding box
+
 When users ask to see a place, use fly_to with coordinates.
 When users ask to see a region, use fit_bounds with a bounding box.
 Use get_map_state to understand what the user is currently looking at before making changes.
+Use get_source_schema or get_source_stats when users ask about available data or layers.
+Use spatial_query when users want to find specific features in the data.
 Keep responses concise and helpful. You're a map expert.`;
 
 /**
@@ -222,6 +230,7 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>): UseChatReturn {
 
   // Create client tools bound to the map ref
   const clientTools = createMapClientTools(() => mapRef.value);
+  const serverTools = createServerClientTools();
 
   /**
    * Create the connection adapter that bridges WebLLM → AG-UI events.
@@ -263,7 +272,7 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>): UseChatReturn {
       const response = await currentEngine.chat.completions.create({
         messages: openaiMessages,
         stream: true,
-        ...(useTools ? { tools: WEBLLM_TOOLS } : {}),
+        ...(useTools ? { tools: [...WEBLLM_TOOLS, ...WEBLLM_SERVER_TOOLS] } : {}),
         temperature: 0.7,
         max_tokens: 1024,
       });
@@ -338,10 +347,34 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>): UseChatReturn {
 
   const chat = useChat({
     connection,
-    // Pass client tools for auto-execution by useChat
+    // Pass client + server tools for auto-execution by useChat
     // When the adapter yields TOOL_CALL events, useChat matches them
     // to these client tools, executes them, and re-invokes the adapter.
-    tools: clientTools,
+    tools: [...clientTools, ...serverTools],
+    // Persist completed messages to TanStack DB (localStorage-backed)
+    onFinish: (message) => {
+      if (!import.meta.client) return;
+      // Extract text content from message parts
+      const textContent = message.parts
+        .filter((p): p is { type: 'text'; content: string } => p.type === 'text')
+        .map((p) => p.content)
+        .join('');
+      // Extract tool calls if present
+      const toolCalls: StoredToolCall[] = message.parts
+        .filter((p): p is { type: 'tool-call'; toolCallId: string; toolName: string; args: Record<string, unknown> } => p.type === 'tool-call')
+        .map((p) => ({
+          id: p.toolCallId,
+          name: p.toolName,
+          args: JSON.stringify(p.args),
+        }));
+      chatCollection.insert({
+        id: message.id,
+        role: message.role as 'user' | 'assistant',
+        content: textContent,
+        timestamp: Date.now(),
+        ...(toolCalls.length > 0 ? { toolCalls } : {}),
+      });
+    },
   });
 
   // Also expose engine status for the UI

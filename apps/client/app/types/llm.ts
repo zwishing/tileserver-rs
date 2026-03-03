@@ -85,6 +85,55 @@ export interface MapToolResult {
 }
 
 // ============================================================================
+// CHAT PERSISTENCE TYPES (TanStack DB)
+// ============================================================================
+
+/**
+ * Tool call record stored alongside a chat message
+ */
+export interface StoredToolCall {
+  id: string;
+  name: string;
+  args: string;
+  result?: string;
+}
+
+/**
+ * Persisted chat message for TanStack DB collections.
+ * Flattened from UIMessage parts for localStorage-friendly storage.
+ */
+export interface ChatMessage extends Record<string, unknown> {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+  toolCalls?: StoredToolCall[];
+}
+
+/**
+ * Persisted spatial query result for TanStack DB collections.
+ */
+export interface SpatialResult extends Record<string, unknown> {
+  id: string;
+  /** Links to the ChatMessage.id that triggered this query */
+  messageId: string;
+  source: string;
+  features: SpatialResultFeature[];
+  total: number;
+  truncated: boolean;
+  timestamp: number;
+}
+
+/**
+ * Individual feature in a spatial query result
+ */
+export interface SpatialResultFeature {
+  layer: string;
+  geometryType?: string;
+  properties: Record<string, unknown>;
+}
+
+// ============================================================================
 // PANEL TYPES
 // ============================================================================
 
