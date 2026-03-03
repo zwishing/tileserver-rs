@@ -126,4 +126,15 @@ Features
   #description
   Easy deployment with Docker Compose v2.
   :::
+
+  :::u-page-feature
+  ---
+  icon: i-lucide-refresh-cw
+  ---
+  #title
+  MLT Transcoding
+
+  #description
+  On-the-fly MLT↔MVT transcoding. Serve next-gen MapLibre Tiles from existing MVT sources — up to 6x smaller tiles.
+  :::
 ::
