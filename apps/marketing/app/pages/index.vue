@@ -15,6 +15,8 @@
     MapIcon,
     HardDrive,
     RefreshCw,
+    ExternalLink,
+    BarChart3,
   } from 'lucide-vue-next';
   import { Button } from '~/components/ui/button';
   import { Badge } from '~/components/ui/badge';
@@ -202,6 +204,16 @@
                 Docs
               </Button>
               <Button
+                variant="ghost"
+                size="sm"
+                as="a"
+                href="https://demo.tileserver.app"
+                target="_blank"
+                class="text-muted-foreground hover:text-emerald-400"
+              >
+                Demo
+              </Button>
+              <Button
                 variant="outline"
                 size="sm"
                 as="a"
@@ -281,6 +293,17 @@
                   <Github class="size-4" />
                   View on GitHub
                 </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  as="a"
+                  href="https://demo.tileserver.app"
+                  target="_blank"
+                  class="border-emerald-500/30 bg-emerald-500/5 backdrop-blur-sm hover:border-emerald-500/60 hover:bg-emerald-500/10"
+                >
+                  <ExternalLink class="size-4" />
+                  Live Demo
+                </Button>
               </div>
 
               <!-- Install command -->
@@ -357,6 +380,117 @@
                   </p>
                 </CardContent>
               </Card>
+            </div>
+          </div>
+        </section>
+
+        <!-- Divider -->
+        <div class="divider-glow mx-auto max-w-4xl"></div>
+
+        <!-- Performance Section -->
+        <section class="relative py-24">
+          <div class="mx-auto max-w-6xl px-4">
+            <div class="mb-16 text-center">
+              <p class="hud-label mb-4">Performance</p>
+              <h2 class="mb-4 text-3xl font-bold sm:text-4xl">
+                Benchmarked &amp; <span class="text-gradient">Proven</span>
+              </h2>
+              <p class="mx-auto max-w-xl text-lg text-muted-foreground">
+                Real numbers from Docker-to-Docker benchmarks on ARM64. No
+                marketing fluff.
+              </p>
+            </div>
+
+            <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              <Card class="card-glow text-center">
+                <CardHeader class="pb-2">
+                  <div
+                    class="mx-auto mb-2 inline-flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                  >
+                    <Zap class="size-6" />
+                  </div>
+                  <p class="text-3xl font-bold text-primary">1,409</p>
+                </CardHeader>
+                <CardContent>
+                  <p class="text-sm text-muted-foreground">
+                    PMTiles req/sec
+                  </p>
+                  <p class="mt-1 text-xs text-emerald-400">
+                    10% faster than tileserver-gl
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card class="card-glow text-center">
+                <CardHeader class="pb-2">
+                  <div
+                    class="mx-auto mb-2 inline-flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                  >
+                    <Database class="size-6" />
+                  </div>
+                  <p class="text-3xl font-bold text-primary">3,596</p>
+                </CardHeader>
+                <CardContent>
+                  <p class="text-sm text-muted-foreground">
+                    PostGIS req/sec
+                  </p>
+                  <p class="mt-1 text-xs text-emerald-400">
+                    Matches martin (PostGIS-bound)
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card class="card-glow text-center">
+                <CardHeader class="pb-2">
+                  <div
+                    class="mx-auto mb-2 inline-flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                  >
+                    <BarChart3 class="size-6" />
+                  </div>
+                  <p class="text-3xl font-bold text-primary">13,144</p>
+                </CardHeader>
+                <CardContent>
+                  <p class="text-sm text-muted-foreground">
+                    PostGIS req/sec at z14
+                  </p>
+                  <p class="mt-1 text-xs text-emerald-400">
+                    7ms avg latency
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card class="card-glow text-center">
+                <CardHeader class="pb-2">
+                  <div
+                    class="mx-auto mb-2 inline-flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                  >
+                    <Layers class="size-6" />
+                  </div>
+                  <p class="text-3xl font-bold text-primary">~93</p>
+                </CardHeader>
+                <CardContent>
+                  <p class="text-sm text-muted-foreground">
+                    MB/s throughput
+                  </p>
+                  <p class="mt-1 text-xs text-emerald-400">
+                    Consistent across zoom levels
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div class="mt-8 text-center">
+              <Button
+                variant="outline"
+                size="sm"
+                as="a"
+                href="https://docs.tileserver.app/benchmarks/performance"
+                class="border-primary/30 bg-primary/5 hover:border-primary/60 hover:bg-primary/10"
+              >
+                <BarChart3 class="size-4" />
+                View Full Benchmarks
+                <ArrowRight class="size-4" />
+              </Button>
             </div>
           </div>
         </section>

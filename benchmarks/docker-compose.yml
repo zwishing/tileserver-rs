@@ -20,7 +20,9 @@
 
 services:
   postgres:
-    image: postgis/postgis:16-3.4
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
     environment:
       POSTGRES_USER: tileserver
       POSTGRES_PASSWORD: tileserver
@@ -91,7 +93,7 @@ services:
   titiler:
     image: ghcr.io/developmentseed/titiler:latest
     ports:
-      - "8903:8000"
+      - "8903:80"
     volumes:
       - ../data:/data:ro
     environment:
@@ -100,7 +102,7 @@ services:
       WORKERS_PER_CORE: "1"
       MAX_WORKERS: "4"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      test: ["CMD", "curl", "-f", "http://localhost:80/healthz"]
       interval: 5s
       timeout: 3s
       retries: 3

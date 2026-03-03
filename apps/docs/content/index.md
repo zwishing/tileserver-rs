@@ -32,6 +32,17 @@ High-performance vector tile server built in Rust. Serve PMTiles and MBTiles wit
   ---
   View on GitHub
   :::
+
+  :::u-button
+  ---
+  color: neutral
+  icon: i-lucide-globe
+  size: xl
+  to: https://demo.tileserver.app
+  variant: subtle
+  ---
+  Live Demo
+  :::
 ::
 
 ::u-page-section
