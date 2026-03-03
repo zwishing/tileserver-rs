@@ -618,6 +618,7 @@ mod error_handling {
             name: None,
             attribution: None,
             resampling: None,
+            serve_as: None,
             colormap: None,
         };
 

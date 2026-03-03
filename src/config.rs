@@ -172,6 +172,10 @@ pub struct SourceConfig {
     pub attribution: Option<String>,
     #[serde(default)]
     pub resampling: Option<ResamplingMethod>,
+    /// Optional format transcoding: serve tiles as this format instead of native format.
+    /// E.g., set `serve_as = "mlt"` on a PBF source to transcode MVT→MLT on the fly.
+    #[serde(default)]
+    pub serve_as: Option<crate::sources::TileFormat>,
     #[cfg(feature = "raster")]
     #[serde(default)]
     pub colormap: Option<ColorMapConfig>,

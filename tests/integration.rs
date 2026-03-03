@@ -1035,6 +1035,7 @@ mod mlt_mbtiles_tests {
             name: Some("Test MLT Source".to_string()),
             attribution: None,
             resampling: None,
+            serve_as: None,
             #[cfg(feature = "raster")]
             colormap: None,
         }

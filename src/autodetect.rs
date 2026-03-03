@@ -140,6 +140,7 @@ pub fn detect_config(target_path: PathBuf) -> anyhow::Result<(Config, AutoDetect
                 name: None,
                 attribution: None,
                 resampling: None,
+                serve_as: None,
                 #[cfg(feature = "raster")]
                 colormap: None,
             });
@@ -268,6 +269,7 @@ pub fn detect_config(target_path: PathBuf) -> anyhow::Result<(Config, AutoDetect
             name: None,
             attribution: None,
             resampling: None,
+            serve_as: None,
             #[cfg(feature = "raster")]
             colormap: None,
         });
