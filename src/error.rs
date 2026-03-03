@@ -46,6 +46,15 @@ pub enum TileServerError {
     #[error("MBTiles error: {0}")]
     MbTilesError(String),
 
+    #[error("MLT encode error: {0}")]
+    MltEncodeError(String),
+
+    #[error("MLT decode error: {0}")]
+    MltDecodeError(String),
+
+    #[error("transcoding not supported: {from} -> {to}")]
+    TranscodeUnsupported { from: String, to: String },
+
     #[cfg(feature = "raster")]
     #[error("Raster error: {0}")]
     RasterError(String),
@@ -94,6 +103,15 @@ impl IntoResponse for TileServerError {
             }
             TileServerError::MbTilesError(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
+            }
+            TileServerError::MltEncodeError(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
+            }
+            TileServerError::MltDecodeError(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
+            }
+            TileServerError::TranscodeUnsupported { .. } => {
+                (StatusCode::BAD_REQUEST, self.to_string())
             }
             #[cfg(feature = "raster")]
             TileServerError::RasterError(_) => {
