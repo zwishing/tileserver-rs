@@ -3,9 +3,27 @@ export default defineNuxtConfig({
     'shadcn-nuxt',
     '@vueuse/nuxt',
     '@nuxt/eslint',
+    '@nuxt/fonts',
     '@nuxtjs/color-mode',
     'motion-v/nuxt',
   ],
+
+  fonts: {
+    families: [
+      {
+        name: 'General Sans',
+        provider: 'fontshare',
+        weights: [200, 300, 400, 500, 600, 700],
+      },
+      {
+        name: 'Switzer',
+        provider: 'fontshare',
+        weights: [300, 400, 500, 600, 700],
+      },
+      { name: 'JetBrains Mono', provider: 'google' },
+      { name: 'Source Serif 4', provider: 'google' },
+    ],
+  },
 
   // SPA mode - embedded in Rust binary
   ssr: false,
