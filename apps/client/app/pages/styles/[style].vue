@@ -5,17 +5,23 @@
     VControlScale,
     VControlGeolocate,
   } from '@geoql/v-maplibre';
-  import { ArrowLeft, Palette } from 'lucide-vue-next';
+  import { ArrowLeft, Bot, Palette } from 'lucide-vue-next';
 
   const route = useRoute('styles-style');
   const styleId = computed(() => String(route.params.style));
   const isRaster = computed(() => 'raster' in route.query);
   const isScreenshot = computed(() => 'screenshot' in route.query);
 
-  const { mapOptions, isLoading, navigateBack } = useStyleViewer(
+  const { mapOptions, mapRef, isLoading, navigateBack, onMapLoaded } = useStyleViewer(
     styleId,
     isRaster,
   );
+
+  const chatOpen = ref(false);
+
+  function toggleChat() {
+    chatOpen.value = !chatOpen.value;
+  }
 </script>
 
 <template>
@@ -29,6 +35,16 @@
       <ArrowLeft class="size-4" />
       <Palette class="size-4" />
       <span>{{ styleId }}</span>
+    </button>
+
+    <!-- LLM chat toggle (hidden for screenshots) -->
+    <button
+      v-if="!isScreenshot"
+      class="absolute right-4 bottom-8 z-10 flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
+      title="Chat with map"
+      @click="toggleChat"
+    >
+      <Bot class="size-5" />
     </button>
 
     <!-- Loading -->
@@ -45,12 +61,21 @@
       class="absolute inset-0 size-full overflow-hidden"
     >
       <ClientOnly>
-        <VMap :options="mapOptions" :support-pmtiles="false" class="size-full">
+        <VMap :options="mapOptions" :support-pmtiles="false" class="size-full" @loaded="onMapLoaded">
           <VControlScale v-if="!isScreenshot" position="bottom-left" />
           <VControlNavigation v-if="!isScreenshot" position="bottom-right" />
           <VControlGeolocate v-if="!isScreenshot" position="bottom-right" />
         </VMap>
       </ClientOnly>
     </div>
+
+    <!-- LLM Chat Panel -->
+    <ClientOnly>
+      <LlmPanel
+        :open="chatOpen"
+        :map-ref="mapRef"
+        @update:open="chatOpen = $event"
+      />
+    </ClientOnly>
   </div>
 </template>

@@ -1,0 +1,28 @@
+# Dev config for local testing with worktree
+fonts = "./data/fonts"
+
+[server]
+host = "0.0.0.0"
+port = 8080
+cors_origins = ["*"]
+
+[telemetry]
+enabled = false
+
+[[sources]]
+id = "protomaps"
+type = "pmtiles"
+path = "./data/tiles/protomaps-sample.pmtiles"
+name = "Protomaps Firenze Sample"
+attribution = "<a href=\"https://protomaps.com\">Protomaps</a> | <a href=\"https://openstreetmap.org/copyright\">© OpenStreetMap</a>"
+
+[[sources]]
+id = "zurich"
+type = "mbtiles"
+path = "./data/tiles/zurich_switzerland.mbtiles"
+name = "Zurich Switzerland"
+
+[[styles]]
+id = "protomaps-light"
+path = "./data/styles/protomaps-light/style.json"
+name = "Protomaps Light"

@@ -58,6 +58,7 @@ export default defineNuxtConfig({
     'maplibre-gl/dist/maplibre-gl.css',
     '@geoql/v-maplibre/dist/v-maplibre.css',
     '@maplibre/maplibre-gl-inspect/dist/maplibre-gl-inspect.css',
+    'markstream-vue/index.css',
   ],
 
   colorMode: {
@@ -90,12 +91,13 @@ export default defineNuxtConfig({
       include: ['maplibre-gl', '@geoql/v-maplibre'],
     },
     ssr: {
-      external: ['maplibre-gl', '@geoql/v-maplibre'],
+      external: ['maplibre-gl', '@geoql/v-maplibre', 'markstream-vue'],
     },
     server: {
       proxy: {
         // Proxy API requests to Rust backend
         '/health': 'http://localhost:8080',
+        '/ping': 'http://localhost:8080',
         '/data.json': 'http://localhost:8080',
         '/styles.json': 'http://localhost:8080',
         '/fonts.json': 'http://localhost:8080',
@@ -103,6 +105,7 @@ export default defineNuxtConfig({
         '^/data/[^/]+\\.json$': 'http://localhost:8080',
         '^/data/[^/]+/\\d+/\\d+/\\d+': 'http://localhost:8080',
         '^/styles/[^/]+/style\\.json$': 'http://localhost:8080',
+        '^/styles/[^/]+/static/': 'http://localhost:8080',
         '^/styles/[^/]+/\\d+/\\d+/\\d+': 'http://localhost:8080',
         '^/fonts/': 'http://localhost:8080',
       },

@@ -1,24 +1,28 @@
 <script setup lang="ts">
   import { ChevronRight, ExternalLink } from 'lucide-vue-next';
+  import { motion } from 'motion-v';
 </script>
 
 <template>
-  <a href="/_openapi" target="_blank" class="block">
-    <Card
-      class="overflow-hidden border-border bg-card transition-colors hover:bg-muted/30"
-    >
+  <motion.a
+    href="/_openapi"
+    target="_blank"
+    :initial="{ opacity: 0, y: 12 }"
+    :animate="{ opacity: 1, y: 0 }"
+    :transition="{ duration: 0.35, delay: 0.35 }"
+    class="block"
+  >
+    <Card class="overflow-hidden rounded-xl border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
       <div class="flex items-center gap-3 p-4">
-        <div class="flex size-8 items-center justify-center bg-muted/50">
+        <div class="flex size-8 items-center justify-center rounded-lg bg-muted/50">
           <ExternalLink class="size-4 text-muted-foreground" />
         </div>
         <div class="flex-1">
           <span class="font-medium">API Documentation</span>
-          <p class="text-xs text-muted-foreground">
-            OpenAPI 3.1 specification with Swagger UI
-          </p>
+          <p class="text-xs text-muted-foreground">OpenAPI 3.1 specification with Swagger UI</p>
         </div>
         <ChevronRight class="size-4 text-muted-foreground" />
       </div>
     </Card>
-  </a>
+  </motion.a>
 </template>
