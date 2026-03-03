@@ -148,6 +148,7 @@
             GitHub
           </NuxtLink>
         </div>
+      </div>
     </nav>
 
     <!-- Hero -->
