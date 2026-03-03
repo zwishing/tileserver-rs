@@ -62,7 +62,21 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build client
-        run: bun run --filter @tileserver-rs/client build
+        run: |
+          max_attempts=3
+          for attempt in $(seq 1 $max_attempts); do
+            echo "Build attempt $attempt/$max_attempts..."
+            if bun run --filter @tileserver-rs/client build; then
+              echo "Build succeeded on attempt $attempt"
+              exit 0
+            fi
+            if [ $attempt -lt $max_attempts ]; then
+              echo "Build failed, retrying in 15s..."
+              sleep 15
+            fi
+          done
+          echo "Build failed after $max_attempts attempts"
+          exit 1
 
   build-docs:
     name: CI (Docs) [Node] | Build
@@ -82,7 +96,21 @@ jobs:
 
       - name: Build docs
         working-directory: apps/docs
-        run: bun run build
+        run: |
+          max_attempts=3
+          for attempt in $(seq 1 $max_attempts); do
+            echo "Build attempt $attempt/$max_attempts..."
+            if bun run build; then
+              echo "Build succeeded on attempt $attempt"
+              exit 0
+            fi
+            if [ $attempt -lt $max_attempts ]; then
+              echo "Build failed, retrying in 15s..."
+              sleep 15
+            fi
+          done
+          echo "Build failed after $max_attempts attempts"
+          exit 1
 
   lint-marketing:
     name: CI (Marketing) [Node] | Lint
@@ -122,4 +150,18 @@ jobs:
 
       - name: Build marketing
         working-directory: apps/marketing
-        run: bun run build
+        run: |
+          max_attempts=3
+          for attempt in $(seq 1 $max_attempts); do
+            echo "Build attempt $attempt/$max_attempts..."
+            if bun run build; then
+              echo "Build succeeded on attempt $attempt"
+              exit 0
+            fi
+            if [ $attempt -lt $max_attempts ]; then
+              echo "Build failed, retrying in 15s..."
+              sleep 15
+            fi
+          done
+          echo "Build failed after $max_attempts attempts"
+          exit 1
