@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ArrowLeft, ArrowRight } from 'lucide-vue-next';
+  import { ArrowLeft } from 'lucide-vue-next';
   import { useDocsNavigation } from '~/composables/useDocsNavigation';
 
   const route = useRoute();
@@ -29,13 +29,25 @@
     allItems.value.findIndex((item) => item.path === path.value),
   );
   const prevItem = computed(() =>
-    currentIndex.value > 0 ? allItems.value[currentIndex.value - 1] : undefined,
+    currentIndex.value > 0
+      ? allItems.value[currentIndex.value - 1] ?? null
+      : null,
   );
   const nextItem = computed(() =>
     currentIndex.value < allItems.value.length - 1
-      ? allItems.value[currentIndex.value + 1]
-      : undefined,
+      ? allItems.value[currentIndex.value + 1] ?? null
+      : null,
   );
+
+  const editUrl = computed(() => {
+    const slug = path.value.replace(/^\//, '');
+    return `https://github.com/vinayakkulkarni/tileserver-rs/edit/main/apps/docs/content/${slug}.md`;
+  });
+
+  const issueUrl = computed(() => {
+    const title = page.value?.title ?? 'Unknown';
+    return `https://github.com/vinayakkulkarni/tileserver-rs/issues/new?title=${encodeURIComponent(`[Docs]: ${title} - `)}`;
+  });
 
   useSeoMeta({
     title: page.value?.title,
@@ -61,46 +73,12 @@
       <ContentRenderer :value="page" />
     </article>
 
-    <!-- Prev / Next -->
-    <nav
-      v-if="prevItem || nextItem"
-      class="mt-16 grid gap-4 border-t border-border pt-8 sm:grid-cols-2"
-    >
-      <NuxtLink
-        v-if="prevItem"
-        :to="prevItem.path"
-        class="group border border-border p-4 transition-colors hover:border-foreground/20"
-      >
-        <span
-          class="mb-1 block font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
-        >
-          Previous
-        </span>
-        <span
-          class="inline-flex items-center gap-1.5 font-display text-sm font-semibold tracking-tight group-hover:text-primary"
-        >
-          <ArrowLeft class="size-3" />
-          {{ prevItem.title }}
-        </span>
-      </NuxtLink>
-      <div v-else />
-      <NuxtLink
-        v-if="nextItem"
-        :to="nextItem.path"
-        class="group border border-border p-4 text-right transition-colors hover:border-foreground/20"
-      >
-        <span
-          class="mb-1 block font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
-        >
-          Next
-        </span>
-        <span
-          class="inline-flex items-center gap-1.5 font-display text-sm font-semibold tracking-tight group-hover:text-primary"
-        >
-          {{ nextItem.title }}
-          <ArrowRight class="size-3" />
-        </span>
-      </NuxtLink>
-    </nav>
+    <!-- Footer: Edit/Report + Prev/Next -->
+    <DocsPageFooter
+      :prev="prevItem"
+      :next="nextItem"
+      :edit-url="editUrl"
+      :issue-url="issueUrl"
+    />
   </div>
 </template>
