@@ -17,7 +17,7 @@
 </script>
 
 <template>
-  <footer class="mt-16 border-t border-border pt-8">
+  <footer class="mt-16 pt-8">
     <!-- Edit & Report -->
     <div
       class="flex items-center justify-center gap-1.5 text-xs lg:gap-2 lg:text-sm"
