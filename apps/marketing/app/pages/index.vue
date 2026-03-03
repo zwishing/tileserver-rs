@@ -1,8 +1,26 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+  const { isDark } = useThemeToggle();
+
+  const squareBorderColor = computed(() =>
+    isDark.value ? 'oklch(1 0 0 / 0.06)' : 'oklch(0 0 0 / 0.06)',
+  );
+
+  const squareHoverColor = computed(() =>
+    isDark.value ? 'oklch(1 0 0 / 0.03)' : 'oklch(0 0 0 / 0.04)',
+  );
+</script>
 
 <template>
   <div class="relative min-h-screen bg-background">
-    <div class="bg-grid pointer-events-none fixed inset-0"></div>
+    <div class="pointer-events-none fixed inset-0">
+      <Squares
+        :speed="0.3"
+        direction="diagonal"
+        :border-color="squareBorderColor"
+        :hover-fill-color="squareHoverColor"
+        :square-size="40"
+      />
+    </div>
 
     <div class="relative z-10">
       <MarketingNavigation />
