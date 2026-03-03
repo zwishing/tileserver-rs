@@ -51,6 +51,7 @@
         "@geoql/v-maplibre": "^1.6.1",
         "@luma.gl/engine": "^9.2.6",
         "@maplibre/maplibre-gl-inspect": "^1.8.2",
+        "@maplibre/mlt": "^1.1.6",
         "@tanstack/query-db-collection": "^1.0.27",
         "@tanstack/vue-db": "^0.0.107",
         "@tanstack/vue-query": "^5.92.9"

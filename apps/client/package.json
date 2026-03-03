@@ -29,6 +29,7 @@
     "@geoql/v-maplibre": "catalog:client",
     "@luma.gl/engine": "catalog:client",
     "@maplibre/maplibre-gl-inspect": "catalog:client",
+    "@maplibre/mlt": "catalog:client",
     "@nuxt/fonts": "catalog:",
     "@nuxtjs/color-mode": "catalog:",
     "@tanstack/query-db-collection": "catalog:client",
