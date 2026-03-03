@@ -11,7 +11,7 @@
 </script>
 
 <template>
-  <div class="relative min-h-screen bg-background">
+  <div class="relative min-h-dvh bg-background">
     <div class="pointer-events-none fixed inset-0">
       <Squares
         :speed="0.3"

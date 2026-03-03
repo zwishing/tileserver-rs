@@ -41,7 +41,7 @@ class="
             </li>
           </ul>
         </div>
-        <div class="border border-border bg-muted/30">
+        <div class="overflow-hidden border border-border bg-muted/30">
           <div
             class="flex items-center gap-2 border-b border-border px-4 py-2.5"
           >
