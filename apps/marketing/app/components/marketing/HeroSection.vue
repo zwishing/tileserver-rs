@@ -74,17 +74,30 @@
             <Github class="size-4" />
             View on GitHub
           </Button>
-          <Button
-            variant="outline"
-            size="lg"
-            as="a"
-            href="https://demo.tileserver.app"
-            target="_blank"
-            class="gap-2 border-emerald-500/20 bg-emerald-500/5 text-emerald-400 hover:border-emerald-500/40 hover:bg-emerald-500/10"
+          <GlareHover
+            width="auto"
+            height="auto"
+            background="transparent"
+            border-radius="0"
+            border-color="rgba(16, 185, 129, 0.2)"
+            glare-color="#10b981"
+            :glare-opacity="0.3"
+            :glare-angle="-45"
+            :glare-size="200"
+            :transition-duration="500"
           >
-            <ExternalLink class="size-4" />
-            Live Demo
-          </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              as="a"
+              href="https://demo.tileserver.app"
+              target="_blank"
+              class="gap-2 border-0 bg-transparent text-emerald-400 hover:bg-transparent"
+            >
+              <ExternalLink class="size-4" />
+              Live Demo
+            </Button>
+          </GlareHover>
         </div>
 
         <div class="mx-auto mt-14 max-w-xl">
