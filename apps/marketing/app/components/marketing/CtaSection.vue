@@ -1,0 +1,47 @@
+<script setup lang="ts">
+  import { Github, ArrowRight } from 'lucide-vue-next';
+</script>
+
+<template>
+  <section class="border-t border-white/5 py-20">
+    <div class="mx-auto max-w-6xl px-6 text-center">
+      <div class="mx-auto max-w-2xl">
+        <p class="hud-label mb-4">Get Started</p>
+        <h2
+          class="mb-4 font-display text-3xl leading-[1.15] font-bold tracking-[-0.03em] sm:text-4xl"
+        >
+          Ready to <span class="text-gradient">Deploy</span>?
+        </h2>
+        <p class="mb-10 font-sans text-lg/relaxed text-muted-foreground">
+          Deploy your own tile server in minutes with our comprehensive
+          documentation.
+        </p>
+        <div
+          class="flex flex-col items-center justify-center gap-3 sm:flex-row"
+        >
+          <Button
+            size="lg"
+            as="a"
+            href="https://docs.tileserver.app/getting-started/quickstart"
+            class="group gap-2 bg-primary px-8 text-primary-foreground hover:bg-primary/90"
+          >
+            Read the Docs
+            <ArrowRight
+              class="size-4 transition-transform group-hover:translate-x-0.5"
+            />
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            as="a"
+            href="https://github.com/vinayakkulkarni/tileserver-rs"
+            class="gap-2 border-white/10 bg-transparent hover:border-white/20 hover:bg-white/5"
+          >
+            <Github class="size-4" />
+            Star on GitHub
+          </Button>
+        </div>
+      </div>
+    </div>
+  </section>
+</template>
