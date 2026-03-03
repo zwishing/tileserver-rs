@@ -139,6 +139,7 @@ pub fn detect_config(target_path: PathBuf) -> anyhow::Result<(Config, AutoDetect
                 path: path.to_string_lossy().to_string(),
                 name: None,
                 attribution: None,
+                description: None,
                 resampling: None,
                 serve_as: None,
                 #[cfg(feature = "raster")]
@@ -268,6 +269,7 @@ pub fn detect_config(target_path: PathBuf) -> anyhow::Result<(Config, AutoDetect
             path: path.to_string_lossy().to_string(),
             name: None,
             attribution: None,
+            description: None,
             resampling: None,
             serve_as: None,
             #[cfg(feature = "raster")]

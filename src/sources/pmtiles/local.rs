@@ -16,6 +16,12 @@ pub struct LocalPmTilesSource {
     reader: Arc<RwLock<LocalReader>>,
     metadata: TileMetadata,
     tile_compression: TileCompression,
+    /// The native format of the underlying tile data (before any `serve_as` override).
+    /// When `serve_as` is configured, `metadata.format` reflects the target format
+    /// (for TileJSON URLs and encoding), while `native_format` tracks the actual
+    /// on-disk format so that tiles are returned with the correct format tag
+    /// for the transcoding layer to detect and convert.
+    native_format: TileFormat,
 }
 
 impl LocalPmTilesSource {
@@ -73,6 +79,19 @@ impl LocalPmTilesSource {
             }
         }
 
+        // Apply `serve_as` override: the metadata format controls TileJSON URLs
+        // and encoding, while native_format tracks the actual on-disk format.
+        let native_format = format;
+        let metadata_format = config.serve_as.unwrap_or(format);
+        if config.serve_as.is_some() {
+            tracing::info!(
+                "Source '{}': native format {:?}, serving as {:?} (serve_as override)",
+                config.id,
+                native_format,
+                metadata_format
+            );
+        }
+
         // Store tile compression for later use
         let tile_compression = convert_compression(header.tile_compression);
 
@@ -93,9 +112,9 @@ impl LocalPmTilesSource {
         let metadata = TileMetadata {
             id: config.id.clone(),
             name: config.name.clone().unwrap_or_else(|| config.id.clone()),
-            description: None,
+            description: config.description.clone(),
             attribution: config.attribution.clone(),
-            format,
+            format: metadata_format,
             minzoom: header.min_zoom,
             maxzoom: header.max_zoom,
             bounds: Some([
@@ -117,13 +136,14 @@ impl LocalPmTilesSource {
             config.id,
             header.min_zoom,
             header.max_zoom,
-            format
+            metadata_format
         );
 
         Ok(Self {
             reader: Arc::new(RwLock::new(reader)),
             metadata,
             tile_compression,
+            native_format,
         })
     }
 }
@@ -165,7 +185,7 @@ impl TileSource for LocalPmTilesSource {
         match reader.get_tile(coord).await {
             Ok(Some(tile_data)) => Ok(Some(TileData {
                 data: tile_data,
-                format: self.metadata.format,
+                format: self.native_format,
                 compression: self.tile_compression,
             })),
             Ok(None) => Ok(None),

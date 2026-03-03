@@ -170,6 +170,8 @@ pub struct SourceConfig {
     pub name: Option<String>,
     /// Optional attribution text
     pub attribution: Option<String>,
+    /// Optional description
+    pub description: Option<String>,
     #[serde(default)]
     pub resampling: Option<ResamplingMethod>,
     /// Optional format transcoding: serve tiles as this format instead of native format.

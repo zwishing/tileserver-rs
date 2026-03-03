@@ -617,6 +617,7 @@ mod error_handling {
             path: "nonexistent/path/to/file.tif".to_string(),
             name: None,
             attribution: None,
+            description: None,
             resampling: None,
             serve_as: None,
             colormap: None,

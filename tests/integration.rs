@@ -1034,6 +1034,7 @@ mod mlt_mbtiles_tests {
             path: path.to_string(),
             name: Some("Test MLT Source".to_string()),
             attribution: None,
+            description: None,
             resampling: None,
             serve_as: None,
             #[cfg(feature = "raster")]

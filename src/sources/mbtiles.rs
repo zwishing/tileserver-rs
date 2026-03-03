@@ -16,6 +16,8 @@ pub struct MbTilesSource {
     conn: Arc<Mutex<Connection>>,
     /// Cached metadata
     metadata: TileMetadata,
+    /// The native format of the underlying tile data (before any `serve_as` override).
+    native_format: TileFormat,
 }
 
 impl MbTilesSource {
@@ -36,7 +38,25 @@ impl MbTilesSource {
             .map_err(|e| TileServerError::MbTilesError(e.to_string()))?;
 
         // Read metadata from the database
-        let metadata = Self::read_metadata(&conn, config)?;
+        let mut metadata = Self::read_metadata(&conn, config)?;
+
+        // Apply `serve_as` override: the metadata format controls TileJSON URLs
+        // and encoding, while native_format tracks the actual on-disk format.
+        let native_format = metadata.format;
+        if let Some(target_format) = config.serve_as {
+            metadata.format = target_format;
+            tracing::info!(
+                "Source '{}': native format {:?}, serving as {:?} (serve_as override)",
+                config.id,
+                native_format,
+                target_format
+            );
+        }
+
+        // Use config description if provided, otherwise fall back to database metadata
+        if config.description.is_some() {
+            metadata.description = config.description.clone();
+        }
 
         tracing::info!(
             "Loaded MBTiles source '{}': {} (zoom {}-{})",
@@ -49,9 +69,9 @@ impl MbTilesSource {
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
             metadata,
+            native_format,
         })
     }
-
     /// Read metadata from the MBTiles metadata table
     fn read_metadata(conn: &Connection, config: &SourceConfig) -> Result<TileMetadata> {
         let mut stmt = conn
@@ -162,7 +182,6 @@ impl MbTilesSource {
             vector_layers,
         })
     }
-
     /// Flip Y coordinate for TMS scheme (MBTiles uses TMS, most clients use XYZ)
     fn flip_y(z: u8, y: u32) -> u32 {
         (1u32 << z) - 1 - y
@@ -188,7 +207,7 @@ impl TileSource for MbTilesSource {
 
         // Clone the connection Arc for use in the blocking task
         let conn = self.conn.clone();
-        let format = self.metadata.format;
+        let format = self.native_format;
 
         // Run the SQLite query in a blocking task to avoid blocking the async runtime
         let result = tokio::task::spawn_blocking(move || {
