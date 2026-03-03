@@ -12,9 +12,13 @@
     Map,
     Camera,
     Container,
+    Sun,
+    Moon,
   } from 'lucide-vue-next';
 
   definePageMeta({ layout: false });
+
+  const { isDark, toggle: toggleTheme } = useThemeToggle();
 
   const features = [
     {
@@ -127,6 +131,14 @@
           >
             Home
           </NuxtLink>
+          <button
+            class="flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="Toggle theme"
+            @click="toggleTheme"
+          >
+            <Sun v-if="isDark" class="size-4" />
+            <Moon v-else class="size-4" />
+          </button>
           <NuxtLink
             to="https://github.com/vinayakkulkarni/tileserver-rs"
             external
@@ -136,7 +148,6 @@
             GitHub
           </NuxtLink>
         </div>
-      </div>
     </nav>
 
     <!-- Hero -->
