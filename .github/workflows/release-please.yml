@@ -35,8 +35,7 @@ jobs:
       matrix:
         workflow:
           - release-macos-arm64.yml
-          - release-linux-amd64.yml
-          - release-linux-arm64.yml
+          - release-linux.yml
           # macOS AMD64 disabled - Intel runners retired, paid runners required
           # - release-macos-amd64.yml
           # Docker is triggered automatically by tag push (using RELEASE_PAT)
