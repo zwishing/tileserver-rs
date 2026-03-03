@@ -248,6 +248,27 @@ pub fn rewrite_style_for_api(
                             }
                         }
                     }
+
+                    // Inject encoding hint for MLT sources.
+                    // If the source URL or tile URLs reference .mlt endpoints,
+                    // set encoding: "mlt" so clients know the tile encoding.
+                    if !source_obj.contains_key("encoding") {
+                        let is_mlt = source_obj
+                            .get("url")
+                            .and_then(|v| v.as_str())
+                            .is_some_and(|u| u.contains(".mlt"))
+                            || source_obj
+                                .get("tiles")
+                                .and_then(|v| v.as_array())
+                                .is_some_and(|tiles| {
+                                    tiles
+                                        .iter()
+                                        .any(|t| t.as_str().is_some_and(|s| s.ends_with(".mlt")))
+                                });
+                        if is_mlt {
+                            source_obj.insert("encoding".to_string(), serde_json::json!("mlt"));
+                        }
+                    }
                 }
             }
         }
