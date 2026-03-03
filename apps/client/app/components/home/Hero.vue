@@ -13,7 +13,7 @@
 
 <template>
   <header class="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-    <div class="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
+    <div class="flex h-14 items-center justify-between px-4">
       <motion.div
         :initial="{ opacity: 0, x: -12 }"
         :animate="{ opacity: 1, x: 0 }"

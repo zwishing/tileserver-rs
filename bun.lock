@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "tileserver-rs",
+      "dependencies": {
+        "@nuxt/fonts": "^0.14.0",
+      },
       "devDependencies": {
         "@commitlint/cli": "^20.4.3",
         "@commitlint/config-conventional": "^20.4.3",

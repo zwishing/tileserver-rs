@@ -26,7 +26,7 @@
   <div class="flex min-h-dvh flex-col bg-background">
     <HomeHero :is-dark="isDark" @toggle-theme="toggleColorMode" />
 
-    <main class="mx-auto w-full max-w-5xl flex-1 space-y-4 p-4">
+    <main class="w-full flex-1 space-y-4 p-4">
       <HomeSearchBar v-model="searchQuery" />
 
       <HomeStyleList

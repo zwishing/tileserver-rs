@@ -111,5 +111,8 @@
   "engines": {
     "node": ">=24.0.0"
   },
-  "homepage": "https://tileserver.app"
+  "homepage": "https://tileserver.app",
+  "dependencies": {
+    "@nuxt/fonts": "^0.14.0"
+  }
 }
