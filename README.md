@@ -12,6 +12,7 @@ High-performance vector tile server built in Rust with a modern Nuxt 4 frontend.
 - **PMTiles Support** - Serve tiles from local and remote PMTiles archives
 - **MBTiles Support** - Serve tiles from SQLite-based MBTiles files
 - **Native Raster Rendering** - Generate PNG/JPEG/WebP tiles using MapLibre Native (C++ FFI)
+- **MLT (MapLibre Tiles)** - Serve and transcode MLT tiles with MLT↔MVT on-the-fly conversion (feature-gated)
 - **PostgreSQL Out-DB Rasters** - Serve VRT/COG tiles via PostGIS functions with dynamic filtering
 - **Static Map Images** - Create embeddable map screenshots (like Mapbox/Maptiler Static API)
 - **Zero-Config Auto-Detect** - Point at a directory or file and start serving instantly
@@ -190,6 +191,9 @@ bun install
 # Build the Rust backend
 cargo build --release
 
+# Build with MLT transcoding support (optional)
+cargo build --release --features mlt
+
 # Build the frontend
 bun run build:client
 
@@ -276,7 +280,7 @@ See [config.example.toml](./config.example.toml) for a complete example, or [con
 |----------|-------------|
 | `GET /data.json` | List all tile sources |
 | `GET /data/{source}.json` | TileJSON for a source |
-| `GET /data/{source}/{z}/{x}/{y}.{format}` | Get a vector tile (`.pbf`, `.mvt`) |
+| `GET /data/{source}/{z}/{x}/{y}.{format}` | Get a vector tile (`.pbf`, `.mvt`, `.mlt`) |
 | `GET /data/{source}/{z}/{x}/{y}.geojson` | Get tile as GeoJSON (for debugging) |
 
 ### Style Endpoints
@@ -370,6 +374,21 @@ cargo build --release
 bun run build:client
 ```
 
+### Cargo Feature Flags
+
+| Feature | Description |
+|---------|-------------|
+| `http` | Enable serving PMTiles from remote HTTP URLs |
+| `mlt` | Enable MLT (MapLibre Tiles) transcoding support |
+
+```bash
+# Build with MLT support
+cargo build --release --features mlt
+
+# Build with all optional features
+cargo build --release --features http,mlt
+```
+
 ### Project Structure
 
 ```
@@ -400,6 +419,7 @@ tileserver-rs/
 │   │   └── types.rs         # RenderOptions, ImageFormat, etc.
 │   ├── sources/             # Tile source implementations
 │   └── styles/              # Style management + rewriting
+│   ├── transcode.rs         # MLT↔MVT transcoding (feature-gated)
 ├── compose.yml              # Docker Compose (development)
 ├── compose.prod.yml         # Docker Compose (production overrides)
 ├── Dockerfile               # Multi-stage Docker build

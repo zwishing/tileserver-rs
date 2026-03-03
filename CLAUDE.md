@@ -19,6 +19,7 @@
 - MapLibre GL JS map viewer
 - Style JSON and data inspector
 - Configurable via TOML configuration
+- **MLT (MapLibre Tiles) transcoding** — on-the-fly MLT↔MVT conversion (feature-gated)
 
 ---
 
@@ -32,6 +33,9 @@
 - **Tracing** - Structured logging
 - **Clap** - CLI argument parsing
 - **maplibre-native-sys** - FFI bindings to MapLibre Native C++ for server-side rendering
+- **mlt-core** - MLT tile parsing and decoding (optional, `mlt` feature)
+- **prost** - Protobuf encoding for MVT tile generation (optional, `mlt` feature)
+- **geo-types** - Geometry types used by mlt-core (optional, `mlt` feature)
 
 ### Frontend (Nuxt 4)
 - **Nuxt 4** (v3.15) - Vue 3.5 framework with `app/` directory structure
@@ -346,6 +350,7 @@ tileserver-rs/
 │   │   └── types.rs                   # RenderOptions, ImageFormat, etc.
 │   ├── styles/                        # Style management
 │   │   └── mod.rs                     # Style loading + rewrite_style_for_native()
+│   ├── transcode.rs                   # MLT↔MVT transcoding (feature-gated `mlt`)
 │   └── sources/                       # Tile source implementations
 │       ├── mod.rs                     # TileSource trait, TileMetadata, TileJSON
 │       ├── manager.rs                 # SourceManager (loads and manages sources)
@@ -538,7 +543,7 @@ path = "/data/styles/osm-bright/style.json"
 |----------|-------------|
 | `GET /data.json` | List all tile sources |
 | `GET /data/{source}.json` | TileJSON for a source |
-| `GET /data/{source}/{z}/{x}/{y}.{format}` | Get a vector tile |
+| `GET /data/{source}/{z}/{x}/{y}.{format}` | Get a vector tile (`.pbf`, `.mvt`, `.mlt`) |
 
 ### Style Endpoints
 
@@ -626,6 +631,50 @@ cmake --build build-macos-metal --target mbgl-core mlt-cpp -j8
 
 ---
 
+## MLT (MapLibre Tiles) Transcoding Architecture
+
+The `mlt` feature flag enables on-the-fly transcoding between MLT and MVT tile formats.
+
+### Overview
+
+MLT is a next-generation vector tile format from the MapLibre project, designed as a more efficient alternative to MVT (Mapbox Vector Tiles). tileserver-rs supports:
+
+- **Phase 1** (Passthrough): Serve MLT tiles directly from PMTiles/MBTiles sources (always enabled)
+- **Phase 2** (MVT→MLT): Not yet available — `mlt-core` v0.1.x lacks an encoding API
+- **Phase 3** (MLT→MVT): Decode MLT tiles and re-encode as MVT protobuf for legacy clients
+
+### Architecture
+
+```
+src/transcode.rs  (feature-gated: mlt)
+├── MvtProto module       ─ Prost-derived MVT protobuf types (Tile, Layer, Feature, Value)
+├── transcode_tile()      ─ Public API: dispatches format conversion
+├── mlt_to_mvt()          ─ Phase 3: MLT → MVT using mlt-core + prost encoding
+├── feature_collection_to_mvt() ─ Builds MVT Tile from mlt-core FeatureCollection
+├── encode_geometry_to_mvt()   ─ Encodes geo_types geometries to MVT command sequences
+└── decompress_tile_data()    ─ Handles gzip decompression of compressed tiles
+```
+
+### How Transcoding Works
+
+When a client requests a tile in a different format than the source provides (e.g., requesting `.pbf` from an MLT source), the `get_tile` handler in `main.rs` detects the mismatch and calls `transcode_tile()`. The flow:
+
+1. Detect source format vs requested format
+2. Decompress tile data if gzip-compressed
+3. Parse MLT tile using `mlt-core::parse_layers()` + `layer.decode_all()`
+4. Convert to intermediate `FeatureCollection` via `FeatureCollection::from_layers()`
+5. Build MVT protobuf using key/value interning, geometry encoding, and `prost` serialization
+6. Return transcoded tile bytes with correct `Content-Type`
+
+### Key Implementation Details
+
+- Features are grouped by `_layer` property (injected by `from_layers()`)
+- Geometry encoding uses standard MVT command sequences (MoveTo, LineTo, ClosePath)
+- Coordinates are zigzag-encoded per the MVT spec
+- Key/value interning deduplicates property strings per layer
+- Fallback: if transcoding fails, the original tile is served with a warning log
+---
+
 ## Development Commands
 
 ### Root (Workspace)
@@ -669,8 +718,8 @@ docker compose build     # Rebuild images
 [features]
 default = []
 http = ["reqwest"]      # HTTP PMTiles support
+mlt = ["mlt-core", "prost", "geo-types"]  # MLT transcoding support
 # s3 = ["aws-sdk-s3"]   # S3 PMTiles support (planned)
-```
 
 ---
 

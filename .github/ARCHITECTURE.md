@@ -18,6 +18,7 @@ tileserver-rs is distributed as a **single self-contained binary**, similar to [
 │  │  /ping        │  │  /styles/:id   │               │
 │  │  /data.json   │  │  /data/:id     │               │
 │  │  /data/:id/.. │  │                │               │
+│  │  /data/:id/.mlt│  │                │               │
 │  └───────────────┘  └────────────────┘               │
 │         Main port (default: 8080)                    │
 │                                                      │
@@ -32,6 +33,12 @@ tileserver-rs is distributed as a **single self-contained binary**, similar to [
 │  │  ArcSwap-based state swap       │                │
 │  └──────────────────────────────────┘                │
 └──────────────────────────────────────────────────────┘
+│                                                      │
+│  ┌──────────────────────────────────┐                │
+│  │  MLT Transcoding (optional)    │                │
+│  │  MLT→MVT reverse transcoding  │                │
+│  │  cargo feature: mlt            │                │
+│  └──────────────────────────────────┘                │
 ```
 
 ## Supported Platforms
@@ -205,8 +212,9 @@ rustup target add x86_64-pc-windows-msvc
 | Embedded UI | ✅ | ✅ | ✅ |
 | PMTiles | ✅ | ✅ | ❌ |
 | MBTiles | ✅ | ✅ | ✅ |
+| MLT (MapLibre Tiles) | ✅ (passthrough + transcode) | ✅ (passthrough only) | ❌ |
+| MLT↔MVT Transcoding | ✅ (feature-gated) | ❌ | ❌ |
 | Language | Rust | Rust | JavaScript |
-
 ## Future Improvements
 
 - [ ] Unified release workflow (all platforms in parallel)
