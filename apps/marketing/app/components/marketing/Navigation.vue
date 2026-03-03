@@ -21,7 +21,12 @@
           <span class="text-primary"> RS</span>
         </span>
       </NuxtLink>
-      <div class="flex items-center gap-1">
+      <div
+        class="
+          hidden items-center gap-1
+          md:flex
+        "
+      >
         <Button
           variant="ghost"
           size="sm"
@@ -72,6 +77,7 @@
           <Moon v-else class="size-4" />
         </Button>
       </div>
+      <MarketingMobileNav />
     </div>
   </nav>
 </template>
