@@ -3,7 +3,7 @@
 //! Provides conversion between MVT (Mapbox Vector Tiles, protobuf)
 //! and MLT (MapLibre Tiles) formats. This enables:
 //!
-//! - **Phase 2**: Serve existing MVT/PBF sources as MLT tiles (pending mlt-core encoding API)
+//! - **Phase 2**: Serve existing MVT/PBF sources as MLT tiles (MVT→MLT encoding)
 //! - **Phase 3**: Serve MLT sources as MVT/PBF for backward compatibility with legacy clients
 //!
 //! Gated behind the `mlt` cargo feature.
@@ -105,7 +105,7 @@ pub mod MvtProto {
 ///
 /// | From | To  | Description |
 /// |------|-----|-------------|
-/// | PBF  | MLT | Not yet supported (mlt-core lacks encoding API) |
+/// | PBF  | MLT | MVT→MLT encoding via mlt-core (Phase 2) |
 /// | MLT  | PBF | MLT→MVT decoding (Phase 3) |
 ///
 /// # Errors
@@ -120,14 +120,13 @@ pub fn transcode_tile(tile: &TileData, target_format: TileFormat) -> Result<Tile
 
     match (tile.format, target_format) {
         (TileFormat::Pbf, TileFormat::Mlt) => {
-            // Phase 2: MVT→MLT encoding is not yet supported.
-            // The mlt-core v0.1.x crate does not expose a public API to create new
-            // MLT tiles from a FeatureCollection or MVT data. It can only decode/parse
-            // existing MLT tiles. Once mlt-core adds an encoding API, this path will
-            // convert MVT bytes → FeatureCollection → encoded MLT layers → MLT bytes.
-            Err(TileServerError::TranscodeUnsupported {
-                from: "Pbf".to_string(),
-                to: "Mlt".to_string(),
+            // Phase 2: MVT→MLT encoding using mlt-core's encoding API.
+            let raw = decompress_tile_data(tile)?;
+            let mlt_bytes = mvt_to_mlt(&raw)?;
+            Ok(TileData {
+                data: mlt_bytes,
+                format: TileFormat::Mlt,
+                compression: TileCompression::None,
             })
         }
         (TileFormat::Mlt, TileFormat::Pbf) => {
@@ -166,6 +165,229 @@ fn decompress_tile_data(tile: &TileData) -> Result<Vec<u8>> {
             "{:?} decompression not supported for transcoding",
             tile.compression
         ))),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2: MVT → MLT encoding
+// ---------------------------------------------------------------------------
+
+/// Convert MVT (protobuf) bytes to MLT format.
+///
+/// Uses `mlt-core` to:
+/// 1. Parse MVT binary into a `FeatureCollection`
+/// 2. Group features by layer (via `_layer` property)
+/// 3. Build decoded geometry, IDs, and column-oriented properties per layer
+/// 4. Encode each column using mlt-core's encoding API
+/// 5. Serialize encoded layers to MLT wire format
+fn mvt_to_mlt(mvt_bytes: &[u8]) -> Result<Bytes> {
+    use std::collections::BTreeMap;
+
+    // Step 1: Parse MVT protobuf into FeatureCollection
+    let fc = mlt_core::mvt::mvt_to_feature_collection(mvt_bytes.to_vec())
+        .map_err(|e| TileServerError::MltEncodeError(format!("failed to parse MVT tile: {e}")))?;
+
+    // Step 2: Group features by layer name
+    let mut layer_map: BTreeMap<String, Vec<&mlt_core::geojson::Feature>> = BTreeMap::new();
+    for feature in &fc.features {
+        let layer_name = feature
+            .properties
+            .get("_layer")
+            .and_then(|v| v.as_str())
+            .unwrap_or("default")
+            .to_string();
+        layer_map.entry(layer_name).or_default().push(feature);
+    }
+
+    // Step 3: Build and encode each layer, write to output buffer
+    let mut output = Vec::new();
+    for (layer_name, features) in &layer_map {
+        let layer = build_mlt_layer(layer_name, features)?;
+        layer.write_to(&mut output).map_err(|e| {
+            TileServerError::MltEncodeError(format!("failed to write MLT layer: {e}"))
+        })?;
+    }
+
+    Ok(Bytes::from(output))
+}
+
+/// Build an encoded `OwnedLayer` from a set of features belonging to one MVT layer.
+fn build_mlt_layer(
+    layer_name: &str,
+    features: &[&mlt_core::geojson::Feature],
+) -> Result<mlt_core::OwnedLayer> {
+    use mlt_core::v01::{
+        DecodedGeometry, DecodedId, Encoder, GeometryEncoder, IdEncoder, IdWidth, LogicalEncoder,
+        OwnedGeometry, OwnedId, OwnedLayer01, OwnedProperty, PhysicalEncoder, PresenceStream,
+        PropertyEncoder,
+    };
+    use mlt_core::Encodable as _;
+
+    // Extract extent from first feature (injected by mvt_to_feature_collection as _extent)
+    let extent = features
+        .first()
+        .and_then(|f| f.properties.get("_extent"))
+        .and_then(|v| v.as_u64())
+        .map(|v| v as u32)
+        .unwrap_or(4096);
+
+    // --- Geometry ---
+    let mut decoded_geom = DecodedGeometry::default();
+    for feature in features {
+        decoded_geom.push_geom(&feature.geometry);
+    }
+    let mut geometry = OwnedGeometry::Decoded(decoded_geom);
+    let geom_encoder = GeometryEncoder::all(Encoder::varint());
+    geometry.encode_with(geom_encoder).map_err(|e| {
+        TileServerError::MltEncodeError(format!("failed to encode MLT geometry: {e}"))
+    })?;
+
+    // --- IDs ---
+    let ids: Vec<Option<u64>> = features.iter().map(|f| f.id).collect();
+    let has_ids = ids.iter().any(|id| id.is_some());
+    let mut id = if has_ids {
+        OwnedId::Decoded(DecodedId(Some(ids)))
+    } else {
+        OwnedId::None
+    };
+    if has_ids {
+        let id_encoder = IdEncoder::new(LogicalEncoder::None, IdWidth::Id64);
+        id.encode_with(id_encoder).map_err(|e| {
+            TileServerError::MltEncodeError(format!("failed to encode MLT IDs: {e}"))
+        })?;
+    }
+
+    // --- Properties (row-oriented → column-oriented) ---
+    let properties = build_column_properties(features)?;
+    let prop_encoder = PropertyEncoder::new(
+        PresenceStream::Present,
+        LogicalEncoder::None,
+        PhysicalEncoder::VarInt,
+    );
+    let mut encoded_properties: Vec<OwnedProperty> = Vec::with_capacity(properties.len());
+    for decoded_prop in properties {
+        let mut prop = OwnedProperty::Decoded(decoded_prop);
+        prop.encode_with(prop_encoder).map_err(|e| {
+            TileServerError::MltEncodeError(format!("failed to encode MLT property: {e}"))
+        })?;
+        encoded_properties.push(prop);
+    }
+
+    // --- Assemble Layer ---
+    let layer01 = OwnedLayer01 {
+        name: layer_name.to_string(),
+        extent,
+        id,
+        geometry,
+        properties: encoded_properties,
+    };
+
+    Ok(mlt_core::OwnedLayer::Tag01(layer01))
+}
+
+/// Convert row-oriented feature properties to column-oriented `DecodedProperty` vectors.
+///
+/// MVT stores properties per-feature (row-oriented), but MLT stores them per-column.
+/// This function collects all unique property keys, infers their types, and builds
+/// a `PropValue` vector for each key across all features.
+fn build_column_properties(
+    features: &[&mlt_core::geojson::Feature],
+) -> Result<Vec<mlt_core::v01::DecodedProperty>> {
+    use mlt_core::v01::DecodedProperty;
+    use std::collections::BTreeSet;
+
+    // Collect all unique property keys (excluding internal _layer, _extent)
+    let mut all_keys = BTreeSet::new();
+    for feature in features {
+        for key in feature.properties.keys() {
+            if !key.starts_with('_') {
+                all_keys.insert(key.clone());
+            }
+        }
+    }
+
+    let num_features = features.len();
+    let mut result = Vec::with_capacity(all_keys.len());
+
+    for key in &all_keys {
+        // Determine the dominant type for this key by scanning feature values
+        let prop_value = infer_column_values(features, key, num_features);
+        result.push(DecodedProperty {
+            name: key.clone(),
+            values: prop_value,
+        });
+    }
+
+    Ok(result)
+}
+
+/// Infer the column type and build a `PropValue` vector for a single property key.
+///
+/// Scans all features to determine the best type (String, i64, f64, bool),
+/// inserting `None` for features where the property is absent.
+fn infer_column_values(
+    features: &[&mlt_core::geojson::Feature],
+    key: &str,
+    _num_features: usize,
+) -> mlt_core::v01::PropValue {
+    use mlt_core::v01::PropValue;
+
+    // First pass: determine dominant type
+    let mut has_string = false;
+    let mut has_float = false;
+    let mut has_int = false;
+    let mut has_bool = false;
+
+    for feature in features {
+        if let Some(val) = feature.properties.get(key) {
+            match val {
+                serde_json::Value::String(_) => has_string = true,
+                serde_json::Value::Bool(_) => has_bool = true,
+                serde_json::Value::Number(n) => {
+                    if n.is_f64() && !n.is_i64() && !n.is_u64() {
+                        has_float = true;
+                    } else {
+                        has_int = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // If mixed types exist, prefer string (can represent anything)
+    // Otherwise use the most specific type
+    if has_string || (!has_int && !has_float && !has_bool) {
+        let vals: Vec<Option<String>> = features
+            .iter()
+            .map(|f| {
+                f.properties.get(key).and_then(|v| match v {
+                    serde_json::Value::String(s) => Some(s.clone()),
+                    serde_json::Value::Null => None,
+                    other => Some(other.to_string()),
+                })
+            })
+            .collect();
+        PropValue::Str(vals)
+    } else if has_bool && !has_int && !has_float {
+        let vals: Vec<Option<bool>> = features
+            .iter()
+            .map(|f| f.properties.get(key).and_then(|v| v.as_bool()))
+            .collect();
+        PropValue::Bool(vals)
+    } else if has_float {
+        let vals: Vec<Option<f64>> = features
+            .iter()
+            .map(|f| f.properties.get(key).and_then(|v| v.as_f64()))
+            .collect();
+        PropValue::F64(vals)
+    } else {
+        // Integer — use i64 since MVT properties can be signed
+        let vals: Vec<Option<i64>> = features
+            .iter()
+            .map(|f| f.properties.get(key).and_then(|v| v.as_i64()))
+            .collect();
+        PropValue::I64(vals)
     }
 }
 
@@ -480,6 +702,10 @@ fn json_value_to_mvt(val: &serde_json::Value) -> MvtProto::Value {
 // Tests
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -543,9 +769,10 @@ mod tests {
     }
 
     #[test]
-    fn test_mvt_to_mlt_not_yet_supported() {
+    fn test_mvt_to_mlt_invalid_input_returns_error() {
+        // Invalid protobuf bytes should return an encode error, not panic
         let tile = TileData {
-            data: Bytes::from_static(b"test"),
+            data: Bytes::from_static(b"not valid protobuf"),
             format: TileFormat::Pbf,
             compression: TileCompression::None,
         };
@@ -553,7 +780,7 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
-            TileServerError::TranscodeUnsupported { .. }
+            TileServerError::MltEncodeError(_)
         ));
     }
 
