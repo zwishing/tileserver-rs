@@ -341,10 +341,30 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>): UseChatReturn {
       const isToolParseError = errorMessage.includes('parsing outputMessage for function calling')
         || errorMessage.includes('Got outputMessage:');
       if (isToolParseError) {
-        // WebLLM tool-calling parse error — the text response was already streamed
-        // successfully, so just silently close the message. Never show internal
-        // engine errors to end users.
-        console.warn('[LLM] Tool-calling parse failed, falling back to text response');
+        // WebLLM tool-calling parse error — the model hallucinated tool results
+        // instead of actually executing them. Inject real map state so users
+        // get accurate data rather than fabricated placeholders.
+        console.warn('[LLM] Tool-calling parse failed, injecting actual map state');
+        const map = mapRef.value;
+        if (map) {
+          const center = map.getCenter();
+          const zoom = Math.round(map.getZoom() * 100) / 100;
+          const bearing = Math.round(map.getBearing());
+          const pitch = Math.round(map.getPitch());
+          const layers = map.getStyle()?.layers
+            ?.filter((l) => map.getLayoutProperty(l.id, 'visibility') !== 'none')
+            ?.map((l) => l.id)
+            ?.slice(0, 20) ?? [];
+          const stateBlock = [
+            '\n\n---',
+            '**Current map state:**',
+            `- Center: ${center.lng.toFixed(4)}, ${center.lat.toFixed(4)}`,
+            `- Zoom: ${zoom}`,
+            `- Bearing: ${bearing}°, Pitch: ${pitch}°`,
+            `- Visible layers (${layers.length}): ${layers.slice(0, 10).join(', ')}${layers.length > 10 ? '...' : ''}`,
+          ].join('\n');
+          yield { type: 'TEXT_MESSAGE_CONTENT' as const, messageId, delta: stateBlock, timestamp: Date.now() };
+        }
       } else if (errorMessage) {
         // Genuine error (engine not ready, network, etc.) — show a clean user message
         yield { type: 'TEXT_MESSAGE_CONTENT' as const, messageId, delta: '\n\nSomething went wrong. Please try again.', timestamp: Date.now() };
