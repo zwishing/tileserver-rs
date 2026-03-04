@@ -1,5 +1,4 @@
 <script setup lang="ts">
-  import { ScrollArea as UiScrollArea } from '~/components/ui/scroll-area';
   import { Bot, X, Map, Layers, Search, Globe } from 'lucide-vue-next';
   import type { Map as MaplibreMap } from 'maplibre-gl';
 
@@ -87,7 +86,7 @@
       <LlmLoadingState v-if="engineStatus === 'loading'" :stage-text="loadStageText" :progress="loadProgress.progress" :model-name="selectedModel.name" :model-size="selectedModel.sizeGb" class="flex-1" />
 
       <!-- Content: suggestions or messages -->
-      <UiScrollArea v-else class="min-h-0 flex-1">
+      <div v-else class="min-h-0 flex-1 overflow-y-auto">
         <div v-if="messages.length === 0" class="flex flex-col gap-3 p-4">
           <p class="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/50">Try asking</p>
           <div class="grid grid-cols-2 gap-2">
@@ -104,7 +103,7 @@
         </div>
         <LlmMessageList v-if="messages.length > 0" :messages="messages" :is-loading="showLoadingIndicator" :is-streaming="isLoading" />
         <div ref="scrollAnchor" class="size-0"></div>
-      </UiScrollArea>
+      </div>
 
       <!-- Input -->
       <LlmInput v-model="input" :is-loading="isLoading" :engine-status="engineStatus" :has-messages="messages.length > 0" @submit="handleSubmit" @stop="stop" />
