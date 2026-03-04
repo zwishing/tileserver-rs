@@ -779,17 +779,37 @@ async fn get_tile(
                 match tileserver_rs::transcode::transcode_tile(&tile, target) {
                     Ok(transcoded) => transcoded,
                     Err(e) => {
-                        tracing::warn!(
-                            "transcoding {:?} -> {:?} failed for {}/{}/{}/{}: {}",
-                            tile.format,
-                            target,
-                            params.source,
-                            params.z,
-                            params.x,
-                            y,
-                            e
-                        );
-                        tile
+                        // For unsupported format pairs, fall back to original tile.
+                        // For actual encoding/decoding failures, return error to client
+                        // instead of silently serving wrong-format data (#641).
+                        if matches!(
+                            &e,
+                            tileserver_rs::error::TileServerError::TranscodeUnsupported { .. }
+                        ) {
+                            tracing::warn!(
+                                "transcoding {:?} -> {:?} unsupported for {}/{}/{}/{}: {}",
+                                tile.format,
+                                target,
+                                params.source,
+                                params.z,
+                                params.x,
+                                y,
+                                e
+                            );
+                            tile
+                        } else {
+                            tracing::error!(
+                                "transcoding {:?} -> {:?} failed for {}/{}/{}/{}: {}",
+                                tile.format,
+                                target,
+                                params.source,
+                                params.z,
+                                params.x,
+                                y,
+                                e
+                            );
+                            return Err(e);
+                        }
                     }
                 }
             } else {
