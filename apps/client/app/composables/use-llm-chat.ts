@@ -177,6 +177,126 @@ function parseMapActions(text: string): Array<{ action: string } & Record<string
 }
 
 /**
+ * Parse tool intents from the model's natural language response.
+ * When WebLLM's tool-calling parser fails, the model writes tool invocations
+ * as plain text (e.g., "south: 30.7, west: -28.9"). This extracts them
+ * so we can execute the intended action on the map.
+ */
+function parseToolIntentsFromText(text: string): Array<{ action: string } & Record<string, unknown>> {
+  const intents: Array<{ action: string } & Record<string, unknown>> = [];
+
+  // 1. Try Hermes-style <tool_call> JSON blocks
+  const toolCallRegex = /<tool_call>\s*(\{[\s\S]*?\})\s*<\/tool_call>/g;
+  let tcMatch: RegExpExecArray | null;
+  while ((tcMatch = toolCallRegex.exec(text)) !== null) {
+    try {
+      const parsed = JSON.parse(tcMatch[1]) as { name?: string; arguments?: Record<string, unknown> };
+      if (parsed.name && parsed.arguments) {
+        intents.push({ action: parsed.name, ...parsed.arguments });
+      }
+    } catch {
+      // Invalid JSON — skip
+    }
+  }
+  if (intents.length > 0) return intents;
+
+  // 2. Extract all [number, number] coordinate arrays from text
+  //    The model writes coordinates in many formats:
+  //    - southwest: [-16.33, 35.84], northeast: [18.89, 47.11]
+  //    - fit_bounds([12.49, 41.88], [12.53, 41.92])
+  //    - fly_to([12.49, 41.89])
+  //    - [12.49, 41.89]
+  const coordArrays: Array<[number, number]> = [];
+  const arrayRegex = /\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]/g;
+  let arrMatch: RegExpExecArray | null;
+  while ((arrMatch = arrayRegex.exec(text)) !== null) {
+    coordArrays.push([Number.parseFloat(arrMatch[1]), Number.parseFloat(arrMatch[2])]);
+  }
+
+  const mentionsBounds = /fit_bounds|bounds|bounding|southwest|northeast/i.test(text);
+
+  // Two coordinate arrays + bounds context → fit_bounds
+  if (coordArrays.length >= 2 && mentionsBounds) {
+    const [sw, ne] = coordArrays;
+    intents.push({
+      action: 'fit_bounds',
+      west: Math.min(sw[0], ne[0]),
+      south: Math.min(sw[1], ne[1]),
+      east: Math.max(sw[0], ne[0]),
+      north: Math.max(sw[1], ne[1]),
+    });
+    return intents;
+  }
+
+  // Single coordinate array → fly_to
+  if (coordArrays.length >= 1) {
+    const [lng, lat] = coordArrays[0];
+    // Sanity check: valid geographic coordinates
+    if (Math.abs(lng) <= 180 && Math.abs(lat) <= 90) {
+      const zoomMatch = text.match(/zoom\D*(\d+(?:\.\d+)?)/i);
+      intents.push({
+        action: 'fly_to',
+        lng,
+        lat,
+        ...(zoomMatch ? { zoom: Number.parseFloat(zoomMatch[1]) } : { zoom: 10 }),
+      });
+      return intents;
+    }
+  }
+
+  // 3. Cardinal direction coordinates: south: 35.8, west: -16.3, etc.
+  const south = text.match(/south[:\s]+(-?\d+(?:\.\d+)?)/i);
+  const west = text.match(/west[:\s]+(-?\d+(?:\.\d+)?)/i);
+  const north = text.match(/north[:\s]+(-?\d+(?:\.\d+)?)/i);
+  const east = text.match(/east[:\s]+(-?\d+(?:\.\d+)?)/i);
+  if (south && west && north && east) {
+    intents.push({
+      action: 'fit_bounds',
+      west: Number.parseFloat(west[1]),
+      south: Number.parseFloat(south[1]),
+      east: Number.parseFloat(east[1]),
+      north: Number.parseFloat(north[1]),
+    });
+    return intents;
+  }
+
+  // 4. Labeled lng/lat: lng: 12.49, lat: 41.89
+  const lngMatch = text.match(/(?:lng|longitude)[:\s]+(-?\d+(?:\.\d+)?)/i);
+  const latMatch = text.match(/(?:lat|latitude)[:\s]+(-?\d+(?:\.\d+)?)/i);
+  if (lngMatch && latMatch) {
+    const zoomMatch = text.match(/zoom\D*(\d+(?:\.\d+)?)/i);
+    intents.push({
+      action: 'fly_to',
+      lng: Number.parseFloat(lngMatch[1]),
+      lat: Number.parseFloat(latMatch[1]),
+      ...(zoomMatch ? { zoom: Number.parseFloat(zoomMatch[1]) } : {}),
+    });
+    return intents;
+  }
+
+  // 5. Bare coordinate pair: "41.8902, 12.4922" (lat, lng natural order)
+  const bareCoords = text.match(/(-?\d+\.\d{2,})\s*,\s*(-?\d+\.\d{2,})/);
+  if (bareCoords) {
+    const first = Number.parseFloat(bareCoords[1]);
+    const second = Number.parseFloat(bareCoords[2]);
+    // Heuristic: if |first| > 90, it's lng,lat; otherwise lat,lng
+    const [lat, lng] = Math.abs(first) > 90 ? [second, first] : [first, second];
+    if (Math.abs(lng) <= 180 && Math.abs(lat) <= 90) {
+      const zoomMatch = text.match(/zoom\D*(\d+(?:\.\d+)?)/i);
+      intents.push({
+        action: 'fly_to',
+        lng,
+        lat,
+        ...(zoomMatch ? { zoom: Number.parseFloat(zoomMatch[1]) } : { zoom: 6 }),
+      });
+      return intents;
+    }
+  }
+
+  return intents;
+}
+
+/**
  * Execute a text-based map action (fallback for non-tool models).
  * Only handles fly_to and fit_bounds — the basic text-based tools.
  */
@@ -260,6 +380,9 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>): UseChatReturn {
     yield { type: 'RUN_STARTED' as const, runId, timestamp: Date.now() };
     yield { type: 'TEXT_MESSAGE_START' as const, messageId, role: 'assistant' as const, timestamp: Date.now() };
 
+    // Accumulate text outside try so catch block can parse tool intents from it
+    let accumulatedText = '';
+
     try {
       // Convert UIMessage[] → OpenAI format for WebLLM
       const openaiMessages = useTools
@@ -281,9 +404,6 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>): UseChatReturn {
         id: string;
         function: { name: string; arguments: string };
       }> = [];
-
-      // Accumulate full response text for non-tool models (to parse action blocks)
-      let accumulatedText = '';
 
       for await (const chunk of response) {
         const choice = chunk.choices[0];
@@ -341,29 +461,38 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>): UseChatReturn {
       const isToolParseError = errorMessage.includes('parsing outputMessage for function calling')
         || errorMessage.includes('Got outputMessage:');
       if (isToolParseError) {
-        // WebLLM tool-calling parse error — the model hallucinated tool results
-        // instead of actually executing them. Inject real map state so users
-        // get accurate data rather than fabricated placeholders.
-        console.warn('[LLM] Tool-calling parse failed, injecting actual map state');
-        const map = mapRef.value;
-        if (map) {
-          const center = map.getCenter();
-          const zoom = Math.round(map.getZoom() * 100) / 100;
-          const bearing = Math.round(map.getBearing());
-          const pitch = Math.round(map.getPitch());
-          const layers = map.getStyle()?.layers
-            ?.filter((l) => map.getLayoutProperty(l.id, 'visibility') !== 'none')
-            ?.map((l) => l.id)
-            ?.slice(0, 20) ?? [];
-          const stateBlock = [
-            '\n\n---',
-            '**Current map state:**',
-            `- Center: ${center.lng.toFixed(4)}, ${center.lat.toFixed(4)}`,
-            `- Zoom: ${zoom}`,
-            `- Bearing: ${bearing}°, Pitch: ${pitch}°`,
-            `- Visible layers (${layers.length}): ${layers.slice(0, 10).join(', ')}${layers.length > 10 ? '...' : ''}`,
-          ].join('\n');
-          yield { type: 'TEXT_MESSAGE_CONTENT' as const, messageId, delta: stateBlock, timestamp: Date.now() };
+        // WebLLM tool-calling parse error — the model described what it wanted
+        // to do in plain text but couldn't format a proper tool call.
+        // Parse the intended action from the text and execute it ourselves.
+        console.warn('[LLM] Tool-calling parse failed, parsing intents from text');
+        const intents = parseToolIntentsFromText(accumulatedText);
+        if (intents.length > 0) {
+          for (const intent of intents) {
+            const resultText = executeFallbackAction(intent, mapRef.value);
+            yield { type: 'TEXT_MESSAGE_CONTENT' as const, messageId, delta: `\n\n✅ ${resultText}`, timestamp: Date.now() };
+          }
+        } else {
+          // No parseable intents — inject real map state as fallback
+          const map = mapRef.value;
+          if (map) {
+            const center = map.getCenter();
+            const zoom = Math.round(map.getZoom() * 100) / 100;
+            const bearing = Math.round(map.getBearing());
+            const pitch = Math.round(map.getPitch());
+            const layers = map.getStyle()?.layers
+              ?.filter((l) => map.getLayoutProperty(l.id, 'visibility') !== 'none')
+              ?.map((l) => l.id)
+              ?.slice(0, 20) ?? [];
+            const stateBlock = [
+              '\n\n---',
+              '**Current map state:**',
+              `- Center: ${center.lng.toFixed(4)}, ${center.lat.toFixed(4)}`,
+              `- Zoom: ${zoom}`,
+              `- Bearing: ${bearing}°, Pitch: ${pitch}°`,
+              `- Visible layers (${layers.length}): ${layers.slice(0, 10).join(', ')}${layers.length > 10 ? '...' : ''}`,
+            ].join('\n');
+            yield { type: 'TEXT_MESSAGE_CONTENT' as const, messageId, delta: stateBlock, timestamp: Date.now() };
+          }
         }
       } else if (errorMessage) {
         // Genuine error (engine not ready, network, etc.) — show a clean user message

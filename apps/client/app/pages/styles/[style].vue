@@ -5,7 +5,8 @@
     VControlScale,
     VControlGeolocate,
   } from '@geoql/v-maplibre';
-  import { ArrowLeft, Bot, Palette } from 'lucide-vue-next';
+  import { ArrowLeft, Palette, Sparkles } from 'lucide-vue-next';
+  import { useEventListener } from '@vueuse/core';
 
   const route = useRoute('styles-style');
   const styleId = computed(() => String(route.params.style));
@@ -22,11 +23,22 @@
   function toggleChat() {
     chatOpen.value = !chatOpen.value;
   }
+
+  // ⌘K / Ctrl+K to toggle command palette, Esc to close
+  useEventListener('keydown', (e: KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      toggleChat();
+    }
+    if (e.key === 'Escape' && chatOpen.value) {
+      chatOpen.value = false;
+    }
+  });
 </script>
 
 <template>
   <div class="relative h-dvh w-full">
-    <!-- Floating back button (hidden for screenshots) -->
+    <!-- Back button (hidden for screenshots) -->
     <button
       v-if="!isScreenshot"
       class="absolute top-4 left-4 z-10 flex items-center gap-2 border border-border bg-background px-3 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent"
@@ -37,14 +49,15 @@
       <span>{{ styleId }}</span>
     </button>
 
-    <!-- LLM chat toggle (hidden for screenshots) -->
+    <!-- Bottom dock: AI chat trigger (hidden for screenshots, hidden when chat is open) -->
     <button
-      v-if="!isScreenshot"
-      class="absolute right-4 bottom-8 z-10 flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
-      title="Chat with map"
+      v-if="!isScreenshot && !chatOpen"
+      class="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 border border-border bg-background/95 px-5 py-2.5 shadow-lg backdrop-blur-sm transition-all hover:border-primary/50 hover:shadow-xl"
       @click="toggleChat"
     >
-      <Bot class="size-5" />
+      <Sparkles class="size-4 text-primary" />
+      <span class="text-sm text-muted-foreground">Ask about the map…</span>
+      <kbd class="border border-border/60 bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">⌘K</kbd>
     </button>
 
     <!-- Loading -->
@@ -62,16 +75,16 @@
     >
       <ClientOnly>
         <VMap :options="mapOptions" :support-pmtiles="false" class="size-full" @loaded="onMapLoaded">
-          <VControlScale v-if="!isScreenshot" position="bottom-left" />
+          <VControlScale v-if="!isScreenshot" position="bottom-left" :unit="'metric'" />
           <VControlNavigation v-if="!isScreenshot" position="bottom-right" />
           <VControlGeolocate v-if="!isScreenshot" position="bottom-right" />
         </VMap>
       </ClientOnly>
     </div>
 
-    <!-- LLM Chat Panel -->
+    <!-- LLM Command Palette -->
     <ClientOnly>
-      <LlmPanel
+      <LlmPalette
         :open="chatOpen"
         :map-ref="mapRef"
         @update:open="chatOpen = $event"
