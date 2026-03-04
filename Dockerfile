@@ -95,6 +95,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     curl \
     git \
     build-essential \
+    cmake \
     pkg-config \
     # Core libraries
     libcurl4-openssl-dev \
