@@ -1032,7 +1032,7 @@ mod tests {
                         ..Default::default()
                     },
                     MvtProto::Value {
-                        double_value: Some(3.14),
+                        double_value: Some(2.72),
                         ..Default::default()
                     },
                     MvtProto::Value {
@@ -1709,9 +1709,9 @@ mod tests {
 
     #[test]
     fn test_json_value_to_mvt_float() {
-        let val = serde_json::json!(3.14);
+        let val = serde_json::json!(2.72);
         let mvt = json_value_to_mvt(&val);
-        assert_eq!(mvt.double_value, Some(3.14));
+        assert_eq!(mvt.double_value, Some(2.72));
     }
 
     #[test]
@@ -1782,7 +1782,7 @@ mod tests {
 
     #[test]
     fn test_infer_column_values_all_strings() {
-        let features = vec![
+        let features = [
             make_test_feature(serde_json::json!({"k": "a"})),
             make_test_feature(serde_json::json!({"k": "b"})),
         ];
@@ -1800,7 +1800,7 @@ mod tests {
 
     #[test]
     fn test_infer_column_values_all_ints() {
-        let features = vec![
+        let features = [
             make_test_feature(serde_json::json!({"k": 10})),
             make_test_feature(serde_json::json!({"k": 20})),
         ];
@@ -1816,7 +1816,7 @@ mod tests {
 
     #[test]
     fn test_infer_column_values_all_bools() {
-        let features = vec![
+        let features = [
             make_test_feature(serde_json::json!({"k": true})),
             make_test_feature(serde_json::json!({"k": false})),
         ];
@@ -1832,7 +1832,7 @@ mod tests {
 
     #[test]
     fn test_infer_column_values_all_floats() {
-        let features = vec![
+        let features = [
             make_test_feature(serde_json::json!({"k": 1.5})),
             make_test_feature(serde_json::json!({"k": 2.7})),
         ];
@@ -1849,9 +1849,9 @@ mod tests {
     #[test]
     fn test_infer_column_values_mixed_int_float_promotes_to_f64() {
         // When mixing int and float, should promote to f64
-        let features = vec![
+        let features = [
             make_test_feature(serde_json::json!({"k": 10})),
-            make_test_feature(serde_json::json!({"k": 3.14})),
+            make_test_feature(serde_json::json!({"k": 2.72})),
         ];
         let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
         let result = infer_column_values(&refs, "k", 2);
@@ -1859,7 +1859,7 @@ mod tests {
             mlt_core::v01::PropValue::F64(vals) => {
                 assert_eq!(vals.len(), 2);
                 assert_eq!(vals[0], Some(10.0));
-                assert_eq!(vals[1], Some(3.14));
+                assert_eq!(vals[1], Some(2.72));
             }
             other => panic!("Expected F64 for mixed int/float, got: {other:?}"),
         }
@@ -1868,7 +1868,7 @@ mod tests {
     #[test]
     fn test_infer_column_values_mixed_types_falls_back_to_string() {
         // When mixing string and int, should fall back to String
-        let features = vec![
+        let features = [
             make_test_feature(serde_json::json!({"k": "hello"})),
             make_test_feature(serde_json::json!({"k": 42})),
         ];
@@ -1886,7 +1886,7 @@ mod tests {
 
     #[test]
     fn test_infer_column_values_missing_key_produces_none() {
-        let features = vec![
+        let features = [
             make_test_feature(serde_json::json!({"k": "present"})),
             make_test_feature(serde_json::json!({"other": "no k"})),
         ];
@@ -1904,7 +1904,7 @@ mod tests {
 
     #[test]
     fn test_infer_column_values_null_values() {
-        let features = vec![
+        let features = [
             make_test_feature(serde_json::json!({"k": null})),
             make_test_feature(serde_json::json!({"k": "present"})),
         ];
@@ -1926,7 +1926,7 @@ mod tests {
 
     #[test]
     fn test_build_column_properties_skips_internal_keys() {
-        let features = vec![make_test_feature(serde_json::json!({
+        let features = [make_test_feature(serde_json::json!({
             "_layer": "internal",
             "_extent": 4096,
             "name": "visible"
@@ -1940,7 +1940,7 @@ mod tests {
 
     #[test]
     fn test_build_column_properties_no_properties() {
-        let features = vec![make_test_feature(serde_json::json!({}))];
+        let features = [make_test_feature(serde_json::json!({}))];
         let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
         let props = build_column_properties(&refs).unwrap();
         assert!(props.is_empty());
@@ -1948,7 +1948,7 @@ mod tests {
 
     #[test]
     fn test_build_column_properties_multiple_keys() {
-        let features = vec![make_test_feature(
+        let features = [make_test_feature(
             serde_json::json!({"a": 1, "b": "two", "c": true}),
         )];
         let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
