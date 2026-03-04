@@ -8,7 +8,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  actions: write
 
 jobs:
   release-please:
@@ -26,35 +25,3 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  # Trigger platform-specific release builds when a release is created
-  trigger-builds:
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created }}
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        workflow:
-          - release-macos-arm64.yml
-          - release-linux.yml
-          # macOS AMD64 disabled - Intel runners retired, paid runners required
-          # - release-macos-amd64.yml
-          # Docker is triggered automatically by tag push (using RELEASE_PAT)
-    steps:
-      - name: Trigger ${{ matrix.workflow }}
-        uses: actions/github-script@v8
-        with:
-          script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: '${{ matrix.workflow }}',
-              ref: 'main',
-              inputs: {
-                tag: '${{ needs.release-please.outputs.tag_name }}'
-              }
-            })
-
-      - name: Log release info
-        run: |
-          echo "Release created: ${{ needs.release-please.outputs.tag_name }}"
-          echo "Triggered: ${{ matrix.workflow }}"
