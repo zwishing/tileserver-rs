@@ -337,14 +337,18 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>): UseChatReturn {
         yield { type: 'TEXT_MESSAGE_END' as const, messageId, timestamp: Date.now() };
       }
     } catch (err) {
-      let errorMessage = err instanceof Error ? err.message : 'An error occurred';
-      // WebLLM tool-calling parse errors include the full response text after
-      // "Got outputMessage:" — this duplicates the already-streamed text, so truncate it
-      const outputMsgIdx = errorMessage.indexOf('Got outputMessage:');
-      if (outputMsgIdx !== -1) {
-        errorMessage = errorMessage.slice(0, outputMsgIdx).trim();
+      const errorMessage = err instanceof Error ? err.message : '';
+      const isToolParseError = errorMessage.includes('parsing outputMessage for function calling')
+        || errorMessage.includes('Got outputMessage:');
+      if (isToolParseError) {
+        // WebLLM tool-calling parse error — the text response was already streamed
+        // successfully, so just silently close the message. Never show internal
+        // engine errors to end users.
+        console.warn('[LLM] Tool-calling parse failed, falling back to text response');
+      } else if (errorMessage) {
+        // Genuine error (engine not ready, network, etc.) — show a clean user message
+        yield { type: 'TEXT_MESSAGE_CONTENT' as const, messageId, delta: '\n\nSomething went wrong. Please try again.', timestamp: Date.now() };
       }
-      yield { type: 'TEXT_MESSAGE_CONTENT' as const, messageId, delta: `\n\n⚠️ ${errorMessage}`, timestamp: Date.now() };
       yield { type: 'TEXT_MESSAGE_END' as const, messageId, timestamp: Date.now() };
     }
 
