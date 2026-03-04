@@ -87,7 +87,7 @@
       <LlmLoadingState v-if="engineStatus === 'loading'" :stage-text="loadStageText" :progress="loadProgress.progress" :model-name="selectedModel.name" :model-size="selectedModel.sizeGb" class="flex-1" />
 
       <!-- Content: suggestions or messages -->
-      <UiScrollArea v-else class="flex-1 overflow-hidden">
+      <UiScrollArea v-else class="min-h-0 flex-1">
         <div v-if="messages.length === 0" class="flex flex-col gap-3 p-4">
           <p class="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/50">Try asking</p>
           <div class="grid grid-cols-2 gap-2">
