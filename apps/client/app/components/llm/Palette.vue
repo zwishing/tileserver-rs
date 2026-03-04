@@ -32,9 +32,15 @@
     emit('update:open', false);
   }
 
-  // Auto-focus input when palette opens
+  // Auto-focus input and restore scroll position when palette opens
   watch(() => props.open, (isOpen) => {
-    if (isOpen) nextTick(() => panelRef.value?.querySelector<HTMLInputElement>('input')?.focus());
+    if (isOpen) {
+      nextTick(() => {
+        panelRef.value?.querySelector<HTMLInputElement>('input')?.focus();
+        // ScrollArea resets on v-if remount — scroll to bottom after it initializes
+        nextTick(() => scrollAnchor.value?.scrollIntoView({ block: 'end' }));
+      });
+    }
   });
 </script>
 
