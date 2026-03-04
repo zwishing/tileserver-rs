@@ -52,19 +52,24 @@
 
 <template>
   <UiSheet :open="open" @update:open="updateOpen">
-    <UiSheetContent side="right" class="flex w-[380px] flex-col p-0 sm:max-w-[380px]">
-      <UiSheetHeader class="border-b px-4 py-3">
-        <UiSheetTitle class="flex items-center gap-2 text-base">
-          <Bot class="size-4" />
-          Map Assistant
+    <UiSheetContent side="right" class="flex w-[400px] flex-col gap-0 border-l border-border/50 p-0 shadow-2xl sm:max-w-[400px]">
+      <UiSheetHeader class="space-y-0 border-b border-border/50 bg-muted/30 px-5 py-4">
+        <div class="flex items-center justify-between pr-10">
+          <UiSheetTitle class="flex items-center gap-2.5 font-display text-base font-semibold tracking-tight">
+            <div class="flex size-7 items-center justify-center bg-primary text-primary-foreground">
+              <Bot class="size-4" />
+            </div>
+            Map Assistant
+          </UiSheetTitle>
           <span
             v-if="engineStatus === 'ready'"
-            class="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400"
+            class="inline-flex items-center gap-1 border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary"
           >
+            <span class="size-1.5 bg-primary" ></span>
             Ready
           </span>
-        </UiSheetTitle>
-        <UiSheetDescription class="text-xs">
+        </div>
+        <UiSheetDescription class="mt-2 text-xs">
           <LlmModelSelect
             :models="availableModels"
             :selected-id="selectedModel.id"
@@ -75,8 +80,8 @@
       </UiSheetHeader>
 
       <!-- Engine error -->
-      <div v-if="engineError" class="border-b bg-destructive/10 px-4 py-3">
-        <p class="text-xs text-destructive">{{ engineError }}</p>
+      <div v-if="engineError" class="border-b border-destructive/20 bg-destructive/5 px-5 py-3">
+        <p class="text-xs font-medium text-destructive">{{ engineError }}</p>
       </div>
 
       <!-- Loading state — centered in messages area -->
@@ -92,16 +97,19 @@
       <!-- Messages area -->
       <UiScrollArea v-else class="flex-1">
         <!-- Suggested prompts when empty -->
-        <div v-if="messages.length === 0" class="grid grid-cols-2 gap-2 p-4">
-          <button
-            v-for="suggestion in suggestions"
-            :key="suggestion.title"
-            class="flex flex-col gap-1.5 rounded-lg border p-3 text-left text-xs transition-colors hover:bg-accent"
-            @click="handlePromptSelect(suggestion.prompt)"
-          >
-            <component :is="getIconComponent(suggestion.icon)" class="size-4 text-muted-foreground" />
-            <span class="font-medium">{{ suggestion.title }}</span>
-          </button>
+        <div v-if="messages.length === 0" class="flex flex-col gap-3 p-5">
+          <p class="text-[11px] font-medium uppercase tracking-widest text-muted-foreground/60">Suggestions</p>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              v-for="suggestion in suggestions"
+              :key="suggestion.title"
+              class="group flex flex-col gap-2 border border-border/60 bg-card p-3.5 text-left transition-all duration-200 hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm dark:hover:bg-primary/10"
+              @click="handlePromptSelect(suggestion.prompt)"
+            >
+              <component :is="getIconComponent(suggestion.icon)" class="size-4 text-muted-foreground transition-colors group-hover:text-primary" />
+              <span class="text-xs font-medium leading-snug">{{ suggestion.title }}</span>
+            </button>
+          </div>
         </div>
 
         <!-- Message list -->

@@ -34,7 +34,7 @@
   >
     <!-- Avatar -->
     <div
-      class="flex size-7 shrink-0 items-center justify-center rounded-full"
+      class="flex size-7 shrink-0 items-center justify-center"
       :class="
         message.role === 'user'
           ? 'bg-primary text-primary-foreground'
@@ -47,11 +47,11 @@
 
     <!-- Bubble -->
     <div
-      class="max-w-[80%] rounded-xl px-3 py-2 text-sm leading-relaxed"
+      class="max-w-[80%] px-3 py-2 text-sm leading-relaxed"
       :class="
         message.role === 'user'
           ? 'bg-primary text-primary-foreground'
-          : 'bg-muted text-foreground'
+          : 'border border-border/40 bg-muted/50 text-foreground'
       "
     >
       <!-- User: plain text -->

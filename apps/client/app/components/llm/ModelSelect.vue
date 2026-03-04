@@ -25,10 +25,10 @@
 
 <template>
   <UiSelect :model-value="selectedId" :disabled="disabled" @update:model-value="handleChange">
-    <UiSelectTrigger class="h-7 w-full gap-1 border-none bg-transparent px-2 text-[11px] shadow-none hover:bg-accent">
+    <UiSelectTrigger class="h-8 w-full gap-1.5 border border-border/60 bg-background px-2.5 text-[11px] shadow-none transition-colors hover:border-primary/40 hover:bg-primary/5">
       <UiSelectValue placeholder="Select model" />
     </UiSelectTrigger>
-    <UiSelectContent align="end" class="min-w-[240px]">
+    <UiSelectContent class="w-[--reka-popper-anchor-width]">
       <UiSelectItem
         v-for="model in models"
         :key="model.id"

@@ -40,7 +40,7 @@
 
 <template>
   <form
-    class="flex items-end gap-2 border-t bg-background p-3"
+    class="flex items-end gap-2 border-t border-border/50 bg-muted/20 p-3"
     @submit.prevent="isLoading ? emit('stop') : emit('submit')"
   >
     <input
@@ -48,14 +48,14 @@
       :value="modelValue"
       :placeholder="placeholder"
       :disabled="engineStatus === 'loading' || engineStatus === 'error'"
-      class="flex-1 rounded-lg border bg-muted/50 px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring disabled:opacity-50"
+      class="flex-1 border border-border/60 bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-primary/50 focus:ring-1 focus:ring-primary/20 disabled:opacity-40"
       @input="updateValue"
       @keydown="handleKeydown"
     />
     <button
       type="submit"
       :disabled="isDisabled"
-      class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+      class="flex size-9 shrink-0 items-center justify-center bg-primary text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-30"
     >
       <Square v-if="isLoading" class="size-4" />
       <Send v-else class="size-4" />

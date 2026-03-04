@@ -29,14 +29,14 @@
 
     <!-- Loading indicator -->
     <div v-if="isLoading" class="flex gap-2.5">
-      <div class="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+      <div class="flex size-7 shrink-0 items-center justify-center bg-muted text-muted-foreground">
         <Bot class="size-3.5" />
       </div>
-      <div class="rounded-xl bg-muted px-3 py-2">
+      <div class="border border-border/40 bg-muted/50 px-3 py-2">
         <span class="flex gap-1">
-          <span class="size-1.5 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:-0.3s]" ></span>
-          <span class="size-1.5 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:-0.15s]" ></span>
-          <span class="size-1.5 animate-bounce rounded-full bg-muted-foreground/50" ></span>
+          <span class="size-1.5 animate-bounce bg-muted-foreground/50 [animation-delay:-0.3s]" ></span>
+          <span class="size-1.5 animate-bounce bg-muted-foreground/50 [animation-delay:-0.15s]" ></span>
+          <span class="size-1.5 animate-bounce bg-muted-foreground/50" ></span>
         </span>
       </div>
     </div>

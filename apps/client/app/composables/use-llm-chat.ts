@@ -337,8 +337,14 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>): UseChatReturn {
         yield { type: 'TEXT_MESSAGE_END' as const, messageId, timestamp: Date.now() };
       }
     } catch (err) {
-      const errorDelta = err instanceof Error ? err.message : 'An error occurred';
-      yield { type: 'TEXT_MESSAGE_CONTENT' as const, messageId, delta: `❌ Error: ${errorDelta}`, timestamp: Date.now() };
+      let errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      // WebLLM tool-calling parse errors include the full response text after
+      // "Got outputMessage:" — this duplicates the already-streamed text, so truncate it
+      const outputMsgIdx = errorMessage.indexOf('Got outputMessage:');
+      if (outputMsgIdx !== -1) {
+        errorMessage = errorMessage.slice(0, outputMsgIdx).trim();
+      }
+      yield { type: 'TEXT_MESSAGE_CONTENT' as const, messageId, delta: `\n\n⚠️ ${errorMessage}`, timestamp: Date.now() };
       yield { type: 'TEXT_MESSAGE_END' as const, messageId, timestamp: Date.now() };
     }
 
