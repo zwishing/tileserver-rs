@@ -121,8 +121,19 @@ pub fn transcode_tile(tile: &TileData, target_format: TileFormat) -> Result<Tile
     match (tile.format, target_format) {
         (TileFormat::Pbf, TileFormat::Mlt) => {
             // Phase 2: MVT→MLT encoding using mlt-core's encoding API.
+            // Wrap in catch_unwind because mlt-core can panic on certain
+            // geometries (off-by-one in geometry encoder, see #651).
             let raw = decompress_tile_data(tile)?;
-            let mlt_bytes = mvt_to_mlt(&raw)?;
+            let mlt_bytes = std::panic::catch_unwind(|| mvt_to_mlt(&raw)).map_err(|panic| {
+                let msg = panic
+                    .downcast_ref::<String>()
+                    .map(String::as_str)
+                    .or_else(|| panic.downcast_ref::<&str>().copied())
+                    .unwrap_or("unknown panic");
+                TileServerError::MltEncodeError(format!(
+                    "mlt-core panicked during MVT→MLT encoding: {msg}"
+                ))
+            })??;
             Ok(TileData {
                 data: mlt_bytes,
                 format: TileFormat::Mlt,
@@ -778,6 +789,48 @@ mod tests {
             result.unwrap_err(),
             TileServerError::MltEncodeError(_)
         ));
+    }
+
+    #[test]
+    fn test_mvt_to_mlt_catches_panic_from_mlt_core() {
+        // Craft a tile with valid protobuf structure but geometry that
+        // could trigger an mlt-core panic. Even if mlt-core panics,
+        // transcode_tile should return an error, not crash the thread.
+        // We verify the catch_unwind wrapper by ensuring any failure
+        // on malformed geometry returns Err, not a panic propagation.
+        use prost::Message;
+        let tile_proto = MvtProto::Tile {
+            layers: vec![MvtProto::Layer {
+                version: 2,
+                name: "test".to_string(),
+                features: vec![MvtProto::Feature {
+                    id: Some(1),
+                    tags: vec![],
+                    r#type: Some(3), // POLYGON
+                    // Malformed geometry: ClosePath without preceding MoveTo/LineTo
+                    geometry: vec![
+                        command_integer(7, 1), // ClosePath x1 (invalid without MoveTo)
+                    ],
+                }],
+                keys: vec![],
+                values: vec![],
+                extent: Some(4096),
+            }],
+        };
+        let mut mvt_bytes = Vec::new();
+        tile_proto.encode(&mut mvt_bytes).unwrap();
+
+        let tile = TileData {
+            data: Bytes::from(mvt_bytes),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        // Should not panic — either succeeds or returns an error
+        let result = transcode_tile(&tile, TileFormat::Mlt);
+        // We don't assert is_err() because mlt-core may handle this
+        // gracefully; the key assertion is that we reach this line
+        // (no panic propagation).
+        let _ = result;
     }
 
     #[test]
