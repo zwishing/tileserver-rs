@@ -2,14 +2,13 @@
   const {
     isDark,
     toggleColorMode,
-    versionLabel,
-    searchQuery,
-    filteredStyles,
-    filteredDataSources,
     isLoadingData,
     isLoadingStyles,
     hasStyles,
     hasData,
+    searchQuery,
+    filteredStyles,
+    filteredDataSources,
     expandedStyleXyz,
     expandedDataXyz,
     toggleStyleXyz,
@@ -19,38 +18,41 @@
     stylesOpen,
     dataOpen,
     baseUrl,
+    versionLabel,
   } = useHomePage();
 </script>
 
 <template>
   <div class="flex min-h-dvh flex-col bg-background">
-    <HomeHeader :is-dark="isDark" @toggle-theme="toggleColorMode" />
+    <HomeHero :is-dark="isDark" @toggle-theme="toggleColorMode" />
 
-    <main class="w-full flex-1 space-y-4 px-6 py-4">
+    <main class="w-full flex-1 space-y-4 p-4">
       <HomeSearchBar v-model="searchQuery" />
 
-      <HomeStylesSection
-        v-model:open="stylesOpen"
+      <HomeStyleList
         :styles="filteredStyles"
         :is-loading="isLoadingStyles"
         :has-styles="hasStyles"
+        :is-open="stylesOpen"
         :search-query="searchQuery"
+        :base-url="baseUrl"
         :expanded-xyz="expandedStyleXyz"
         :copied-url="copiedUrl"
-        :base-url="baseUrl"
+        @update:is-open="stylesOpen = $event"
         @toggle-xyz="toggleStyleXyz"
         @copy-url="copyUrl"
       />
 
-      <HomeDataSection
-        v-model:open="dataOpen"
+      <HomeDataList
         :sources="filteredDataSources"
         :is-loading="isLoadingData"
         :has-data="hasData"
+        :is-open="dataOpen"
         :search-query="searchQuery"
+        :base-url="baseUrl"
         :expanded-xyz="expandedDataXyz"
         :copied-url="copiedUrl"
-        :base-url="baseUrl"
+        @update:is-open="dataOpen = $event"
         @toggle-xyz="toggleDataXyz"
         @copy-url="copyUrl"
       />

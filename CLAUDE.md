@@ -44,6 +44,9 @@
 - **MapLibre GL JS v4** - Map rendering
 - **@maplibre/maplibre-gl-inspect** - Tile inspector
 - **VueUse** - Vue composition utilities
+- **TanStack AI Vue** - AI chat with `useChat` hook and `stream()` adapter
+- **WebLLM** - Browser-local LLM inference via WebGPU (`@mlc-ai/web-llm`)
+- **motion-v** - Vue animation library for UI transitions
 
 ### Infrastructure
 - **Bun workspaces** - Monorepo package management
@@ -751,3 +754,212 @@ Before merging:
 - [ ] Proper error handling (Result types in Rust)
 - [ ] No hardcoded configuration values
 - [ ] Types defined in `app/types/` directory
+- [ ] Frontend follows Laws of UX principles
+
+---
+
+## Laws of UX
+
+Design principles to follow when building frontend components and interactions. Reference: [lawsofux.com](https://lawsofux.com/)
+
+| #   | Law                              | Description                                                                        |
+| --- | -------------------------------- | ---------------------------------------------------------------------------------- |
+| 1   | **Aesthetic-Usability Effect**   | Users perceive aesthetically pleasing design as more usable                        |
+| 2   | **Choice Overload**              | People get overwhelmed with too many options                                       |
+| 3   | **Chunking**                     | Break information into meaningful groups                                           |
+| 4   | **Cognitive Bias**               | Systematic errors in thinking influence perception and decisions                   |
+| 5   | **Cognitive Load**               | Minimize mental resources needed to interact with an interface                     |
+| 6   | **Doherty Threshold**            | Keep interactions under 400ms so neither user nor system waits                     |
+| 7   | **Fitts's Law**                  | Time to reach a target depends on distance and size — make targets large and close |
+| 8   | **Flow**                         | Design for full immersion — minimize interruptions                                 |
+| 9   | **Goal-Gradient Effect**         | Motivation increases with proximity to a goal — show progress                      |
+| 10  | **Hick's Law**                   | Decision time increases with number and complexity of choices                      |
+| 11  | **Jakob's Law**                  | Users prefer your site to work like sites they already know                        |
+| 12  | **Law of Common Region**         | Elements sharing a boundary are perceived as grouped                               |
+| 13  | **Law of Proximity**             | Objects near each other are perceived as grouped                                   |
+| 14  | **Law of Prägnanz**              | People interpret complex images as the simplest form possible                      |
+| 15  | **Law of Similarity**            | Similar elements are perceived as a group                                          |
+| 16  | **Law of Uniform Connectedness** | Visually connected elements are perceived as more related                          |
+| 17  | **Mental Model**                 | Users carry expectations about how systems work                                    |
+| 18  | **Miller's Law**                 | Working memory holds 7 (±2) items — chunk information accordingly                  |
+| 19  | **Occam's Razor**                | Prefer the simplest solution with fewest assumptions                               |
+| 20  | **Paradox of the Active User**   | Users never read manuals — they start using immediately                            |
+| 21  | **Pareto Principle**             | 80% of effects come from 20% of causes — focus on high-impact work                 |
+| 22  | **Parkinson's Law**              | Tasks expand to fill available time — set constraints                              |
+| 23  | **Peak-End Rule**                | Experiences are judged by their peak moment and ending                             |
+| 24  | **Postel's Law**                 | Be liberal in what you accept, conservative in what you send                       |
+| 25  | **Selective Attention**          | Users focus on stimuli related to their goals                                      |
+| 26  | **Serial Position Effect**       | First and last items in a series are remembered best                               |
+| 27  | **Tesler's Law**                 | Every system has irreducible complexity — put it in the right place                |
+| 28  | **Von Restorff Effect**          | The item that differs from the rest is most memorable                              |
+| 29  | **Working Memory**               | Cognitive system that temporarily holds info for tasks                             |
+| 30  | **Zeigarnik Effect**             | Incomplete tasks are remembered better than complete ones                          |
+
+---
+
+## Browser-Local LLM Chat Architecture
+
+### Overview
+
+The map viewer (`/styles/[style]`) includes an AI chat panel powered by a browser-local LLM via WebLLM. Users can talk to their maps — ask questions, fly to locations, change styles, and query features — all without any server-side AI infrastructure. The LLM runs entirely in the browser using WebGPU.
+
+### File Structure
+
+```
+app/
+├── components/llm/
+│   ├── Panel.vue              # Chat panel (Sheet/drawer)
+│   ├── MessageList.vue        # Message rendering with markdown
+│   └── Input.vue              # Chat input with send/stop buttons
+├── composables/
+│   ├── use-llm-engine.ts      # WebLLM engine lifecycle (init, load, progress)
+│   ├── use-llm-chat.ts        # TanStack AI useChat + stream() adapter + map tools
+│   └── use-llm-panel.ts       # Panel state, input, auto-scroll, suggested prompts
+└── types/llm.ts               # LLM types (model config, chat state, map tools)
+```
+
+### Key Packages
+
+- `@tanstack/ai` - Core AI types and AG-UI protocol events
+- `@tanstack/ai-vue` - Vue integration with `useChat` hook (re-exports `stream`, `ConnectionAdapter` from `@tanstack/ai-client`)
+- `@mlc-ai/web-llm` - Browser-local LLM inference via WebGPU
+- `zod` - Tool input schema validation
+
+**IMPORTANT:** `@tanstack/ai-vue` re-exports everything needed from `@tanstack/ai-client` — do NOT import `@tanstack/ai-client` directly.
+
+### Data Flow
+
+```
+User Input → LlmInput.vue
+    ↓
+useLlmChat (composable)
+    ↓
+useChat({ connection: stream(adapter) })
+    ↓
+stream() adapter — converts WebLLM output to AG-UI events
+    ↓
+WebLLM engine (browser-local, WebGPU)
+    ├── chat.completions.create({ stream: true })
+    └── Tool calls (fly_to, set_filter, etc.)
+    ↓
+AG-UI events stream back
+    ↓
+TanStack AI Vue updates messages
+    ↓
+LlmMessageList.vue (renders messages)
+```
+
+### Model Configuration
+
+**WebLLM (browser-local, WebGPU):**
+- Default Model: `Qwen2.5-3B-Instruct-q4f16_1-MLC` (best tool-calling at ~2GB)
+- Lightweight: `Qwen2.5-1.5B-Instruct-q4f16_1-MLC` (~1GB)
+- Alternative: `Llama-3.2-3B-Instruct-q4f16_1-MLC` (~2GB)
+
+### Connection Adapter Pattern
+
+TanStack AI Vue uses `stream()` to create a `ConnectionAdapter` from an async generator. This bridges WebLLM's OpenAI-compatible streaming API to AG-UI protocol events:
+
+```typescript
+import { useChat, stream } from '@tanstack/ai-vue';
+import type { UIMessage } from '@tanstack/ai-vue';
+
+// Create connection adapter from WebLLM
+const connection = stream(async function* (messages: UIMessage[]) {
+  const runId = crypto.randomUUID();
+  const messageId = crypto.randomUUID();
+
+  yield { type: 'RUN_STARTED', runId, timestamp: Date.now() };
+  yield { type: 'TEXT_MESSAGE_START', messageId, role: 'assistant', timestamp: Date.now() };
+
+  const openaiMessages = messages.map((m) => ({
+    role: m.role,
+    content: extractText(m),
+  }));
+
+  const response = await engine.chat.completions.create({
+    messages: openaiMessages,
+    stream: true,
+  });
+
+  for await (const chunk of response) {
+    const delta = chunk.choices[0]?.delta?.content || '';
+    if (delta) {
+      yield { type: 'TEXT_MESSAGE_CONTENT', messageId, delta, timestamp: Date.now() };
+    }
+  }
+
+  yield { type: 'TEXT_MESSAGE_END', messageId, timestamp: Date.now() };
+  yield { type: 'RUN_FINISHED', runId, finishReason: 'stop', timestamp: Date.now() };
+});
+
+// Use in composable
+const chat = useChat({ connection });
+```
+
+### AG-UI Event Types
+
+The `stream()` adapter must yield AG-UI protocol events:
+
+| Event Type | Fields | Purpose |
+|---|---|---|
+| `RUN_STARTED` | `runId` | Start of an LLM response |
+| `TEXT_MESSAGE_START` | `messageId`, `role` | Begin assistant message |
+| `TEXT_MESSAGE_CONTENT` | `messageId`, `delta` | Streamed text chunk |
+| `TEXT_MESSAGE_END` | `messageId` | End of text message |
+| `TOOL_CALL_START` | `toolCallId`, `toolName` | Begin tool invocation |
+| `TOOL_CALL_ARGS` | `toolCallId`, `delta` | Streamed tool arguments |
+| `TOOL_CALL_END` | `toolCallId` | End tool invocation |
+| `RUN_FINISHED` | `runId`, `finishReason` | End of LLM response |
+
+### Map Tools (Client-Side)
+
+Map tools let the LLM interact with the MapLibre GL map instance:
+
+| Tool | Description | Parameters |
+|---|---|---|
+| `fly_to` | Animate camera to location | `lng`, `lat`, `zoom?`, `bearing?`, `pitch?` |
+| `set_layer_paint` | Change layer paint property | `layerId`, `property`, `value` |
+| `query_rendered_features` | Query visible features | `point?`, `layers?`, `filter?` |
+| `set_filter` | Set layer filter expression | `layerId`, `filter` |
+| `fit_bounds` | Fit camera to bounding box | `bounds`, `padding?` |
+
+### Type Organization
+
+| Type | Location | Import Path |
+|---|---|---|
+| `LlmModelConfig` | `app/types/llm.ts` | `~/types/llm` |
+| `LlmChatState` | `app/types/llm.ts` | `~/types/llm` |
+| `LlmPanelState` | `app/types/llm.ts` | `~/types/llm` |
+| `MapTool` | `app/types/llm.ts` | `~/types/llm` |
+| `SuggestedPrompt` | `app/types/llm.ts` | `~/types/llm` |
+
+### WebLLM Engine Lifecycle
+
+```typescript
+// 1. Initialize engine (download + compile model, ~30s first time)
+const engine = await CreateMLCEngine(modelId, {
+  initProgressCallback: (progress) => {
+    // Update loading bar: progress.text, progress.progress (0-1)
+  },
+});
+
+// 2. Chat completions (OpenAI-compatible API)
+const stream = await engine.chat.completions.create({
+  messages: [{ role: 'user', content: 'Hello' }],
+  stream: true,
+  tools: mapTools,  // Optional: enable tool calling
+});
+
+// 3. Tool calls arrive on the LAST streaming chunk only
+// Check chunk.choices[0]?.delta?.tool_calls for tool invocations
+```
+
+### Key Implementation Notes
+
+1. **No server required** — WebLLM runs entirely in-browser via WebGPU
+2. **First load is slow** (~30s model download + compilation) — show progress bar
+3. **Model is cached** in browser IndexedDB — subsequent loads are fast (~2-5s)
+4. **Tool calls are NOT streamed** — they arrive on the final chunk only
+5. **`@tanstack/ai-vue` re-exports** `stream`, `ConnectionAdapter`, `fetchServerSentEvents` from `@tanstack/ai-client` — never import `@tanstack/ai-client` directly
+6. **Types go in `app/types/llm.ts`** — never define interfaces in composables or components

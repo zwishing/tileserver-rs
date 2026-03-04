@@ -1,11 +1,12 @@
 /**
  * Home Page Composable
  *
- * All logic for the home page: search filtering, XYZ URL expansion,
- * clipboard copy with feedback, collapsible sections, and base URL.
+ * Manages all state and logic for the landing page:
+ * search filtering, collapsible sections, XYZ URL expansion, clipboard copy.
  */
 
 import { useClipboard } from '@vueuse/core';
+
 import type { Data } from '~/types/data';
 import type { Style } from '~/types/style';
 
@@ -20,6 +21,7 @@ export function useHomePage() {
     hasData,
   } = useTileserverData();
   const { versionLabel } = useServerInfo();
+
   const { copy } = useClipboard();
 
   // Search filter
@@ -31,8 +33,8 @@ export function useHomePage() {
     const query = searchQuery.value.toLowerCase();
     return styles.value.filter(
       (s: Style) =>
-        s.name.toLowerCase().includes(query) ||
-        s.id.toLowerCase().includes(query),
+        s.name.toLowerCase().includes(query)
+        || s.id.toLowerCase().includes(query),
     );
   });
 
@@ -41,8 +43,8 @@ export function useHomePage() {
     const query = searchQuery.value.toLowerCase();
     return dataSources.value.filter(
       (s: Data) =>
-        (s.name || '').toLowerCase().includes(query) ||
-        s.id.toLowerCase().includes(query),
+        (s.name || '').toLowerCase().includes(query)
+        || s.id.toLowerCase().includes(query),
     );
   });
 
@@ -91,24 +93,41 @@ export function useHomePage() {
   });
 
   return {
+    // Theme
     isDark,
     toggleColorMode,
-    versionLabel,
-    searchQuery,
-    filteredStyles,
-    filteredDataSources,
+
+    // Data
+    dataSources,
+    styles,
     isLoadingData,
     isLoadingStyles,
     hasStyles,
     hasData,
+
+    // Server
+    versionLabel,
+
+    // Search
+    searchQuery,
+    filteredStyles,
+    filteredDataSources,
+
+    // XYZ expansion
     expandedStyleXyz,
     expandedDataXyz,
     toggleStyleXyz,
     toggleDataXyz,
+
+    // Clipboard
     copiedUrl,
     copyUrl,
+
+    // Sections
     stylesOpen,
     dataOpen,
+
+    // URL
     baseUrl,
   };
 }

@@ -4,10 +4,13 @@
  * Provides map options for viewing styled maps with VMap component.
  */
 
-import type { MapOptions, StyleSpecification } from 'maplibre-gl';
+import type { Map, MapOptions, StyleSpecification } from 'maplibre-gl';
 
 export function useStyleViewer(styleId: Ref<string>, isRaster: Ref<boolean>) {
   const { style, isLoading } = useMapStyle(styleId, isRaster);
+
+  // Map instance ref for LLM tool integration
+  const mapRef = shallowRef<Map | null>(null);
 
   // Generate unique container ID for each instance
   const containerId = `map-${Math.random().toString(36).substring(2, 11)}`;
@@ -27,9 +30,13 @@ export function useStyleViewer(styleId: Ref<string>, isRaster: Ref<boolean>) {
     };
   });
 
+  function onMapLoaded(map: Map) {
+    mapRef.value = map;
+  }
+
   function navigateBack() {
     navigateTo({ path: '/', hash: '' }, { replace: true });
   }
 
-  return { mapOptions, isLoading, navigateBack };
+  return { mapOptions, mapRef, isLoading, navigateBack, onMapLoaded };
 }

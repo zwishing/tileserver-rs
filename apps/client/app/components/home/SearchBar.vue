@@ -1,18 +1,29 @@
 <script setup lang="ts">
   import { Search } from 'lucide-vue-next';
+  import { motion } from 'motion-v';
 
-  const model = defineModel<string>({ required: true });
+  defineProps<{
+    modelValue: string;
+  }>();
+
+  defineEmits<{
+    'update:modelValue': [value: string];
+  }>();
 </script>
 
 <template>
-  <div class="relative">
-    <Search
-      class="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground"
-    />
+  <motion.div
+    :initial="{ opacity: 0, y: 8 }"
+    :animate="{ opacity: 1, y: 0 }"
+    :transition="{ duration: 0.3, delay: 0.1 }"
+    class="relative"
+  >
+    <Search class="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
     <Input
-      v-model="model"
+      :model-value="modelValue"
       placeholder="Search styles and data sources..."
-      class="h-11 border-border bg-muted/30 pl-11 transition-all focus:bg-background"
+      class="h-11 rounded-xl border-border/50 bg-muted/30 pl-11 transition-all focus:bg-background"
+      @update:model-value="$emit('update:modelValue', $event)"
     />
-  </div>
+  </motion.div>
 </template>

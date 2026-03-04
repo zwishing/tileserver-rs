@@ -93,3 +93,96 @@
   --color-input: hsl(0 0% 15%);
   --color-ring: hsl(217 91% 60%);
 }
+
+/* AI Chat Markdown Prose Styles */
+@layer base {
+  .ai-prose {
+    @apply text-foreground;
+  }
+
+  .ai-prose h1,
+  .ai-prose h2,
+  .ai-prose h3,
+  .ai-prose h4 {
+    @apply font-semibold text-foreground;
+  }
+
+  .ai-prose h1 {
+    @apply text-xl;
+  }
+
+  .ai-prose h2 {
+    @apply text-lg;
+  }
+
+  .ai-prose h3 {
+    @apply text-base;
+  }
+
+  .ai-prose p {
+    @apply my-2 first:mt-0 last:mb-0;
+  }
+
+  .ai-prose ul,
+  .ai-prose ol {
+    @apply my-2 ml-4;
+  }
+
+  .ai-prose li {
+    @apply my-1;
+  }
+
+  .ai-prose ul > li {
+    @apply list-disc;
+  }
+
+  .ai-prose ol > li {
+    @apply list-decimal;
+  }
+
+  .ai-prose code {
+    @apply rounded bg-muted px-1.5 py-0.5 text-xs text-foreground;
+    font-family: var(--font-family-mono);
+  }
+
+  .ai-prose pre {
+    @apply my-2 overflow-x-auto rounded-lg bg-muted p-3;
+  }
+
+  .ai-prose pre code {
+    @apply bg-transparent p-0;
+  }
+
+  .ai-prose a {
+    @apply text-primary underline hover:no-underline;
+  }
+
+  .ai-prose blockquote {
+    @apply my-2 border-l-4 border-muted pl-4 italic;
+  }
+
+  .ai-prose strong {
+    @apply font-semibold;
+  }
+
+  .ai-prose em {
+    @apply italic;
+  }
+
+  .ai-prose hr {
+    @apply my-4 border-muted;
+  }
+
+  .ai-prose table {
+    @apply my-2 w-full border-collapse;
+  }
+
+  .ai-prose th,
+  .ai-prose td {
+    @apply border border-muted px-3 py-2 text-left;
+  }
+
+  .ai-prose th {
+    @apply bg-muted font-semibold;
+  }
+}
