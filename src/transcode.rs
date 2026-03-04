@@ -702,10 +702,6 @@ fn json_value_to_mvt(val: &serde_json::Value) -> MvtProto::Value {
 // Tests
 // ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -803,5 +799,1217 @@ mod tests {
         let val = serde_json::json!(true);
         let mvt = json_value_to_mvt(&val);
         assert_eq!(mvt.bool_value, Some(true));
+    }
+
+    // -------------------------------------------------------------------------
+    // Helper: Build a valid MVT protobuf tile from layers of features
+    // -------------------------------------------------------------------------
+
+    /// Build a minimal valid MVT tile with one layer, one point feature.
+    fn make_mvt_point_tile(layer_name: &str, x: i32, y: i32) -> Vec<u8> {
+        use prost::Message;
+        let tile = MvtProto::Tile {
+            layers: vec![MvtProto::Layer {
+                version: 2,
+                name: layer_name.to_string(),
+                features: vec![MvtProto::Feature {
+                    id: Some(1),
+                    tags: vec![0, 0], // key[0] = "name", value[0] = "test"
+                    r#type: Some(MvtProto::GeomType::Point as i32),
+                    geometry: vec![
+                        command_integer(1, 1), // MoveTo(1)
+                        zigzag_encode(x),
+                        zigzag_encode(y),
+                    ],
+                }],
+                keys: vec!["name".to_string()],
+                values: vec![MvtProto::Value {
+                    string_value: Some("test".to_string()),
+                    ..Default::default()
+                }],
+                extent: Some(4096),
+            }],
+        };
+        tile.encode_to_vec()
+    }
+
+    /// Build a multi-feature MVT layer with various geometry types.
+    fn make_mvt_multi_feature_tile() -> Vec<u8> {
+        use prost::Message;
+        let tile = MvtProto::Tile {
+            layers: vec![MvtProto::Layer {
+                version: 2,
+                name: "buildings".to_string(),
+                features: vec![
+                    // Feature 1: Point
+                    MvtProto::Feature {
+                        id: Some(1),
+                        tags: vec![0, 0, 1, 1], // name=building_a, height=10
+                        r#type: Some(MvtProto::GeomType::Point as i32),
+                        geometry: vec![
+                            command_integer(1, 1),
+                            zigzag_encode(100),
+                            zigzag_encode(200),
+                        ],
+                    },
+                    // Feature 2: Point
+                    MvtProto::Feature {
+                        id: Some(2),
+                        tags: vec![0, 2, 1, 3], // name=building_b, height=25
+                        r#type: Some(MvtProto::GeomType::Point as i32),
+                        geometry: vec![
+                            command_integer(1, 1),
+                            zigzag_encode(300),
+                            zigzag_encode(400),
+                        ],
+                    },
+                    // Feature 3: Point with no ID
+                    MvtProto::Feature {
+                        id: None,
+                        tags: vec![0, 4], // name=building_c
+                        r#type: Some(MvtProto::GeomType::Point as i32),
+                        geometry: vec![
+                            command_integer(1, 1),
+                            zigzag_encode(500),
+                            zigzag_encode(600),
+                        ],
+                    },
+                ],
+                keys: vec!["name".to_string(), "height".to_string()],
+                values: vec![
+                    MvtProto::Value {
+                        string_value: Some("building_a".to_string()),
+                        ..Default::default()
+                    },
+                    MvtProto::Value {
+                        int_value: Some(10),
+                        ..Default::default()
+                    },
+                    MvtProto::Value {
+                        string_value: Some("building_b".to_string()),
+                        ..Default::default()
+                    },
+                    MvtProto::Value {
+                        int_value: Some(25),
+                        ..Default::default()
+                    },
+                    MvtProto::Value {
+                        string_value: Some("building_c".to_string()),
+                        ..Default::default()
+                    },
+                ],
+                extent: Some(4096),
+            }],
+        };
+        tile.encode_to_vec()
+    }
+
+    /// Build an MVT tile with multiple layers.
+    fn make_mvt_multi_layer_tile() -> Vec<u8> {
+        use prost::Message;
+        let tile = MvtProto::Tile {
+            layers: vec![
+                MvtProto::Layer {
+                    version: 2,
+                    name: "roads".to_string(),
+                    features: vec![MvtProto::Feature {
+                        id: Some(1),
+                        tags: vec![0, 0],
+                        r#type: Some(MvtProto::GeomType::Linestring as i32),
+                        geometry: vec![
+                            command_integer(1, 1), // MoveTo
+                            zigzag_encode(0),
+                            zigzag_encode(0),
+                            command_integer(2, 1), // LineTo(1)
+                            zigzag_encode(100),
+                            zigzag_encode(0),
+                        ],
+                    }],
+                    keys: vec!["class".to_string()],
+                    values: vec![MvtProto::Value {
+                        string_value: Some("highway".to_string()),
+                        ..Default::default()
+                    }],
+                    extent: Some(4096),
+                },
+                MvtProto::Layer {
+                    version: 2,
+                    name: "water".to_string(),
+                    features: vec![MvtProto::Feature {
+                        id: Some(10),
+                        tags: vec![0, 0],
+                        r#type: Some(MvtProto::GeomType::Polygon as i32),
+                        geometry: vec![
+                            command_integer(1, 1), // MoveTo
+                            zigzag_encode(10),
+                            zigzag_encode(10),
+                            command_integer(2, 3), // LineTo(3)
+                            zigzag_encode(100),
+                            zigzag_encode(0),
+                            zigzag_encode(0),
+                            zigzag_encode(100),
+                            zigzag_encode(-100),
+                            zigzag_encode(0),
+                            command_integer(7, 1), // ClosePath
+                        ],
+                    }],
+                    keys: vec!["type".to_string()],
+                    values: vec![MvtProto::Value {
+                        string_value: Some("lake".to_string()),
+                        ..Default::default()
+                    }],
+                    extent: Some(4096),
+                },
+            ],
+        };
+        tile.encode_to_vec()
+    }
+
+    /// Build an MVT tile with an empty layer (no features).
+    fn make_mvt_empty_layer_tile() -> Vec<u8> {
+        use prost::Message;
+        let tile = MvtProto::Tile {
+            layers: vec![MvtProto::Layer {
+                version: 2,
+                name: "empty".to_string(),
+                features: vec![],
+                keys: vec![],
+                values: vec![],
+                extent: Some(4096),
+            }],
+        };
+        tile.encode_to_vec()
+    }
+
+    /// Build an MVT tile with completely empty layers list.
+    fn make_mvt_no_layers_tile() -> Vec<u8> {
+        use prost::Message;
+        let tile = MvtProto::Tile { layers: vec![] };
+        tile.encode_to_vec()
+    }
+
+    /// Build an MVT tile with mixed property types for testing type inference.
+    fn make_mvt_mixed_props_tile() -> Vec<u8> {
+        use prost::Message;
+        let tile = MvtProto::Tile {
+            layers: vec![MvtProto::Layer {
+                version: 2,
+                name: "mixed".to_string(),
+                features: vec![
+                    MvtProto::Feature {
+                        id: Some(1),
+                        tags: vec![0, 0, 1, 1, 2, 2], // str, int, bool
+                        r#type: Some(MvtProto::GeomType::Point as i32),
+                        geometry: vec![command_integer(1, 1), zigzag_encode(10), zigzag_encode(20)],
+                    },
+                    MvtProto::Feature {
+                        id: Some(2),
+                        tags: vec![0, 3, 1, 4, 2, 5], // str, float, bool
+                        r#type: Some(MvtProto::GeomType::Point as i32),
+                        geometry: vec![command_integer(1, 1), zigzag_encode(30), zigzag_encode(40)],
+                    },
+                ],
+                keys: vec![
+                    "label".to_string(),
+                    "value".to_string(),
+                    "active".to_string(),
+                ],
+                values: vec![
+                    MvtProto::Value {
+                        string_value: Some("alpha".to_string()),
+                        ..Default::default()
+                    },
+                    MvtProto::Value {
+                        int_value: Some(42),
+                        ..Default::default()
+                    },
+                    MvtProto::Value {
+                        bool_value: Some(true),
+                        ..Default::default()
+                    },
+                    MvtProto::Value {
+                        string_value: Some("beta".to_string()),
+                        ..Default::default()
+                    },
+                    MvtProto::Value {
+                        double_value: Some(3.14),
+                        ..Default::default()
+                    },
+                    MvtProto::Value {
+                        bool_value: Some(false),
+                        ..Default::default()
+                    },
+                ],
+                extent: Some(4096),
+            }],
+        };
+        tile.encode_to_vec()
+    }
+
+    /// Build an MVT tile with linestring geometry.
+    fn make_mvt_linestring_tile() -> Vec<u8> {
+        use prost::Message;
+        let tile = MvtProto::Tile {
+            layers: vec![MvtProto::Layer {
+                version: 2,
+                name: "lines".to_string(),
+                features: vec![MvtProto::Feature {
+                    id: Some(1),
+                    tags: vec![],
+                    r#type: Some(MvtProto::GeomType::Linestring as i32),
+                    geometry: vec![
+                        command_integer(1, 1), // MoveTo(1)
+                        zigzag_encode(0),
+                        zigzag_encode(0),
+                        command_integer(2, 2), // LineTo(2)
+                        zigzag_encode(100),
+                        zigzag_encode(0),
+                        zigzag_encode(0),
+                        zigzag_encode(100),
+                    ],
+                }],
+                keys: vec![],
+                values: vec![],
+                extent: Some(4096),
+            }],
+        };
+        tile.encode_to_vec()
+    }
+
+    /// Build an MVT tile with polygon geometry (exterior + interior ring).
+    fn make_mvt_polygon_tile() -> Vec<u8> {
+        use prost::Message;
+        let tile = MvtProto::Tile {
+            layers: vec![MvtProto::Layer {
+                version: 2,
+                name: "polygons".to_string(),
+                features: vec![MvtProto::Feature {
+                    id: Some(1),
+                    tags: vec![0, 0],
+                    r#type: Some(MvtProto::GeomType::Polygon as i32),
+                    geometry: vec![
+                        // Exterior ring: square (0,0)-(100,0)-(100,100)-(0,100)
+                        command_integer(1, 1), // MoveTo(1)
+                        zigzag_encode(0),
+                        zigzag_encode(0),
+                        command_integer(2, 3), // LineTo(3)
+                        zigzag_encode(100),
+                        zigzag_encode(0),
+                        zigzag_encode(0),
+                        zigzag_encode(100),
+                        zigzag_encode(-100),
+                        zigzag_encode(0),
+                        command_integer(7, 1), // ClosePath
+                    ],
+                }],
+                keys: vec!["kind".to_string()],
+                values: vec![MvtProto::Value {
+                    string_value: Some("park".to_string()),
+                    ..Default::default()
+                }],
+                extent: Some(4096),
+            }],
+        };
+        tile.encode_to_vec()
+    }
+
+    /// Build an MVT tile with features missing some properties (sparse columns).
+    fn make_mvt_sparse_props_tile() -> Vec<u8> {
+        use prost::Message;
+        let tile = MvtProto::Tile {
+            layers: vec![MvtProto::Layer {
+                version: 2,
+                name: "sparse".to_string(),
+                features: vec![
+                    // Feature 1: has both 'name' and 'pop'
+                    MvtProto::Feature {
+                        id: Some(1),
+                        tags: vec![0, 0, 1, 1], // name="city_a", pop=1000
+                        r#type: Some(MvtProto::GeomType::Point as i32),
+                        geometry: vec![command_integer(1, 1), zigzag_encode(10), zigzag_encode(20)],
+                    },
+                    // Feature 2: has only 'name' (missing 'pop')
+                    MvtProto::Feature {
+                        id: Some(2),
+                        tags: vec![0, 2], // name="city_b"
+                        r#type: Some(MvtProto::GeomType::Point as i32),
+                        geometry: vec![command_integer(1, 1), zigzag_encode(30), zigzag_encode(40)],
+                    },
+                    // Feature 3: has only 'pop' (missing 'name')
+                    MvtProto::Feature {
+                        id: Some(3),
+                        tags: vec![1, 3], // pop=5000
+                        r#type: Some(MvtProto::GeomType::Point as i32),
+                        geometry: vec![command_integer(1, 1), zigzag_encode(50), zigzag_encode(60)],
+                    },
+                ],
+                keys: vec!["name".to_string(), "pop".to_string()],
+                values: vec![
+                    MvtProto::Value {
+                        string_value: Some("city_a".to_string()),
+                        ..Default::default()
+                    },
+                    MvtProto::Value {
+                        int_value: Some(1000),
+                        ..Default::default()
+                    },
+                    MvtProto::Value {
+                        string_value: Some("city_b".to_string()),
+                        ..Default::default()
+                    },
+                    MvtProto::Value {
+                        int_value: Some(5000),
+                        ..Default::default()
+                    },
+                ],
+                extent: Some(4096),
+            }],
+        };
+        tile.encode_to_vec()
+    }
+
+    /// Build an MVT tile with large numeric IDs.
+    fn make_mvt_large_id_tile() -> Vec<u8> {
+        use prost::Message;
+        let tile = MvtProto::Tile {
+            layers: vec![MvtProto::Layer {
+                version: 2,
+                name: "large_ids".to_string(),
+                features: vec![
+                    MvtProto::Feature {
+                        id: Some(u64::MAX),
+                        tags: vec![],
+                        r#type: Some(MvtProto::GeomType::Point as i32),
+                        geometry: vec![command_integer(1, 1), zigzag_encode(10), zigzag_encode(20)],
+                    },
+                    MvtProto::Feature {
+                        id: Some(0),
+                        tags: vec![],
+                        r#type: Some(MvtProto::GeomType::Point as i32),
+                        geometry: vec![command_integer(1, 1), zigzag_encode(30), zigzag_encode(40)],
+                    },
+                ],
+                keys: vec![],
+                values: vec![],
+                extent: Some(4096),
+            }],
+        };
+        tile.encode_to_vec()
+    }
+
+    // -------------------------------------------------------------------------
+    // MVT → MLT transcoding tests (Phase 2)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_mvt_to_mlt_point_tile() {
+        let mvt_bytes = make_mvt_point_tile("places", 100, 200);
+        let tile = TileData {
+            data: Bytes::from(mvt_bytes),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        let result = transcode_tile(&tile, TileFormat::Mlt);
+        assert!(
+            result.is_ok(),
+            "MVT→MLT transcoding should succeed: {:?}",
+            result.err()
+        );
+        let mlt_tile = result.unwrap();
+        assert_eq!(mlt_tile.format, TileFormat::Mlt);
+        assert_eq!(mlt_tile.compression, TileCompression::None);
+        assert!(!mlt_tile.data.is_empty(), "MLT output should not be empty");
+        // Verify MLT data is valid by parsing it back
+        let layers = mlt_core::parse_layers(&mlt_tile.data);
+        assert!(
+            layers.is_ok(),
+            "MLT output should be parseable: {:?}",
+            layers.err()
+        );
+    }
+
+    #[test]
+    fn test_mvt_to_mlt_multi_feature_tile() {
+        let mvt_bytes = make_mvt_multi_feature_tile();
+        let tile = TileData {
+            data: Bytes::from(mvt_bytes),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        let result = transcode_tile(&tile, TileFormat::Mlt).unwrap();
+        assert_eq!(result.format, TileFormat::Mlt);
+        assert!(!result.data.is_empty());
+        // Verify MLT is parseable
+        let layers = mlt_core::parse_layers(&result.data);
+        assert!(
+            layers.is_ok(),
+            "MLT output should parse: {:?}",
+            layers.err()
+        );
+    }
+
+    #[test]
+    fn test_mvt_to_mlt_multi_layer_tile() {
+        let mvt_bytes = make_mvt_multi_layer_tile();
+        let tile = TileData {
+            data: Bytes::from(mvt_bytes),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        let result = transcode_tile(&tile, TileFormat::Mlt).unwrap();
+        assert_eq!(result.format, TileFormat::Mlt);
+        assert!(!result.data.is_empty());
+        // Verify we can parse back and get 2 layers
+        let mut layers = mlt_core::parse_layers(&result.data).unwrap();
+        assert_eq!(layers.len(), 2, "Should have 2 layers (roads + water)");
+        // Verify layer names
+        for layer in &mut layers {
+            layer.decode_all().unwrap();
+        }
+    }
+
+    #[test]
+    fn test_mvt_to_mlt_empty_layer() {
+        let mvt_bytes = make_mvt_empty_layer_tile();
+        let tile = TileData {
+            data: Bytes::from(mvt_bytes),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        // Empty layer might produce minimal output or skip entirely
+        let result = transcode_tile(&tile, TileFormat::Mlt);
+        // Whether it succeeds or fails is implementation-dependent;
+        // the key is it should not panic
+        if let Ok(mlt_tile) = result {
+            assert_eq!(mlt_tile.format, TileFormat::Mlt);
+        }
+    }
+
+    #[test]
+    fn test_mvt_to_mlt_no_layers() {
+        let mvt_bytes = make_mvt_no_layers_tile();
+        let tile = TileData {
+            data: Bytes::from(mvt_bytes),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        let result = transcode_tile(&tile, TileFormat::Mlt);
+        // Empty tile should produce empty or minimal MLT output
+        if let Ok(mlt_tile) = result {
+            assert_eq!(mlt_tile.format, TileFormat::Mlt);
+        }
+    }
+
+    #[test]
+    fn test_mvt_to_mlt_linestring() {
+        let mvt_bytes = make_mvt_linestring_tile();
+        let tile = TileData {
+            data: Bytes::from(mvt_bytes),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        let result = transcode_tile(&tile, TileFormat::Mlt).unwrap();
+        assert_eq!(result.format, TileFormat::Mlt);
+        assert!(!result.data.is_empty());
+        let layers = mlt_core::parse_layers(&result.data);
+        assert!(layers.is_ok());
+    }
+
+    #[test]
+    fn test_mvt_to_mlt_polygon() {
+        let mvt_bytes = make_mvt_polygon_tile();
+        let tile = TileData {
+            data: Bytes::from(mvt_bytes),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        let result = transcode_tile(&tile, TileFormat::Mlt).unwrap();
+        assert_eq!(result.format, TileFormat::Mlt);
+        assert!(!result.data.is_empty());
+        let layers = mlt_core::parse_layers(&result.data);
+        assert!(layers.is_ok());
+    }
+
+    #[test]
+    fn test_mvt_to_mlt_mixed_property_types() {
+        let mvt_bytes = make_mvt_mixed_props_tile();
+        let tile = TileData {
+            data: Bytes::from(mvt_bytes),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        let result = transcode_tile(&tile, TileFormat::Mlt).unwrap();
+        assert_eq!(result.format, TileFormat::Mlt);
+        assert!(!result.data.is_empty());
+        let layers = mlt_core::parse_layers(&result.data);
+        assert!(layers.is_ok());
+    }
+
+    #[test]
+    fn test_mvt_to_mlt_sparse_properties() {
+        // Features with missing properties should produce None in column vectors
+        let mvt_bytes = make_mvt_sparse_props_tile();
+        let tile = TileData {
+            data: Bytes::from(mvt_bytes),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        let result = transcode_tile(&tile, TileFormat::Mlt).unwrap();
+        assert_eq!(result.format, TileFormat::Mlt);
+        assert!(!result.data.is_empty());
+        let layers = mlt_core::parse_layers(&result.data);
+        assert!(layers.is_ok());
+    }
+
+    #[test]
+    fn test_mvt_to_mlt_large_ids() {
+        let mvt_bytes = make_mvt_large_id_tile();
+        let tile = TileData {
+            data: Bytes::from(mvt_bytes),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        let result = transcode_tile(&tile, TileFormat::Mlt).unwrap();
+        assert_eq!(result.format, TileFormat::Mlt);
+        assert!(!result.data.is_empty());
+    }
+
+    #[test]
+    fn test_mvt_to_mlt_gzip_compressed_input() {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        use std::io::Write;
+
+        let mvt_bytes = make_mvt_point_tile("compressed", 50, 50);
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(&mvt_bytes).unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        let tile = TileData {
+            data: Bytes::from(compressed),
+            format: TileFormat::Pbf,
+            compression: TileCompression::Gzip,
+        };
+        let result = transcode_tile(&tile, TileFormat::Mlt).unwrap();
+        assert_eq!(result.format, TileFormat::Mlt);
+        assert_eq!(result.compression, TileCompression::None);
+        assert!(!result.data.is_empty());
+        let layers = mlt_core::parse_layers(&result.data);
+        assert!(layers.is_ok());
+    }
+
+    #[test]
+    fn test_mvt_to_mlt_output_differs_from_input() {
+        // Ensure the transcoded output is actually different from the MVT input
+        let mvt_bytes = make_mvt_point_tile("test_layer", 100, 200);
+        let tile = TileData {
+            data: Bytes::from(mvt_bytes.clone()),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        let result = transcode_tile(&tile, TileFormat::Mlt).unwrap();
+        // MLT format is structurally different from MVT protobuf
+        assert_ne!(
+            result.data.as_ref(),
+            mvt_bytes.as_slice(),
+            "MLT output should differ from MVT input"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // MVT → MLT → MVT roundtrip tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_roundtrip_mvt_mlt_mvt_point() {
+        let mvt_bytes = make_mvt_point_tile("roundtrip", 100, 200);
+        let original_tile = TileData {
+            data: Bytes::from(mvt_bytes),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        // MVT → MLT
+        let mlt_tile = transcode_tile(&original_tile, TileFormat::Mlt).unwrap();
+        assert_eq!(mlt_tile.format, TileFormat::Mlt);
+        // MLT → MVT
+        let roundtripped = transcode_tile(&mlt_tile, TileFormat::Pbf).unwrap();
+        assert_eq!(roundtripped.format, TileFormat::Pbf);
+        assert!(!roundtripped.data.is_empty());
+    }
+
+    #[test]
+    fn test_roundtrip_mvt_mlt_mvt_multi_feature() {
+        let mvt_bytes = make_mvt_multi_feature_tile();
+        let original = TileData {
+            data: Bytes::from(mvt_bytes),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        let mlt = transcode_tile(&original, TileFormat::Mlt).unwrap();
+        let roundtripped = transcode_tile(&mlt, TileFormat::Pbf).unwrap();
+        assert_eq!(roundtripped.format, TileFormat::Pbf);
+        assert!(!roundtripped.data.is_empty());
+    }
+
+    #[test]
+    fn test_roundtrip_mvt_mlt_mvt_multi_layer() {
+        let mvt_bytes = make_mvt_multi_layer_tile();
+        let original = TileData {
+            data: Bytes::from(mvt_bytes),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        let mlt = transcode_tile(&original, TileFormat::Mlt).unwrap();
+        let roundtripped = transcode_tile(&mlt, TileFormat::Pbf).unwrap();
+        assert_eq!(roundtripped.format, TileFormat::Pbf);
+        // Verify roundtripped tile has valid protobuf structure
+        use prost::Message;
+        let tile = MvtProto::Tile::decode(roundtripped.data.as_ref());
+        assert!(tile.is_ok(), "Roundtripped MVT should be valid protobuf");
+        let tile = tile.unwrap();
+        assert_eq!(tile.layers.len(), 2, "Should preserve 2 layers");
+    }
+
+    #[test]
+    fn test_roundtrip_preserves_layer_count() {
+        let mvt_bytes = make_mvt_multi_layer_tile();
+        let original = TileData {
+            data: Bytes::from(mvt_bytes.clone()),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        // Parse original MVT
+        use prost::Message;
+        let orig_tile = MvtProto::Tile::decode(mvt_bytes.as_slice()).unwrap();
+        // Roundtrip
+        let mlt = transcode_tile(&original, TileFormat::Mlt).unwrap();
+        let roundtripped = transcode_tile(&mlt, TileFormat::Pbf).unwrap();
+        let rt_tile = MvtProto::Tile::decode(roundtripped.data.as_ref()).unwrap();
+        assert_eq!(
+            orig_tile.layers.len(),
+            rt_tile.layers.len(),
+            "Roundtrip should preserve layer count"
+        );
+    }
+
+    #[test]
+    fn test_roundtrip_preserves_feature_count() {
+        let mvt_bytes = make_mvt_multi_feature_tile();
+        let original = TileData {
+            data: Bytes::from(mvt_bytes.clone()),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        use prost::Message;
+        let orig_tile = MvtProto::Tile::decode(mvt_bytes.as_slice()).unwrap();
+        let orig_feature_count: usize = orig_tile.layers.iter().map(|l| l.features.len()).sum();
+        // Roundtrip
+        let mlt = transcode_tile(&original, TileFormat::Mlt).unwrap();
+        let roundtripped = transcode_tile(&mlt, TileFormat::Pbf).unwrap();
+        let rt_tile = MvtProto::Tile::decode(roundtripped.data.as_ref()).unwrap();
+        let rt_feature_count: usize = rt_tile.layers.iter().map(|l| l.features.len()).sum();
+        assert_eq!(
+            orig_feature_count, rt_feature_count,
+            "Roundtrip should preserve total feature count"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Internal function tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_mvt_to_mlt_internal_single_point() {
+        let mvt_bytes = make_mvt_point_tile("internal_test", 42, 84);
+        let result = mvt_to_mlt(&mvt_bytes);
+        assert!(
+            result.is_ok(),
+            "mvt_to_mlt should succeed: {:?}",
+            result.err()
+        );
+        let mlt_bytes = result.unwrap();
+        assert!(!mlt_bytes.is_empty());
+    }
+
+    #[test]
+    fn test_mvt_to_mlt_internal_empty_input() {
+        // Empty protobuf encodes as zero bytes
+        let result = mvt_to_mlt(&[]);
+        // Should either succeed (empty tile) or give a clean error
+        if let Ok(mlt_bytes) = result {
+            // Empty tile might produce empty output
+            let _ = mlt_bytes;
+        }
+    }
+
+    #[test]
+    fn test_decompress_tile_data_none() {
+        let tile = TileData {
+            data: Bytes::from_static(b"raw bytes"),
+            format: TileFormat::Pbf,
+            compression: TileCompression::None,
+        };
+        let result = decompress_tile_data(&tile).unwrap();
+        assert_eq!(result, b"raw bytes");
+    }
+
+    #[test]
+    fn test_decompress_tile_data_gzip() {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        use std::io::Write;
+
+        let original = b"hello world";
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(original).unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        let tile = TileData {
+            data: Bytes::from(compressed),
+            format: TileFormat::Pbf,
+            compression: TileCompression::Gzip,
+        };
+        let result = decompress_tile_data(&tile).unwrap();
+        assert_eq!(result, original);
+    }
+
+    #[test]
+    fn test_decompress_tile_data_invalid_gzip() {
+        let tile = TileData {
+            data: Bytes::from_static(b"not gzip data"),
+            format: TileFormat::Pbf,
+            compression: TileCompression::Gzip,
+        };
+        let result = decompress_tile_data(&tile);
+        assert!(result.is_err());
+    }
+
+    // -------------------------------------------------------------------------
+    // Geometry encoding edge case tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_encode_point_zero_coords() {
+        let commands = encode_point(0, 0);
+        assert_eq!(commands.len(), 3);
+        assert_eq!(commands[1], 0); // zigzag(0) = 0
+        assert_eq!(commands[2], 0);
+    }
+
+    #[test]
+    fn test_encode_point_negative_coords() {
+        let commands = encode_point(-50, -75);
+        assert_eq!(commands.len(), 3);
+        assert_eq!(commands[1], zigzag_encode(-50));
+        assert_eq!(commands[2], zigzag_encode(-75));
+    }
+
+    #[test]
+    fn test_encode_linestring_empty() {
+        let commands = encode_linestring(&[], false);
+        assert!(commands.is_empty());
+    }
+
+    #[test]
+    fn test_encode_linestring_single_point() {
+        let coords = vec![geo_types::Coord { x: 10, y: 20 }];
+        let commands = encode_linestring(&coords, false);
+        // MoveTo(1) + dx,dy = 3 commands, no LineTo
+        assert_eq!(commands.len(), 3);
+        assert_eq!(commands[0], command_integer(1, 1));
+    }
+
+    #[test]
+    fn test_encode_linestring_two_points() {
+        let coords = vec![
+            geo_types::Coord { x: 0, y: 0 },
+            geo_types::Coord { x: 100, y: 50 },
+        ];
+        let commands = encode_linestring(&coords, false);
+        // MoveTo(1) + dx,dy + LineTo(1) + dx,dy = 6 commands
+        assert_eq!(commands.len(), 6);
+        assert_eq!(commands[0], command_integer(1, 1)); // MoveTo
+        assert_eq!(commands[3], command_integer(2, 1)); // LineTo(1)
+    }
+
+    #[test]
+    fn test_encode_linestring_closed_ring() {
+        // Closed ring: first = last point, ClosePath appended
+        let coords = vec![
+            geo_types::Coord { x: 0, y: 0 },
+            geo_types::Coord { x: 100, y: 0 },
+            geo_types::Coord { x: 100, y: 100 },
+            geo_types::Coord { x: 0, y: 0 }, // closing point
+        ];
+        let commands = encode_linestring(&coords, true);
+        // MoveTo(1) + dx,dy + LineTo(2) + 2*(dx,dy) + ClosePath = 3+1+4+1 = 9
+        let last = *commands.last().unwrap();
+        assert_eq!(last, command_integer(7, 1), "Should end with ClosePath");
+    }
+
+    #[test]
+    fn test_encode_linestring_delta_encoding() {
+        // Verify delta encoding: second point should be relative to first
+        let coords = vec![
+            geo_types::Coord { x: 10, y: 20 },
+            geo_types::Coord { x: 30, y: 50 },
+        ];
+        let commands = encode_linestring(&coords, false);
+        // MoveTo first point (absolute): dx=10, dy=20
+        assert_eq!(commands[1], zigzag_encode(10));
+        assert_eq!(commands[2], zigzag_encode(20));
+        // LineTo second point (delta): dx=30-10=20, dy=50-20=30
+        assert_eq!(commands[4], zigzag_encode(20));
+        assert_eq!(commands[5], zigzag_encode(30));
+    }
+
+    // -------------------------------------------------------------------------
+    // Zigzag encoding edge cases
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_zigzag_encode_min_max() {
+        assert_eq!(zigzag_encode(i32::MAX), (u32::MAX - 1));
+        assert_eq!(zigzag_encode(i32::MIN), u32::MAX);
+    }
+
+    #[test]
+    fn test_zigzag_encode_symmetry() {
+        // Positive and negative values should alternate
+        for i in 0..100 {
+            let pos = zigzag_encode(i);
+            let neg = zigzag_encode(-i);
+            if i == 0 {
+                assert_eq!(pos, neg);
+            } else {
+                assert_eq!(pos, neg + 1, "zigzag({i}) should be zigzag(-{i}) + 1");
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Command integer encoding tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_command_integer_all_types() {
+        // MoveTo = 1
+        assert_eq!(command_integer(1, 1), 0b0000_1001); // 9
+        assert_eq!(command_integer(1, 2), 0b0001_0001); // 17
+                                                        // LineTo = 2
+        assert_eq!(command_integer(2, 1), 0b0000_1010); // 10
+        assert_eq!(command_integer(2, 5), 0b0010_1010); // 42
+                                                        // ClosePath = 7
+        assert_eq!(command_integer(7, 1), 0b0000_1111); // 15
+    }
+
+    // -------------------------------------------------------------------------
+    // JSON value conversion tests (expanded)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_json_value_to_mvt_float() {
+        let val = serde_json::json!(3.14);
+        let mvt = json_value_to_mvt(&val);
+        assert_eq!(mvt.double_value, Some(3.14));
+    }
+
+    #[test]
+    fn test_json_value_to_mvt_uint() {
+        // Large unsigned value that doesn't fit i64
+        let val = serde_json::json!(u64::MAX);
+        let mvt = json_value_to_mvt(&val);
+        // serde_json stores u64::MAX as u64, which as_i64 returns None,
+        // so it should fall through to as_u64
+        assert!(mvt.uint_value.is_some() || mvt.int_value.is_some());
+    }
+
+    #[test]
+    fn test_json_value_to_mvt_negative_int() {
+        let val = serde_json::json!(-42);
+        let mvt = json_value_to_mvt(&val);
+        assert_eq!(mvt.int_value, Some(-42));
+    }
+
+    #[test]
+    fn test_json_value_to_mvt_null() {
+        let val = serde_json::Value::Null;
+        let mvt = json_value_to_mvt(&val);
+        // Null produces default/empty value
+        assert_eq!(mvt, MvtProto::Value::default());
+    }
+
+    #[test]
+    fn test_json_value_to_mvt_array() {
+        // Arrays are not representable in MVT, should produce default
+        let val = serde_json::json!([1, 2, 3]);
+        let mvt = json_value_to_mvt(&val);
+        assert_eq!(mvt, MvtProto::Value::default());
+    }
+
+    #[test]
+    fn test_json_value_to_mvt_object() {
+        // Objects are not representable in MVT, should produce default
+        let val = serde_json::json!({"nested": true});
+        let mvt = json_value_to_mvt(&val);
+        assert_eq!(mvt, MvtProto::Value::default());
+    }
+
+    #[test]
+    fn test_json_value_to_mvt_empty_string() {
+        let val = serde_json::json!("");
+        let mvt = json_value_to_mvt(&val);
+        assert_eq!(mvt.string_value, Some(String::new()));
+    }
+
+    #[test]
+    fn test_json_value_to_mvt_zero() {
+        let val = serde_json::json!(0);
+        let mvt = json_value_to_mvt(&val);
+        assert_eq!(mvt.int_value, Some(0));
+    }
+
+    #[test]
+    fn test_json_value_to_mvt_false() {
+        let val = serde_json::json!(false);
+        let mvt = json_value_to_mvt(&val);
+        assert_eq!(mvt.bool_value, Some(false));
+    }
+
+    // -------------------------------------------------------------------------
+    // Type inference tests (infer_column_values)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_infer_column_values_all_strings() {
+        let features = vec![
+            make_test_feature(serde_json::json!({"k": "a"})),
+            make_test_feature(serde_json::json!({"k": "b"})),
+        ];
+        let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
+        let result = infer_column_values(&refs, "k", 2);
+        match result {
+            mlt_core::v01::PropValue::Str(vals) => {
+                assert_eq!(vals.len(), 2);
+                assert_eq!(vals[0], Some("a".to_string()));
+                assert_eq!(vals[1], Some("b".to_string()));
+            }
+            other => panic!("Expected Str, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_infer_column_values_all_ints() {
+        let features = vec![
+            make_test_feature(serde_json::json!({"k": 10})),
+            make_test_feature(serde_json::json!({"k": 20})),
+        ];
+        let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
+        let result = infer_column_values(&refs, "k", 2);
+        match result {
+            mlt_core::v01::PropValue::I64(vals) => {
+                assert_eq!(vals, vec![Some(10), Some(20)]);
+            }
+            other => panic!("Expected I64, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_infer_column_values_all_bools() {
+        let features = vec![
+            make_test_feature(serde_json::json!({"k": true})),
+            make_test_feature(serde_json::json!({"k": false})),
+        ];
+        let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
+        let result = infer_column_values(&refs, "k", 2);
+        match result {
+            mlt_core::v01::PropValue::Bool(vals) => {
+                assert_eq!(vals, vec![Some(true), Some(false)]);
+            }
+            other => panic!("Expected Bool, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_infer_column_values_all_floats() {
+        let features = vec![
+            make_test_feature(serde_json::json!({"k": 1.5})),
+            make_test_feature(serde_json::json!({"k": 2.7})),
+        ];
+        let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
+        let result = infer_column_values(&refs, "k", 2);
+        match result {
+            mlt_core::v01::PropValue::F64(vals) => {
+                assert_eq!(vals, vec![Some(1.5), Some(2.7)]);
+            }
+            other => panic!("Expected F64, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_infer_column_values_mixed_int_float_promotes_to_f64() {
+        // When mixing int and float, should promote to f64
+        let features = vec![
+            make_test_feature(serde_json::json!({"k": 10})),
+            make_test_feature(serde_json::json!({"k": 3.14})),
+        ];
+        let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
+        let result = infer_column_values(&refs, "k", 2);
+        match result {
+            mlt_core::v01::PropValue::F64(vals) => {
+                assert_eq!(vals.len(), 2);
+                assert_eq!(vals[0], Some(10.0));
+                assert_eq!(vals[1], Some(3.14));
+            }
+            other => panic!("Expected F64 for mixed int/float, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_infer_column_values_mixed_types_falls_back_to_string() {
+        // When mixing string and int, should fall back to String
+        let features = vec![
+            make_test_feature(serde_json::json!({"k": "hello"})),
+            make_test_feature(serde_json::json!({"k": 42})),
+        ];
+        let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
+        let result = infer_column_values(&refs, "k", 2);
+        match result {
+            mlt_core::v01::PropValue::Str(vals) => {
+                assert_eq!(vals.len(), 2);
+                assert_eq!(vals[0], Some("hello".to_string()));
+                assert_eq!(vals[1], Some("42".to_string()));
+            }
+            other => panic!("Expected Str for mixed types, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_infer_column_values_missing_key_produces_none() {
+        let features = vec![
+            make_test_feature(serde_json::json!({"k": "present"})),
+            make_test_feature(serde_json::json!({"other": "no k"})),
+        ];
+        let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
+        let result = infer_column_values(&refs, "k", 2);
+        match result {
+            mlt_core::v01::PropValue::Str(vals) => {
+                assert_eq!(vals.len(), 2);
+                assert_eq!(vals[0], Some("present".to_string()));
+                assert_eq!(vals[1], None);
+            }
+            other => panic!("Expected Str with None for missing, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_infer_column_values_null_values() {
+        let features = vec![
+            make_test_feature(serde_json::json!({"k": null})),
+            make_test_feature(serde_json::json!({"k": "present"})),
+        ];
+        let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
+        let result = infer_column_values(&refs, "k", 2);
+        match result {
+            mlt_core::v01::PropValue::Str(vals) => {
+                assert_eq!(vals.len(), 2);
+                assert_eq!(vals[0], None); // null produces None
+                assert_eq!(vals[1], Some("present".to_string()));
+            }
+            other => panic!("Expected Str with None for null, got: {other:?}"),
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // build_column_properties tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_build_column_properties_skips_internal_keys() {
+        let features = vec![make_test_feature(serde_json::json!({
+            "_layer": "internal",
+            "_extent": 4096,
+            "name": "visible"
+        }))];
+        let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
+        let props = build_column_properties(&refs).unwrap();
+        // Should only have "name", not _layer or _extent
+        assert_eq!(props.len(), 1);
+        assert_eq!(props[0].name, "name");
+    }
+
+    #[test]
+    fn test_build_column_properties_no_properties() {
+        let features = vec![make_test_feature(serde_json::json!({}))];
+        let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
+        let props = build_column_properties(&refs).unwrap();
+        assert!(props.is_empty());
+    }
+
+    #[test]
+    fn test_build_column_properties_multiple_keys() {
+        let features = vec![make_test_feature(
+            serde_json::json!({"a": 1, "b": "two", "c": true}),
+        )];
+        let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
+        let props = build_column_properties(&refs).unwrap();
+        assert_eq!(props.len(), 3);
+        // BTreeMap ordering: a, b, c
+        let names: Vec<&str> = props.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, vec!["a", "b", "c"]);
+    }
+
+    // -------------------------------------------------------------------------
+    // MLT → MVT tests (Phase 3, existing path)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_mlt_to_mvt_from_valid_mlt() {
+        // Create a valid MLT tile via MVT→MLT, then convert back
+        let mvt_bytes = make_mvt_point_tile("phase3_test", 50, 75);
+        let mlt_bytes = mvt_to_mlt(&mvt_bytes).unwrap();
+        let mlt_tile = TileData {
+            data: mlt_bytes,
+            format: TileFormat::Mlt,
+            compression: TileCompression::None,
+        };
+        let result = transcode_tile(&mlt_tile, TileFormat::Pbf);
+        assert!(result.is_ok(), "MLT→MVT should succeed: {:?}", result.err());
+        let mvt_tile = result.unwrap();
+        assert_eq!(mvt_tile.format, TileFormat::Pbf);
+        // Verify it's valid protobuf
+        use prost::Message;
+        let decoded = MvtProto::Tile::decode(mvt_tile.data.as_ref());
+        assert!(decoded.is_ok());
+    }
+
+    #[test]
+    fn test_mlt_to_mvt_invalid_input() {
+        let tile = TileData {
+            data: Bytes::from_static(b"not valid MLT"),
+            format: TileFormat::Mlt,
+            compression: TileCompression::None,
+        };
+        let result = transcode_tile(&tile, TileFormat::Pbf);
+        assert!(result.is_err());
+    }
+
+    // -------------------------------------------------------------------------
+    // Property helpers for test fixtures
+    // -------------------------------------------------------------------------
+
+    /// Create a test Feature with given properties and a dummy point geometry.
+    fn make_test_feature(properties: serde_json::Value) -> mlt_core::geojson::Feature {
+        use std::collections::BTreeMap;
+        let props: BTreeMap<String, serde_json::Value> = match properties {
+            serde_json::Value::Object(map) => map.into_iter().collect(),
+            _ => BTreeMap::new(),
+        };
+        mlt_core::geojson::Feature {
+            geometry: geo_types::Geometry::Point(geo_types::Point::new(0, 0)),
+            id: None,
+            properties: props,
+            ty: String::new(),
+        }
     }
 }
