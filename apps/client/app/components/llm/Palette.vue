@@ -47,7 +47,7 @@
 <template>
   <!-- Scrim backdrop -->
   <Transition enter-active-class="duration-200 ease-out" enter-from-class="opacity-0" leave-active-class="duration-150 ease-in" leave-to-class="opacity-0">
-    <div v-if="open" class="fixed inset-0 z-40 bg-black/25 backdrop-blur-[2px]" @click="close"></div>
+    <div v-if="open" class="fixed inset-0 z-40 bg-black/10" @click="close"></div>
   </Transition>
 
   <!-- Command palette panel -->
