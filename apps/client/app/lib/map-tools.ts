@@ -114,7 +114,7 @@ export const queryRenderedFeaturesDef = toolDefinition({
     features: z.array(z.object({
       layer: z.string(),
       geometryType: z.string(),
-      properties: z.record(z.unknown()),
+      properties: z.record(z.string(), z.unknown()),
     })),
     total: z.number(),
   }),
@@ -580,7 +580,7 @@ export const spatialQueryDef = toolDefinition({
     features: z.array(z.object({
       layer: z.string(),
       geometry_type: z.string().nullable().optional(),
-      properties: z.record(z.unknown()),
+      properties: z.record(z.string(), z.unknown()),
     })),
     total: z.number(),
     truncated: z.boolean(),

@@ -37,7 +37,7 @@ const ChatMessageSchema = z.object({
 const SpatialResultFeatureSchema = z.object({
   layer: z.string(),
   geometryType: z.string().optional(),
-  properties: z.record(z.unknown()),
+  properties: z.record(z.string(), z.unknown()),
 });
 
 const SpatialResultSchema = z.object({
