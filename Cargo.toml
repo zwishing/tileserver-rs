@@ -37,7 +37,7 @@ thiserror = "2.0.18"
 geozero = { version = "0.15.1", features = ["with-mvt", "with-geojson"] }
 flate2 = "1.1.9"
 # MLT (MapLibre Tiles) transcoding support (optional)
-mlt-core = { version = "0.1", optional = true }
+mlt-core = { version = "0.2", optional = true }
 prost = { version = "0.13", optional = true }
 geo-types = { version = "0.7", optional = true }
 tokio = { version = "1.49", features = ["full"] }

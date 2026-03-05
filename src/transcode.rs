@@ -228,9 +228,9 @@ fn build_mlt_layer(
     features: &[&mlt_core::geojson::Feature],
 ) -> Result<mlt_core::OwnedLayer> {
     use mlt_core::v01::{
-        DecodedGeometry, DecodedId, Encoder, GeometryEncoder, IdEncoder, IdWidth, LogicalEncoder,
-        OwnedGeometry, OwnedId, OwnedLayer01, OwnedProperty, PhysicalEncoder, PresenceStream,
-        PropertyEncoder,
+        DecodedGeometry, DecodedId, GeometryEncoder, IdEncoder, IdWidth, IntEncoder,
+        LogicalEncoder, OwnedGeometry, OwnedId, OwnedLayer01, OwnedProperty, PresenceStream,
+        ScalarEncoder,
     };
     use mlt_core::Encodable as _;
 
@@ -248,7 +248,7 @@ fn build_mlt_layer(
         decoded_geom.push_geom(&feature.geometry);
     }
     let mut geometry = OwnedGeometry::Decoded(decoded_geom);
-    let geom_encoder = GeometryEncoder::all(Encoder::varint());
+    let geom_encoder = GeometryEncoder::all(IntEncoder::varint());
     geometry.encode_with(geom_encoder).map_err(|e| {
         TileServerError::MltEncodeError(format!("failed to encode MLT geometry: {e}"))
     })?;
@@ -270,15 +270,21 @@ fn build_mlt_layer(
 
     // --- Properties (row-oriented → column-oriented) ---
     let properties = build_column_properties(features)?;
-    let prop_encoder = PropertyEncoder::new(
-        PresenceStream::Present,
-        LogicalEncoder::None,
-        PhysicalEncoder::VarInt,
-    );
     let mut encoded_properties: Vec<OwnedProperty> = Vec::with_capacity(properties.len());
     for decoded_prop in properties {
+        // Pick the right encoder based on the property value type
+        let encoder = match &decoded_prop.values {
+            mlt_core::v01::PropValue::Bool(_) => ScalarEncoder::bool(PresenceStream::Present),
+            mlt_core::v01::PropValue::F32(_) | mlt_core::v01::PropValue::F64(_) => {
+                ScalarEncoder::float(PresenceStream::Present)
+            }
+            mlt_core::v01::PropValue::Str(_) => {
+                ScalarEncoder::str(PresenceStream::Present, IntEncoder::varint())
+            }
+            _ => ScalarEncoder::int(PresenceStream::Present, IntEncoder::varint()),
+        };
         let mut prop = OwnedProperty::Decoded(decoded_prop);
-        prop.encode_with(prop_encoder).map_err(|e| {
+        prop.encode_with(encoder).map_err(|e| {
             TileServerError::MltEncodeError(format!("failed to encode MLT property: {e}"))
         })?;
         encoded_properties.push(prop);
