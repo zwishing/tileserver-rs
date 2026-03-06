@@ -3,6 +3,9 @@
 [![CI Pipeline](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/pipeline.yml/badge.svg)](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/pipeline.yml)
 [![Docker](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/docker.yml/badge.svg)](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/docker.yml)
 
+[![Deploy on Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/vinayakkulkarni/tileserver-rs)
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/vinayakkulkarni/tileserver-rs/tree/main)
+
 <img src="./.github/assets/tileserver-rs.png" width="512" height="512" align="center" alt="tileserver-rs logo" />
 
 High-performance vector tile server built in Rust with a modern Nuxt 4 frontend.
@@ -41,6 +44,7 @@ High-performance vector tile server built in Rust with a modern Nuxt 4 frontend.
   - [Building from Source](#building-from-source)
 - [Configuration](#configuration)
 - [API Endpoints](#api-endpoints)
+- [Deploy](#deploy)
 - [Development](#development)
 - [Contributing](#contributing)
 - [Author](#author)
@@ -424,6 +428,52 @@ tileserver-rs/
 ├── compose.prod.yml         # Docker Compose (production overrides)
 ├── Dockerfile               # Multi-stage Docker build
 └── config.example.toml      # Example configuration
+```
+
+## Deploy
+
+### One-Click Cloud Deploy
+
+Deploy a fully working tileserver-rs instance with sample data in minutes. No configuration needed — sample tile data is automatically downloaded on first start.
+
+| Platform | Deploy | Notes |
+|----------|--------|-------|
+| **Render** | [![Deploy on Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/vinayakkulkarni/tileserver-rs) | Uses `render.yaml` blueprint |
+| **DigitalOcean** | [![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/vinayakkulkarni/tileserver-rs/tree/main) | Uses `.do/deploy.template.yaml` |
+| **Railway** | [Deploy on Railway](https://railway.com) | Create a template from this repo |
+| **Fly.io** | `fly launch --copy-config` | Uses `fly.toml` — see below |
+| **Docker** | `docker compose up -d` | Uses `compose.yml` (already included) |
+
+### How Sample Data Works
+
+When the Docker container starts with an empty `/data` directory (no tile files mounted), it automatically downloads sample data (~15 MB) from the [latest GitHub release](https://github.com/vinayakkulkarni/tileserver-rs/releases). This includes:
+
+- **Protomaps sample tiles** (PMTiles) — world basemap extract
+- **Zurich MBTiles** — detailed city extract
+- **Noto Sans fonts** — for label rendering
+- **Protomaps Light style** — ready-to-use map style
+- **Sample raster data** — COG test files
+
+To use your own data, mount a volume at `/data`:
+
+```bash
+docker run -d -p 8080:8080 -v /path/to/your/data:/data:ro ghcr.io/vinayakkulkarni/tileserver-rs:latest
+```
+
+Set `SAMPLE_DATA_VERSION=v2.12.1` to pin a specific release version instead of `latest`.
+
+### Deploy on Fly.io
+
+```bash
+# Install flyctl: https://fly.io/docs/flyctl/install/
+fly launch --copy-config
+fly deploy
+```
+
+The included `fly.toml` configures auto-stop/start machines, health checks, and 512MB RAM. Add a persistent volume for your own tile data:
+
+```bash
+fly volumes create tile_data --size 10 --region iad
 ```
 
 ## Deployments

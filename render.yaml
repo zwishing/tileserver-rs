@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: tileserver-rs
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    plan: starter
+    region: oregon
+    envVars:
+      - key: RUST_LOG
+        value: info
+      - key: PORT
+        value: "8080"
