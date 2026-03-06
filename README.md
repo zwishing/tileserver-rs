@@ -3,6 +3,7 @@
 [![CI Pipeline](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/pipeline.yml/badge.svg)](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/pipeline.yml)
 [![Docker](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/docker.yml/badge.svg)](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/docker.yml)
 
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/1u-LMi)
 [![Deploy on Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/vinayakkulkarni/tileserver-rs)
 [![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/vinayakkulkarni/tileserver-rs/tree/main)
 
@@ -440,7 +441,7 @@ Deploy a fully working tileserver-rs instance with sample data in minutes. No co
 |----------|--------|-------|
 | **Render** | [![Deploy on Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/vinayakkulkarni/tileserver-rs) | Uses `render.yaml` blueprint |
 | **DigitalOcean** | [![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/vinayakkulkarni/tileserver-rs/tree/main) | Uses `.do/deploy.template.yaml` |
-| **Railway** | [Deploy on Railway](https://railway.com) | Create a template from this repo |
+| **Railway** | [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/1u-LMi) | Uses `railway.toml` config |
 | **Fly.io** | `fly launch --copy-config` | Uses `fly.toml` — see below |
 | **Docker** | `docker compose up -d` | Uses `compose.yml` (already included) |
 
