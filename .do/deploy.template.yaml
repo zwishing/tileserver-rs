@@ -1,0 +1,21 @@
+spec:
+  name: tileserver-rs
+  region: nyc
+  services:
+    - name: tileserver
+      git:
+        branch: main
+        repo_clone_url: https://github.com/vinayakkulkarni/tileserver-rs.git
+      dockerfile_path: Dockerfile
+      http_port: 8080
+      instance_size_slug: apps-s-1vcpu-1gb
+      instance_count: 1
+      health_check:
+        http_path: /health
+      envs:
+        - key: RUST_LOG
+          value: "info"
+          scope: RUN_TIME
+        - key: PORT
+          value: "8080"
+          scope: RUN_TIME

@@ -1,0 +1,59 @@
+name: "Release (Sample Data)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g., v2.12.1)"
+        required: true
+        type: string
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  package:
+    name: Package sample data
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Package sample data
+        run: |
+          # Package data/ directory (tiles, styles, fonts, raster)
+          # Excludes .DS_Store and other OS artifacts
+          tar -czvf tileserver-rs-sample-data.tar.gz \
+            --exclude='.DS_Store' \
+            --exclude='*.swp' \
+            -C data \
+            tiles styles fonts raster
+          sha256sum tileserver-rs-sample-data.tar.gz > tileserver-rs-sample-data.tar.gz.sha256
+          echo "Archive contents:"
+          tar -tzvf tileserver-rs-sample-data.tar.gz | head -20
+          echo "---"
+          ls -lh tileserver-rs-sample-data.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: tileserver-rs-sample-data
+          path: |
+            tileserver-rs-sample-data.tar.gz
+            tileserver-rs-sample-data.tar.gz.sha256
+          retention-days: 30
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          files: |
+            tileserver-rs-sample-data.tar.gz
+            tileserver-rs-sample-data.tar.gz.sha256
+          draft: false
+          prerelease: ${{ contains(github.event.inputs.tag || github.ref_name, '-alpha') || contains(github.event.inputs.tag || github.ref_name, '-beta') || contains(github.event.inputs.tag || github.ref_name, '-rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
