@@ -28,7 +28,7 @@
     "@deck.gl/mesh-layers": "catalog:client",
     "@geoql/v-maplibre": "catalog:client",
     "@luma.gl/engine": "catalog:client",
-    "@maplibre/maplibre-gl-inspect": "catalog:client",
+    "maplibre-gl-inspect": "catalog:client",
     "@maplibre/mlt": "catalog:client",
     "@mlc-ai/web-llm": "catalog:client",
     "@nuxt/fonts": "catalog:default",

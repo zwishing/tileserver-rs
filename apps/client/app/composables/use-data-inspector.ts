@@ -65,7 +65,7 @@ export function useDataInspector(dataId: Ref<string>) {
 
     const [maplibregl, { default: MaplibreInspect }] = await Promise.all([
       import('maplibre-gl'),
-      import('@maplibre/maplibre-gl-inspect'),
+      import('maplibre-gl-inspect'),
     ]);
 
     const tileJson = await $fetch<Data>(`/data/${dataId.value}.json`);

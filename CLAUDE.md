@@ -42,7 +42,7 @@
 - **Tailwind CSS v4** - Utility-first styling with `@tailwindcss/vite`
 - **shadcn-vue** - UI components (configured at `app/components/ui/`)
 - **MapLibre GL JS v4** - Map rendering
-- **@maplibre/maplibre-gl-inspect** - Tile inspector
+- **maplibre-gl-inspect** - Tile inspector
 - **VueUse** - Vue composition utilities
 - **TanStack AI Vue** - AI chat with `useChat` hook and `stream()` adapter
 - **WebLLM** - Browser-local LLM inference via WebGPU (`@mlc-ai/web-llm`)

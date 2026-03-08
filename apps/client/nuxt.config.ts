@@ -57,7 +57,7 @@ export default defineNuxtConfig({
     '~/assets/css/tailwind.css',
     'maplibre-gl/dist/maplibre-gl.css',
     '@geoql/v-maplibre/dist/v-maplibre.css',
-    '@maplibre/maplibre-gl-inspect/dist/maplibre-gl-inspect.css',
+    'maplibre-gl-inspect/dist/style.css',
     'markstream-vue/index.css',
   ],
 
