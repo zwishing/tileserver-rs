@@ -33,7 +33,7 @@
 //!   MLT→MVT reverse transcoding pipeline that Martin does not provide.
 
 use bytes::Bytes;
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use prost::Message;
 use tileserver_rs::sources::{TileCompression, TileData, TileFormat};
 use tileserver_rs::transcode::{transcode_tile, MvtProto};
@@ -156,7 +156,7 @@ fn bench_mlt_parse(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("zoom", zoom), &fixtures, |b, fixtures| {
             b.iter(|| {
                 for fixture in fixtures {
-                    let _ = mlt_core::parse_layers(black_box(fixture.data));
+                    let _ = mlt_core::parse_layers(std::hint::black_box(fixture.data));
                 }
             });
         });
@@ -189,7 +189,7 @@ fn bench_mlt_decode_all(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("zoom", zoom), &fixtures, |b, fixtures| {
             b.iter(|| {
                 for fixture in fixtures {
-                    if let Ok(layers) = mlt_core::parse_layers(black_box(fixture.data)) {
+                    if let Ok(layers) = mlt_core::parse_layers(std::hint::black_box(fixture.data)) {
                         for mut layer in layers {
                             let _ = layer.decode_all();
                         }
@@ -226,7 +226,7 @@ fn bench_mvt_decode(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("zoom", zoom), &fixtures, |b, fixtures| {
             b.iter(|| {
                 for fixture in fixtures {
-                    let _ = MvtProto::Tile::decode(black_box(fixture.data));
+                    let _ = MvtProto::Tile::decode(std::hint::black_box(fixture.data));
                 }
             });
         });
@@ -272,7 +272,7 @@ fn bench_mlt_to_mvt_transcode(c: &mut Criterion) {
             |b, tile_datas| {
                 b.iter(|| {
                     for tile in tile_datas {
-                        let _ = transcode_tile(black_box(tile), TileFormat::Pbf);
+                        let _ = transcode_tile(std::hint::black_box(tile), TileFormat::Pbf);
                     }
                 });
             },
@@ -300,12 +300,12 @@ fn bench_format_detection(c: &mut Criterion) {
 
     group.throughput(Throughput::Bytes(mlt_data.len() as u64));
     group.bench_function("mlt_tile", |b| {
-        b.iter(|| tileserver_rs::detect_mlt_format(black_box(mlt_data)));
+        b.iter(|| tileserver_rs::detect_mlt_format(std::hint::black_box(mlt_data)));
     });
 
     group.throughput(Throughput::Bytes(mvt_data.len() as u64));
     group.bench_function("mvt_tile", |b| {
-        b.iter(|| tileserver_rs::detect_mlt_format(black_box(mvt_data)));
+        b.iter(|| tileserver_rs::detect_mlt_format(std::hint::black_box(mvt_data)));
     });
 
     group.finish();
@@ -327,7 +327,7 @@ fn bench_mvt_encode(c: &mut Criterion) {
     group.throughput(Throughput::Bytes(encoded_size as u64));
 
     group.bench_function("z4_tile", |b| {
-        b.iter(|| black_box(&tile).encode_to_vec());
+        b.iter(|| std::hint::black_box(&tile).encode_to_vec());
     });
 
     group.finish();
@@ -348,7 +348,7 @@ fn bench_transcode_noop(c: &mut Criterion) {
     };
 
     c.bench_function("transcode_noop", |b| {
-        b.iter(|| transcode_tile(black_box(&tile), TileFormat::Mlt));
+        b.iter(|| transcode_tile(std::hint::black_box(&tile), TileFormat::Mlt));
     });
 }
 

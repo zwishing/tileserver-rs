@@ -1,4 +1,4 @@
 export default {
-  '*.{cjs,mjs,js,ts,vue}': 'bun run --filter @tileserver-rs/client lint',
-  '*.rs': 'cargo fmt --all -- --check',
+  '*.{cjs,mjs,js,ts,vue}': () => 'bun run --filter @tileserver-rs/client lint',
+  '*.rs': () => ['cargo fmt --all -- --check', 'cargo clippy --all-targets --all-features -- -D warnings'],
 };
