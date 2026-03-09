@@ -37,6 +37,14 @@ export function validateFile(file: File): { format: SupportedFormat } {
     );
   }
 
+  // Standalone .shp/.dbf/.shx/.prj — shpjs needs a .zip bundle
+  const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+  if (format === 'shapefile' && ext !== '.zip') {
+    throw new Error(
+      `Shapefile requires a .zip archive containing .shp, .dbf, and .shx files together. Please zip your shapefile bundle and drop the .zip.`,
+    );
+  }
+
   if (isClientSideFormat(format) && file.size > MAX_FILE_SIZE_BYTES) {
     const sizeMB = Math.round(file.size / 1024 / 1024);
     throw new Error(`File too large (${sizeMB} MB). Maximum for client-side processing is 50 MB.`);
