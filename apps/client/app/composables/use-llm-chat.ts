@@ -16,6 +16,7 @@ import { useChat, stream } from '@tanstack/ai-vue';
 import type { UIMessage } from '@tanstack/ai-vue';
 import type { MessagePart } from '@tanstack/ai';
 import type { Map as MaplibreMap } from 'maplibre-gl';
+import type { OverlayLayer } from '~/types/file-upload';
 import { createMapClientTools, createServerClientTools, WEBLLM_TOOLS, WEBLLM_SERVER_TOOLS } from '~/lib/map-tools';
 import { chatCollection } from '~/lib/chat-db';
 import type { UseChatReturn, StoredToolCall } from '~/types/llm';
@@ -38,6 +39,9 @@ Available tools:
 - add_highlight: Temporarily highlight features matching a filter
 - generate_style: Apply multiple style changes from a description
 
+Overlay tools (user-dropped files):
+- get_overlays: List all user-dropped file overlays on the map (file names, formats, feature counts, visibility)
+
 Server-side tools (query tile data):
 - get_source_schema: Get available layers, fields, zoom range for a data source
 - get_source_stats: Get bounds, attribution, and layer count for a data source
@@ -48,6 +52,7 @@ When users ask to see a region, use fit_bounds with a bounding box.
 Use get_map_state to understand what the user is currently looking at before making changes.
 Use get_source_schema or get_source_stats when users ask about available data or layers.
 Use spatial_query when users want to find specific features in the data.
+Use get_overlays when users ask about overlays, dropped files, or uploaded data on the map.
 Keep responses concise and helpful. You're a map expert.`;
 
 /**
@@ -344,12 +349,13 @@ function executeFallbackAction(
  *   - Parses and executes actions after streaming completes
  *
  * @param mapRef - Ref to the MapLibre GL map instance
+ * @param overlaysRef - Ref to the overlay layers from file drops
  */
-export function useLlmChat(mapRef: Ref<MaplibreMap | null>): UseChatReturn {
+export function useLlmChat(mapRef: Ref<MaplibreMap | null>, overlaysRef: Ref<readonly OverlayLayer[]>): UseChatReturn {
   const { engine, status, selectedModel } = useLlmEngine();
 
-  // Create client tools bound to the map ref
-  const clientTools = createMapClientTools(() => mapRef.value);
+  // Create client tools bound to the map ref and overlays
+  const clientTools = createMapClientTools(() => mapRef.value, () => overlaysRef.value);
   const serverTools = createServerClientTools();
 
   /**

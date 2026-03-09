@@ -8,6 +8,7 @@
  */
 
 import type { Map as MaplibreMap } from 'maplibre-gl';
+import type { OverlayLayer } from '~/types/file-upload';
 import type { MessagePart } from '@tanstack/ai';
 import type { LlmIconName, SuggestedPrompt } from '~/types/llm';
 
@@ -80,18 +81,19 @@ export function formatMessageTime(date: Date | undefined): string {
  * Composable for managing the LLM chat panel state and interactions.
  *
  * @param mapRef - Ref to the MapLibre GL map instance (for tool calling)
+ * @param overlaysRef - Ref to overlay layers from file drops (for get_overlays tool)
  *
  * @example
  * ```ts
  * const {
  *   panelOpen, messages, input, isLoading, engineStatus,
  *   handleSubmit, handlePromptSelect, togglePanel,
- * } = useLlmPanel(mapRef);
+ * } = useLlmPanel(mapRef, overlaysRef);
  * ```
  */
-export function useLlmPanel(mapRef: Ref<MaplibreMap | null>) {
+export function useLlmPanel(mapRef: Ref<MaplibreMap | null>, overlaysRef: Ref<readonly OverlayLayer[]>) {
   const { status: engineStatus, loadProgress, errorMessage, selectedModel, availableModels, initEngine, resetEngine } = useLlmEngine();
-  const chat = useLlmChat(mapRef);
+  const chat = useLlmChat(mapRef, overlaysRef);
 
   // Panel open/close state
   const panelOpen = ref(false);

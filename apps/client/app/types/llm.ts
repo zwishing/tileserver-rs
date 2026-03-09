@@ -134,6 +134,29 @@ export interface SpatialResultFeature {
 }
 
 // ============================================================================
+// OVERLAY TOOL TYPES
+// ============================================================================
+
+/**
+ * Overlay info returned by the get_overlays tool.
+ * Summarizes user-dropped file overlays visible on the map.
+ */
+export interface OverlayInfo {
+  /** Unique overlay ID */
+  id: string;
+  /** Original file name (e.g., 'districts.geojson') */
+  fileName: string;
+  /** Detected format (geojson, kml, gpx, csv, shapefile, pmtiles) */
+  format: string;
+  /** Number of features in the overlay */
+  featureCount: number;
+  /** Assigned display color (hex) */
+  color: string;
+  /** Whether the overlay is currently visible */
+  visible: boolean;
+}
+
+// ============================================================================
 // PANEL TYPES
 // ============================================================================
 

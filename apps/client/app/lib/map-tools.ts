@@ -13,6 +13,8 @@
 import { toolDefinition } from '@tanstack/ai';
 import { z } from 'zod';
 import type { Map as MaplibreMap, FilterSpecification } from 'maplibre-gl';
+import type { OverlayInfo } from '~/types/llm';
+import type { OverlayLayer } from '~/types/file-upload';
 
 // =============================================================================
 // TOOL DEFINITIONS (zod schemas + metadata)
@@ -152,6 +154,23 @@ export const generateStyleDef = toolDefinition({
   }),
 });
 
+export const getOverlaysDef = toolDefinition({
+  name: 'get_overlays',
+  description: 'Get the list of user-dropped file overlays currently on the map. Returns file names, formats, feature counts, colors, and visibility state.',
+  inputSchema: z.object({}),
+  outputSchema: z.object({
+    overlays: z.array(z.object({
+      id: z.string(),
+      fileName: z.string(),
+      format: z.string(),
+      featureCount: z.number(),
+      color: z.string(),
+      visible: z.boolean(),
+    })),
+    total: z.number(),
+  }),
+});
+
 // =============================================================================
 // ALL TOOL DEFINITIONS (for iteration)
 // =============================================================================
@@ -166,6 +185,7 @@ export const ALL_TOOL_DEFINITIONS = [
   queryRenderedFeaturesDef,
   addHighlightDef,
   generateStyleDef,
+  getOverlaysDef,
 ] as const;
 
 // =============================================================================
@@ -177,8 +197,12 @@ export const ALL_TOOL_DEFINITIONS = [
  * Returns an array of ClientTool objects to pass to `useChat({ tools })`.
  *
  * @param getMap - Function that returns the current map instance (or null)
+ * @param getOverlays - Function that returns the current overlay layers
  */
-export function createMapClientTools(getMap: () => MaplibreMap | null) {
+export function createMapClientTools(
+  getMap: () => MaplibreMap | null,
+  getOverlays: () => readonly OverlayLayer[],
+) {
   const flyTo = flyToDef.client(({ lng, lat, zoom, bearing, pitch }) => {
     const map = getMap();
     if (!map) return { success: false, message: 'Map not available' };
@@ -338,6 +362,19 @@ export function createMapClientTools(getMap: () => MaplibreMap | null) {
     };
   });
 
+  const getOverlaysClient = getOverlaysDef.client(() => {
+    const layers = getOverlays();
+    const overlayInfos: OverlayInfo[] = layers.map((l) => ({
+      id: l.id,
+      fileName: l.fileName,
+      format: l.format,
+      featureCount: l.featureCount,
+      color: l.color,
+      visible: l.visible,
+    }));
+    return { overlays: overlayInfos, total: overlayInfos.length };
+  });
+
   return [
     flyTo,
     fitBounds,
@@ -348,6 +385,7 @@ export function createMapClientTools(getMap: () => MaplibreMap | null) {
     queryRenderedFeatures,
     addHighlight,
     generateStyle,
+    getOverlaysClient,
   ];
 }
 
@@ -512,6 +550,14 @@ export const WEBLLM_TOOLS: Array<{
         },
         required: ['description', 'changes'],
       },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_overlays',
+      description: 'Get the list of user-dropped file overlays currently on the map. Returns file names, formats, feature counts, colors, and visibility.',
+      parameters: { type: 'object', properties: {} },
     },
   },
 ];

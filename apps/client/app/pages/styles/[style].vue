@@ -113,6 +113,7 @@
       <LlmPalette
         :open="chatOpen"
         :map-ref="mapRef"
+        :overlays="overlays"
         @update:open="chatOpen = $event"
       />
     </ClientOnly>

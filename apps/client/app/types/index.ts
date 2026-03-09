@@ -14,6 +14,7 @@ export type {
   LlmPanelProps,
   MapToolDefinition,
   MapToolResult,
+  OverlayInfo,
   ReadonlyUIMessage,
   SuggestedPrompt,
 } from './llm';

@@ -1,10 +1,12 @@
 <script setup lang="ts">
   import { Bot, X, Map, Layers, Search, Globe } from 'lucide-vue-next';
   import type { Map as MaplibreMap } from 'maplibre-gl';
+  import type { OverlayLayer } from '~/types/file-upload';
 
   const props = defineProps<{
     open: boolean;
     mapRef: MaplibreMap | null;
+    overlays: OverlayLayer[];
   }>();
 
   const emit = defineEmits<{
@@ -17,7 +19,7 @@
     showLoadingIndicator, scrollAnchor,
     stop, handleSubmit, handlePromptSelect, selectModel,
     suggestions,
-  } = useLlmPanel(computed(() => props.mapRef));
+  } = useLlmPanel(computed(() => props.mapRef), computed(() => props.overlays));
 
   const panelRef = ref<HTMLElement | null>(null);
   const ICON_COMPONENTS = { Map, Layers, Search, Globe } as const;
