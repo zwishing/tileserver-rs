@@ -6,6 +6,7 @@ export default defineNuxtConfig({
     '@nuxt/fonts',
     '@nuxtjs/color-mode',
     'motion-v/nuxt',
+    'nuxt-workers',
   ],
 
   fonts: {
@@ -90,6 +91,9 @@ export default defineNuxtConfig({
     optimizeDeps: {
       include: ['maplibre-gl', '@geoql/v-maplibre'],
     },
+    worker: {
+      format: 'es',
+    },
     ssr: {
       external: ['maplibre-gl', '@geoql/v-maplibre', 'markstream-vue', '@tanstack/vue-db', '@tanstack/db'],
     },
@@ -110,6 +114,8 @@ export default defineNuxtConfig({
         '^/fonts/': 'http://localhost:8080',
         // Spatial API for LLM tool integration
         '^/api/spatial/': 'http://localhost:8080',
+        // Upload API for drag-and-drop file visualization
+        '^/api/upload': 'http://localhost:8080',
       },
     },
   },

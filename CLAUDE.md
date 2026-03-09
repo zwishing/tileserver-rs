@@ -285,6 +285,101 @@ const data = ref([]);
 </script>
 ```
 
+### 🚨 Rule #12: Abstract `$fetch` to API Layer — NEVER Use `$fetch` Directly
+
+**NEVER call `$fetch` directly in components or composables.** Always wrap API calls in `useQuery`/`useMutation` inside `utils/api/` files.
+
+```
+app/utils/
+├── query-keys/               # Centralized query key constants
+│   ├── data.ts
+│   ├── styles.ts
+│   └── index.ts
+└── api/                      # API layer composables
+    ├── data/
+    │   └── queries.ts         # useQuery + $fetch for data sources
+    ├── styles/
+    │   └── queries.ts         # useQuery + $fetch for map styles
+    └── upload/
+        ├── use-upload-file.mutation.ts   # useMutation for file upload
+        └── use-delete-upload.mutation.ts # useMutation for upload deletion
+```
+
+**Pattern:**
+- `useQuery` wraps `$fetch` for **reads** (GET)
+- `useMutation` wraps `$fetch` for **writes** (POST, PUT, DELETE)
+- Components/composables ONLY call the hook — never `$fetch` directly
+
+```typescript
+// ❌ WRONG - $fetch in composable
+export function useUploadFile() {
+  async function upload(file: File) {
+    const result = await $fetch('/api/upload', { method: 'POST', body: formData });
+  }
+}
+
+// ✅ CORRECT - useMutation in utils/api/upload/
+// utils/api/upload/use-upload-file.mutation.ts
+export function useUploadFileMutation() {
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      return $fetch<UploadResponse>('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+    },
+  });
+}
+
+// composable only calls the hook:
+const uploadMutation = useUploadFileMutation();
+await uploadMutation.mutateAsync(file);
+```
+
+### 🚨 Rule #13: Always Use Bun Workspace Catalogs for Dependencies
+
+**NEVER hardcode dependency versions in workspace packages.** All versions are managed centrally in the root `package.json` catalogs.
+
+```json
+// Root package.json — versions defined HERE
+{
+  "workspaces": {
+    "catalogs": {
+      "default": { "vue": "^3.5.29", ... },
+      "client": { "pmtiles": "^4.4.0", ... }
+    }
+  }
+}
+
+// ❌ WRONG - Hardcoded version in workspace package
+// apps/client/package.json
+{
+  "dependencies": {
+    "pmtiles": "^4.4.0"
+  }
+}
+
+// ✅ CORRECT - Catalog reference in workspace package
+// apps/client/package.json
+{
+  "dependencies": {
+    "pmtiles": "catalog:client"
+  }
+}
+```
+
+**Which catalog to use:**
+- `catalog:default` — Shared packages used across all workspace apps (vue, nuxt, tailwindcss, vueuse, etc.)
+- `catalog:client` — Packages specific to `@tileserver-rs/client` (deck.gl, tanstack, maplibre-gl-inspect, etc.)
+- `catalog:marketing` — Packages specific to `@tileserver-rs/marketing`
+
+**When adding a NEW dependency:**
+1. Add the version to the appropriate catalog in root `package.json`
+2. Reference it as `"catalog:client"` (or `"catalog:default"`) in the workspace package
+3. Run `bun install` to verify resolution
+
 ---
 
 ## Project Structure

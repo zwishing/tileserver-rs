@@ -18,6 +18,20 @@
     isRaster,
   );
 
+  // File drop overlay
+  const {
+    dropZoneRef,
+    status: dropStatus,
+    overlays,
+    lastError: dropError,
+    lastSuccess: dropSuccess,
+    isOverDropZone,
+    hasOverlays,
+    toggleOverlay,
+    removeOverlay,
+    removeAllOverlays,
+  } = useFileDrop(mapRef);
+
   const chatOpen = ref(false);
 
   function toggleChat() {
@@ -37,7 +51,7 @@
 </script>
 
 <template>
-  <div class="relative h-dvh w-full">
+  <div ref="dropZoneRef" class="relative h-dvh w-full">
     <!-- Back button (hidden for screenshots) -->
     <button
       v-if="!isScreenshot"
@@ -81,6 +95,18 @@
         </VMap>
       </ClientOnly>
     </div>
+
+    <!-- File drop overlay + toast notifications -->
+    <MapDropOverlay :status="dropStatus" :is-over="isOverDropZone" :error="dropError" :success="dropSuccess" />
+
+    <!-- Overlay layer panel -->
+    <MapOverlayPanel
+      v-if="hasOverlays"
+      :overlays="overlays"
+      @toggle="toggleOverlay"
+      @remove="removeOverlay"
+      @remove-all="removeAllOverlays"
+    />
 
     <!-- LLM Command Palette -->
     <ClientOnly>
