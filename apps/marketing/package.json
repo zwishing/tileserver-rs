@@ -33,7 +33,8 @@
     "tailwind-merge": "catalog:default",
     "tailwindcss-animate": "catalog:default",
     "tw-animate-css": "catalog:default",
-    "vue": "catalog:default"
+    "vue": "catalog:default",
+    "ogl": "catalog:marketing"
   },
   "devDependencies": {
     "@nuxt/eslint": "catalog:default",

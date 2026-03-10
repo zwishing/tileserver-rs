@@ -17,7 +17,7 @@
     },
     "apps/client": {
       "name": "@tileserver-rs/client",
-      "version": "2.15.0",
+      "version": "2.15.1",
       "dependencies": {
         "@deck.gl/aggregation-layers": "catalog:client",
         "@deck.gl/core": "catalog:client",
@@ -93,6 +93,7 @@
         "lucide-vue-next": "catalog:default",
         "motion-v": "catalog:default",
         "nuxt": "catalog:default",
+        "ogl": "catalog:marketing",
         "radix-vue": "catalog:default",
         "reka-ui": "catalog:default",
         "tailwind-merge": "catalog:default",
@@ -188,6 +189,7 @@
     },
     "marketing": {
       "@nuxtjs/plausible": "^3.0.2",
+      "ogl": "^1.0.8",
       "wrangler": "^4.71.0",
     },
   },
@@ -2011,6 +2013,8 @@
     "obug": ["obug@2.1.1", "", {}, "sha512-uTqF9MuPraAQ+IsnPf366RG4cP9RtUi7MLO1N3KEc+wb0a6yKpeL0lmk2IB1jY5KHPAlTc6T/JRdC/YqxHNwkQ=="],
 
     "ofetch": ["ofetch@1.5.1", "", { "dependencies": { "destr": "^2.0.5", "node-fetch-native": "^1.6.7", "ufo": "^1.6.1" } }, "sha512-2W4oUZlVaqAPAil6FUg/difl6YhqhUR7x2eZY4bQCko22UXg3hptq9KLQdqFClV+Wu85UX7hNtdGTngi/1BxcA=="],
+
+    "ogl": ["ogl@1.0.11", "", {}, "sha512-kUpC154AFfxi16pmZUK4jk3J+8zxwTWGPo03EoYA8QPbzikHoaC82n6pNTbd+oEaJonaE8aPWBlX7ad9zrqLsA=="],
 
     "ohash": ["ohash@2.0.11", "", {}, "sha512-RdR9FQrFwNBNXAr4GixM8YaRZRJ5PUWbKYbE5eOsrwAjJW0q2REGcf79oYPsLyskQCZG1PLN+S/K1V00joZAoQ=="],
 
