@@ -66,7 +66,7 @@ jobs:
           max_attempts=3
           for attempt in $(seq 1 $max_attempts); do
             echo "Build attempt $attempt/$max_attempts..."
-            if node --stack-size=65536 ./node_modules/.bin/nuxt build --cwd apps/client; then
+            if ulimit -s unlimited && bun run --filter @tileserver-rs/client build; then
               echo "Build succeeded on attempt $attempt"
               exit 0
             fi

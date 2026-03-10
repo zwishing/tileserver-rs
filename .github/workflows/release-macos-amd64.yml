@@ -71,8 +71,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build client
-        run: node --stack-size=65536 ./node_modules/.bin/nuxt generate
-        working-directory: apps/client
+        run: ulimit -s unlimited && bun run --filter @tileserver-rs/client generate
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
 
