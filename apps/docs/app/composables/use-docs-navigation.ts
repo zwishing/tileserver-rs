@@ -40,6 +40,7 @@ export function useDocsNavigation() {
         { title: 'MLT Tiles', path: '/guides/mlt' },
         { title: 'Cloud Deployment', path: '/guides/deploy' },
         { title: 'Drag & Drop Files', path: '/guides/file-drop' },
+        { title: 'AI Chat', path: '/guides/ai-chat' },
       ],
     },
     {

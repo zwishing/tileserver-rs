@@ -17,6 +17,12 @@ export default defineNuxtConfig({
     ],
   ],
 
+  runtimeConfig: {
+    public: {
+      baseUrl: process.env.NUXT_PUBLIC_BASE_URL || 'https://docs.tileserver.app',
+    },
+  },
+
   devtools: { enabled: false },
 
   app: {

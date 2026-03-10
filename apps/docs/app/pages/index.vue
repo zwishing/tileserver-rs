@@ -20,6 +20,13 @@
 
   const { isDark, toggle: toggleTheme } = useThemeToggle();
 
+  usePageSeo({
+    title: 'Tileserver RS Docs - High-Performance Vector Tile Server',
+    description:
+      'Documentation for tileserver-rs — a high-performance vector tile server built in Rust.',
+    path: '/',
+  });
+
   const features = [
     {
       icon: Zap,
