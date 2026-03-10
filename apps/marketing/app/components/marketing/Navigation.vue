@@ -11,7 +11,7 @@
       backdrop-blur-md
     "
   >
-    <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
+    <div class="mx-auto flex h-14 items-center justify-between px-6">
       <NuxtLink to="/" class="flex items-center gap-2.5">
         <Globe class="size-5 text-primary" />
         <span
