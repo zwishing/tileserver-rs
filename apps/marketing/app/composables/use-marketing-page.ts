@@ -13,9 +13,16 @@ import {
   BarChart3,
   Upload,
   Cloud,
+  BotMessageSquare,
+  ShieldCheck,
+  Cpu,
+  MessageSquare,
+  Puzzle,
 } from 'lucide-vue-next';
 import type {
   Feature,
+  AiBenefit,
+  AiChatMessage,
   ApiEndpointGroup,
   PerformanceStat,
 } from '~/types/marketing';
@@ -107,6 +114,12 @@ export function useMarketingPage() {
       description:
         'Deploy to Railway, Render, DigitalOcean, or Fly.io in minutes. Sample data auto-downloads on first start.',
     },
+    {
+      icon: BotMessageSquare,
+      title: 'Browser-Local AI',
+      description:
+        'Talk to your maps with a built-in LLM. Runs entirely in your browser via WebGPU — no API keys, no cloud, no token costs.',
+    },
   ];
 
   const performanceStats: PerformanceStat[] = [
@@ -134,6 +147,46 @@ export function useMarketingPage() {
       label: 'MB/s throughput',
       detail: 'Consistent across zoom levels',
       prefix: '~',
+    },
+  ];
+
+  const aiBenefits: AiBenefit[] = [
+    {
+      icon: ShieldCheck,
+      title: 'Zero Data Leakage',
+      description:
+        'Every query stays in your browser. Map data, questions, and results never touch a third-party server.',
+    },
+    {
+      icon: Cpu,
+      title: 'WebGPU Powered',
+      description:
+        'Runs on your GPU via WebLLM. No server to maintain, no API keys to rotate, no monthly AI bills.',
+    },
+    {
+      icon: MessageSquare,
+      title: 'Natural Language Control',
+      description:
+        'Fly to locations, filter layers, query features, and restyle your map — all by chatting in plain English.',
+    },
+    {
+      icon: Puzzle,
+      title: '10+ Map Tools',
+      description:
+        'fly_to, fit_bounds, set_layer_paint, query_rendered_features, spatial_query, and more — all callable by the LLM.',
+    },
+  ];
+
+  const aiChatExample: AiChatMessage[] = [
+    { role: 'user' as const, text: 'Show me all buildings in downtown Tokyo' },
+    {
+      role: 'assistant' as const,
+      text: 'Flying to [139.7670, 35.6812] at zoom 15\n✅ Found 847 building features in viewport\nHighlighting buildings with height > 100m...',
+    },
+    { role: 'user' as const, text: 'Make parks greener and more visible' },
+    {
+      role: 'assistant' as const,
+      text: '✅ Set park fill-color to #22c55e, opacity to 0.7',
     },
   ];
 
@@ -185,6 +238,8 @@ export function useMarketingPage() {
     installCommand,
     copyToClipboard,
     features,
+    aiBenefits,
+    aiChatExample,
     performanceStats,
     apiEndpoints,
   };

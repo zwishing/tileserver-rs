@@ -7,6 +7,7 @@
     Terminal,
     Copy,
     Check,
+    BotMessageSquare,
   } from 'lucide-vue-next';
 
   const { copied, installCommand, copyToClipboard } = useMarketingPage();
@@ -36,6 +37,18 @@
           </a>
         </Badge>
 
+        <Badge
+          variant="outline"
+          class="
+            mb-8 ml-2 gap-2 border-primary/30 bg-primary/5 px-4 py-1.5
+            font-mono text-xs tracking-wider uppercase backdrop-blur-sm
+          "
+        >
+          <BotMessageSquare class="size-3 text-primary" />
+          <span class="text-primary">Browser-Local AI</span>
+          <span class="text-muted-foreground">&mdash; no API keys</span>
+        </Badge>
+
         <h1
           class="
             mb-8 font-display text-5xl leading-[1.1] font-bold
@@ -53,7 +66,7 @@
         </h1>
 
         <SplitText
-          text="High-performance tile server built in Rust. Serve PMTiles, MBTiles, PostGIS, and Cloud Optimized GeoTIFF with native MapLibre rendering for static images."
+          text="High-performance tile server built in Rust. Serve PMTiles, MBTiles, PostGIS, and Cloud Optimized GeoTIFF with a browser-local AI assistant and native MapLibre rendering."
           by="words"
           :delay="30"
           :duration="0.4"

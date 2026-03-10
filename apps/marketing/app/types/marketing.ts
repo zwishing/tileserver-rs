@@ -23,3 +23,14 @@ export interface PerformanceStat {
   detail: string;
   prefix?: string;
 }
+
+export interface AiBenefit {
+  icon: Component;
+  title: string;
+  description: string;
+}
+
+export interface AiChatMessage {
+  role: 'user' | 'assistant';
+  text: string;
+}

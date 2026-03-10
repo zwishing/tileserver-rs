@@ -16,6 +16,12 @@ export default defineNuxtConfig({
     ],
   ],
 
+  runtimeConfig: {
+    public: {
+      baseUrl: process.env.NUXT_PUBLIC_BASE_URL || 'https://tileserver.app',
+    },
+  },
+
   devtools: { enabled: false },
 
   app: {
@@ -103,6 +109,12 @@ export default defineNuxtConfig({
     prerender: {
       crawlLinks: true,
       routes: ['/'],
+    },
+  },
+
+  vite: {
+    ssr: {
+      external: ['ogl'],
     },
   },
 

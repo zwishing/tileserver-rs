@@ -1,24 +1,31 @@
 <script setup lang="ts">
   const { isDark } = useThemeToggle();
 
-  const squareBorderColor = computed(() =>
-    isDark.value ? 'oklch(1 0 0 / 0.06)' : 'oklch(0 0 0 / 0.06)',
+  usePageSeo({
+    title: 'Tileserver RS - High-Performance Vector Tile Server',
+    description:
+      'High-performance vector tile server built in Rust with browser-local AI. Serve PMTiles and MBTiles with native MapLibre rendering — no API keys required.',
+    path: '/',
+  });
+
+  const starColor = computed(() =>
+    isDark.value ? '#a5b4fc' : '#6366f1',
   );
 
-  const squareHoverColor = computed(() =>
-    isDark.value ? 'oklch(1 0 0 / 0.03)' : 'oklch(0 0 0 / 0.04)',
+  const backgroundColor = computed(() =>
+    isDark.value ? '#030014' : '#f8fafc',
   );
 </script>
 
 <template>
   <div class="relative min-h-dvh bg-background">
     <div class="pointer-events-none fixed inset-0">
-      <Squares
+      <Galaxy
         :speed="0.3"
-        direction="diagonal"
-        :border-color="squareBorderColor"
-        :hover-fill-color="squareHoverColor"
-        :square-size="40"
+        :star-count="1500"
+        :star-size="2"
+        :star-color="starColor"
+        :background-color="backgroundColor"
       />
     </div>
 
@@ -29,6 +36,10 @@
 
       <FadeContent :duration="0.6">
         <MarketingFeaturesSection />
+      </FadeContent>
+
+      <FadeContent :duration="0.6">
+        <MarketingAiSection />
       </FadeContent>
 
       <FadeContent :duration="0.6">
