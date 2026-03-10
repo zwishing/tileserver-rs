@@ -2120,9 +2120,9 @@ dependencies = [
 
 [[package]]
 name = "mlt-core"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bef374e4c25f942c529b9436d27ab5d82983238421a2dbb960eda9edae2e8967"
+checksum = "05075c926b236bfebd862d719b4b183726946728024912b55f864c9f7d674842"
 dependencies = [
  "borrowme",
  "fastpfor",
@@ -2139,6 +2139,7 @@ dependencies = [
  "strum",
  "thiserror 2.0.18",
  "union-find",
+ "wide",
  "zigzag",
 ]
 
@@ -3386,6 +3387,15 @@ name = "ryu"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
+
+[[package]]
+name = "safe_arch"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f7caad094bd561859bcd467734a720c3c1f5d1f338995351fefe2190c45efed"
+dependencies = [
+ "bytemuck",
+]
 
 [[package]]
 name = "same-file"
@@ -4683,6 +4693,16 @@ dependencies = [
  "objc2-system-configuration",
  "wasite",
  "web-sys",
+]
+
+[[package]]
+name = "wide"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac11b009ebeae802ed758530b6496784ebfee7a87b9abfbcaf3bbe25b814eb25"
+dependencies = [
+ "bytemuck",
+ "safe_arch",
 ]
 
 [[package]]

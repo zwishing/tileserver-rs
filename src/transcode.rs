@@ -257,9 +257,9 @@ fn build_mlt_layer(
     let ids: Vec<Option<u64>> = features.iter().map(|f| f.id).collect();
     let has_ids = ids.iter().any(|id| id.is_some());
     let mut id = if has_ids {
-        OwnedId::Decoded(DecodedId(Some(ids)))
+        OwnedId::Decoded(Some(DecodedId(ids)))
     } else {
-        OwnedId::None
+        OwnedId::Decoded(None)
     };
     if has_ids {
         let id_encoder = IdEncoder::new(LogicalEncoder::None, IdWidth::Id64);
@@ -273,12 +273,12 @@ fn build_mlt_layer(
     let mut encoded_properties: Vec<OwnedProperty> = Vec::with_capacity(properties.len());
     for decoded_prop in properties {
         // Pick the right encoder based on the property value type
-        let encoder = match &decoded_prop.values {
-            mlt_core::v01::PropValue::Bool(_) => ScalarEncoder::bool(PresenceStream::Present),
-            mlt_core::v01::PropValue::F32(_) | mlt_core::v01::PropValue::F64(_) => {
+        let encoder = match &decoded_prop {
+            mlt_core::v01::DecodedProperty::Bool(_) => ScalarEncoder::bool(PresenceStream::Present),
+            mlt_core::v01::DecodedProperty::F32(_) | mlt_core::v01::DecodedProperty::F64(_) => {
                 ScalarEncoder::float(PresenceStream::Present)
             }
-            mlt_core::v01::PropValue::Str(_) => {
+            mlt_core::v01::DecodedProperty::Str(_, _) => {
                 ScalarEncoder::str(PresenceStream::Present, IntEncoder::varint())
             }
             _ => ScalarEncoder::int(PresenceStream::Present, IntEncoder::varint()),
@@ -309,8 +309,8 @@ fn build_mlt_layer(
 /// a `PropValue` vector for each key across all features.
 fn build_column_properties(
     features: &[&mlt_core::geojson::Feature],
-) -> Result<Vec<mlt_core::v01::DecodedProperty>> {
-    use mlt_core::v01::DecodedProperty;
+) -> Result<Vec<mlt_core::v01::DecodedProperty<'static>>> {
+    use mlt_core::v01::{DecodedProperty, DecodedScalar, PropValue};
     use std::collections::BTreeSet;
 
     // Collect all unique property keys (excluding internal _layer, _extent)
@@ -329,10 +329,20 @@ fn build_column_properties(
     for key in &all_keys {
         // Determine the dominant type for this key by scanning feature values
         let prop_value = infer_column_values(features, key, num_features);
-        result.push(DecodedProperty {
-            name: key.clone(),
-            values: prop_value,
-        });
+        let decoded_prop = match prop_value {
+            PropValue::Bool(vals) => DecodedProperty::Bool(DecodedScalar::new(key.clone(), vals)),
+            PropValue::I64(vals) => DecodedProperty::I64(DecodedScalar::new(key.clone(), vals)),
+            PropValue::F64(vals) => DecodedProperty::F64(DecodedScalar::new(key.clone(), vals)),
+            PropValue::Str(decoded_strings) => DecodedProperty::Str(key.clone(), decoded_strings),
+            PropValue::I32(vals) => DecodedProperty::I32(DecodedScalar::new(key.clone(), vals)),
+            PropValue::U32(vals) => DecodedProperty::U32(DecodedScalar::new(key.clone(), vals)),
+            PropValue::U64(vals) => DecodedProperty::U64(DecodedScalar::new(key.clone(), vals)),
+            PropValue::I8(vals) => DecodedProperty::I8(DecodedScalar::new(key.clone(), vals)),
+            PropValue::U8(vals) => DecodedProperty::U8(DecodedScalar::new(key.clone(), vals)),
+            PropValue::F32(vals) => DecodedProperty::F32(DecodedScalar::new(key.clone(), vals)),
+            PropValue::SharedDict(dict) => DecodedProperty::SharedDict(dict),
+        };
+        result.push(decoded_prop);
     }
 
     Ok(result)
@@ -385,7 +395,7 @@ fn infer_column_values(
                 })
             })
             .collect();
-        PropValue::Str(vals)
+        PropValue::Str(vals.into())
     } else if has_bool && !has_int && !has_float {
         let vals: Vec<Option<bool>> = features
             .iter()
@@ -434,7 +444,7 @@ fn mlt_to_mvt(mlt_bytes: &[u8]) -> Result<Bytes> {
     }
 
     // Step 3: Convert decoded MLT layers to FeatureCollection
-    let fc = mlt_core::geojson::FeatureCollection::from_layers(&layers).map_err(|e| {
+    let fc = mlt_core::geojson::FeatureCollection::from_layers(&mut layers).map_err(|e| {
         TileServerError::MltDecodeError(format!("failed to convert MLT layers to features: {e}"))
     })?;
 
@@ -1849,9 +1859,9 @@ mod tests {
         let result = infer_column_values(&refs, "k", 2);
         match result {
             mlt_core::v01::PropValue::Str(vals) => {
-                assert_eq!(vals.len(), 2);
-                assert_eq!(vals[0], Some("a".to_string()));
-                assert_eq!(vals[1], Some("b".to_string()));
+                assert_eq!(vals.feature_count(), 2);
+                assert_eq!(vals.get(0), Some("a"));
+                assert_eq!(vals.get(1), Some("b"));
             }
             other => panic!("Expected Str, got: {other:?}"),
         }
@@ -1935,9 +1945,9 @@ mod tests {
         let result = infer_column_values(&refs, "k", 2);
         match result {
             mlt_core::v01::PropValue::Str(vals) => {
-                assert_eq!(vals.len(), 2);
-                assert_eq!(vals[0], Some("hello".to_string()));
-                assert_eq!(vals[1], Some("42".to_string()));
+                assert_eq!(vals.feature_count(), 2);
+                assert_eq!(vals.get(0), Some("hello"));
+                assert_eq!(vals.get(1), Some("42"));
             }
             other => panic!("Expected Str for mixed types, got: {other:?}"),
         }
@@ -1953,9 +1963,9 @@ mod tests {
         let result = infer_column_values(&refs, "k", 2);
         match result {
             mlt_core::v01::PropValue::Str(vals) => {
-                assert_eq!(vals.len(), 2);
-                assert_eq!(vals[0], Some("present".to_string()));
-                assert_eq!(vals[1], None);
+                assert_eq!(vals.feature_count(), 2);
+                assert_eq!(vals.get(0), Some("present"));
+                assert_eq!(vals.get(1), None);
             }
             other => panic!("Expected Str with None for missing, got: {other:?}"),
         }
@@ -1971,9 +1981,9 @@ mod tests {
         let result = infer_column_values(&refs, "k", 2);
         match result {
             mlt_core::v01::PropValue::Str(vals) => {
-                assert_eq!(vals.len(), 2);
-                assert_eq!(vals[0], None); // null produces None
-                assert_eq!(vals[1], Some("present".to_string()));
+                assert_eq!(vals.feature_count(), 2);
+                assert_eq!(vals.get(0), None);
+                assert_eq!(vals.get(1), Some("present"));
             }
             other => panic!("Expected Str with None for null, got: {other:?}"),
         }
@@ -1994,7 +2004,7 @@ mod tests {
         let props = build_column_properties(&refs).unwrap();
         // Should only have "name", not _layer or _extent
         assert_eq!(props.len(), 1);
-        assert_eq!(props[0].name, "name");
+        assert_eq!(props[0].name(), "name");
     }
 
     #[test]
@@ -2014,7 +2024,7 @@ mod tests {
         let props = build_column_properties(&refs).unwrap();
         assert_eq!(props.len(), 3);
         // BTreeMap ordering: a, b, c
-        let names: Vec<&str> = props.iter().map(|p| p.name.as_str()).collect();
+        let names: Vec<&str> = props.iter().map(|p| p.name()).collect();
         assert_eq!(names, vec!["a", "b", "c"]);
     }
 
