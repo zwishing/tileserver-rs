@@ -20,6 +20,14 @@
 
   const { isDark, toggle: toggleTheme } = useThemeToggle();
 
+  const starColor = computed(() =>
+    isDark.value ? '#a5b4fc' : '#6366f1',
+  );
+
+  const backgroundColor = computed(() =>
+    isDark.value ? '#030014' : '#f8fafc',
+  );
+
   usePageSeo({
     title: 'Tileserver RS Docs - High-Performance Vector Tile Server',
     description:
@@ -108,7 +116,19 @@
 </script>
 
 <template>
-  <div class="min-h-dvh bg-background text-foreground">
+  <div class="relative min-h-dvh bg-background text-foreground">
+    <!-- Galaxy background -->
+    <div class="pointer-events-none fixed inset-0">
+      <Galaxy
+        :speed="0.3"
+        :star-count="1500"
+        :star-size="2"
+        :star-color="starColor"
+        :background-color="backgroundColor"
+      />
+    </div>
+
+    <div class="relative z-10">
     <!-- Nav -->
     <nav
       class="fixed top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md"
@@ -313,5 +333,6 @@
         </NuxtLink>
       </div>
     </footer>
+    </div>
   </div>
 </template>

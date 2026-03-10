@@ -127,6 +127,13 @@ export default defineNuxtConfig({
     },
   },
 
+  vite: {
+    ssr: {
+      external: ['ogl'],
+    },
+  },
+
+
   fonts: {
     families: [
       {
