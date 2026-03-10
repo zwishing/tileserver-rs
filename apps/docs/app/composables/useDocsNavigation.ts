@@ -38,6 +38,8 @@ export function useDocsNavigation() {
         { title: 'Auto-Detect', path: '/guides/auto-detect' },
         { title: 'Hot Reload', path: '/guides/hot-reload' },
         { title: 'MLT Tiles', path: '/guides/mlt' },
+        { title: 'Cloud Deployment', path: '/guides/deploy' },
+        { title: 'Drag & Drop Files', path: '/guides/file-drop' },
       ],
     },
     {
