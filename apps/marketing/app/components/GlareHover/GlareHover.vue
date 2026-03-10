@@ -98,6 +98,7 @@
     content: '';
     position: absolute;
     inset: 0;
+    pointer-events: none;
     background: linear-gradient(
       var(--gh-angle),
       hsla(0, 0%, 0%, 0) 60%,
