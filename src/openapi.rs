@@ -25,7 +25,9 @@ use utoipa::OpenApi;
         (name = "Data", description = "Tile data sources: vector (PMTiles, MBTiles, PostgreSQL), raster (COG), and OutDB raster (PostGIS)"),
         (name = "Styles", description = "Map styles and raster tile rendering"),
         (name = "Fonts", description = "Font glyphs for map labels"),
-        (name = "Files", description = "Static file serving")
+        (name = "Files", description = "Static file serving"),
+        (name = "Upload", description = "File upload for drag-and-drop visualization"),
+        (name = "Spatial", description = "Spatial queries and source schema inspection for LLM tool integration")
     ),
     paths(
         health_check,
@@ -45,6 +47,12 @@ use utoipa::OpenApi;
         list_fonts,
         get_font_glyphs,
         get_static_file,
+        upload_file,
+        list_uploads,
+        delete_upload,
+        get_spatial_schema,
+        get_spatial_stats,
+        post_spatial_query,
     ),
     components(schemas(
         TileJSON,
@@ -53,6 +61,12 @@ use utoipa::OpenApi;
         GeoJSON,
         ApiError,
         PingResponse,
+        UploadResponse,
+        UploadInfo,
+        SpatialSchemaResponse,
+        SpatialStatsResponse,
+        SpatialQueryRequest,
+        SpatialQueryResponse,
     ))
 )]
 pub struct ApiDoc;
@@ -176,6 +190,123 @@ pub struct PingResponse {
     pub loaded_styles: usize,
     pub renderer_enabled: bool,
     pub version: String,
+}
+
+/// Upload response
+#[derive(utoipa::ToSchema)]
+#[schema(example = json!({
+    "id": "a1b2c3d4-e5f6-...",
+    "source_id": "upload-a1b2c3d4-e5f6-...",
+    "file_name": "zurich.mbtiles",
+    "format": "mbtiles",
+    "tilejson_url": "http://localhost:8080/data/upload-a1b2c3d4-e5f6-....json"
+}))]
+pub struct UploadResponse {
+    /// Unique upload ID (UUID)
+    pub id: String,
+    /// Source ID for accessing tiles
+    pub source_id: String,
+    /// Original file name
+    pub file_name: String,
+    /// Detected format (mbtiles, cog)
+    pub format: String,
+    /// URL to the TileJSON endpoint for this source
+    pub tilejson_url: String,
+}
+
+/// Upload tracking info
+#[derive(utoipa::ToSchema)]
+pub struct UploadInfo {
+    /// Upload ID (UUID)
+    pub id: String,
+    /// Original file name
+    pub file_name: String,
+    /// Detected format
+    pub format: String,
+}
+
+/// Spatial schema response
+#[derive(utoipa::ToSchema)]
+pub struct SpatialSchemaResponse {
+    /// Source ID
+    pub source: String,
+    /// Tile format (pbf, mlt, png, etc.)
+    pub format: String,
+    /// Minimum zoom level
+    pub minzoom: u8,
+    /// Maximum zoom level
+    pub maxzoom: u8,
+    /// Bounding box [west, south, east, north]
+    #[schema(nullable)]
+    pub bounds: Option<Vec<f64>>,
+    /// Vector layer information
+    pub layers: Vec<serde_json::Value>,
+}
+
+/// Spatial stats response
+#[derive(utoipa::ToSchema)]
+pub struct SpatialStatsResponse {
+    /// Source ID
+    pub source: String,
+    /// Tile format
+    pub format: String,
+    /// Minimum zoom level
+    pub minzoom: u8,
+    /// Maximum zoom level
+    pub maxzoom: u8,
+    /// Bounding box
+    #[schema(nullable)]
+    pub bounds: Option<Vec<f64>>,
+    /// Center point [lon, lat, zoom]
+    #[schema(nullable)]
+    pub center: Option<Vec<f64>>,
+    /// Number of vector layers
+    pub layer_count: usize,
+    /// Source name
+    #[schema(nullable)]
+    pub name: Option<String>,
+    /// Source description
+    #[schema(nullable)]
+    pub description: Option<String>,
+    /// Attribution
+    #[schema(nullable)]
+    pub attribution: Option<String>,
+}
+
+/// Spatial query request
+#[derive(utoipa::ToSchema)]
+#[schema(example = json!({
+    "source": "openmaptiles",
+    "bbox": [-122.5, 37.7, -122.3, 37.9],
+    "zoom": 14,
+    "limit": 100
+}))]
+pub struct SpatialQueryRequest {
+    /// Source ID to query
+    pub source: String,
+    /// Bounding box [west, south, east, north]
+    #[schema(nullable)]
+    pub bbox: Option<Vec<f64>>,
+    /// Zoom level for tile resolution
+    pub zoom: u8,
+    /// Optional layer filter
+    #[schema(nullable)]
+    pub layers: Option<Vec<String>>,
+    /// Maximum features to return
+    pub limit: usize,
+}
+
+/// Spatial query response
+#[derive(utoipa::ToSchema)]
+pub struct SpatialQueryResponse {
+    /// Source that was queried
+    pub source: String,
+    /// Matching features
+    pub features: Vec<serde_json::Value>,
+    /// Total features returned
+    pub total: usize,
+    /// Whether results were truncated by limit
+    pub truncated: bool,
 }
 
 // ============================================================
@@ -504,6 +635,105 @@ pub async fn get_font_glyphs() {}
 )]
 pub async fn get_static_file() {}
 
+/// Upload a geospatial file
+///
+/// Streams a file to disk and registers it as a temporary tile source.
+/// Supports MBTiles, SQLite, and COG formats.
+#[utoipa::path(
+    post,
+    path = "/api/upload",
+    tag = "Upload",
+    request_body(content_type = "multipart/form-data", description = "Geospatial file to upload"),
+    responses(
+        (status = 200, description = "File uploaded and source registered", body = UploadResponse),
+        (status = 400, description = "Unsupported format or invalid file", body = ApiError),
+        (status = 413, description = "File exceeds size limit")
+    )
+)]
+pub async fn upload_file() {}
+
+/// List uploaded sources
+///
+/// Returns all currently uploaded file sources
+#[utoipa::path(
+    get,
+    path = "/api/upload",
+    tag = "Upload",
+    responses(
+        (status = 200, description = "List of uploaded sources", body = Vec<UploadInfo>)
+    )
+)]
+pub async fn list_uploads() {}
+
+/// Delete an uploaded source
+///
+/// Removes an uploaded source and deletes the file from disk
+#[utoipa::path(
+    delete,
+    path = "/api/upload/{id}",
+    tag = "Upload",
+    params(
+        ("id" = String, Path, description = "Upload UUID or full source ID (upload-{uuid})")
+    ),
+    responses(
+        (status = 204, description = "Upload deleted successfully"),
+        (status = 404, description = "Upload not found", body = ApiError)
+    )
+)]
+pub async fn delete_upload() {}
+
+/// Get source schema
+///
+/// Returns vector layer info, field types, and metadata for a source.
+/// Used by LLM tools for understanding tile source structure.
+#[utoipa::path(
+    get,
+    path = "/api/spatial/schema/{source}",
+    tag = "Spatial",
+    params(
+        ("source" = String, Path, description = "Source ID")
+    ),
+    responses(
+        (status = 200, description = "Source schema", body = SpatialSchemaResponse),
+        (status = 404, description = "Source not found", body = ApiError)
+    )
+)]
+pub async fn get_spatial_schema() {}
+
+/// Get source statistics
+///
+/// Returns bounds, zoom range, layer count, and other statistics for a source
+#[utoipa::path(
+    get,
+    path = "/api/spatial/stats/{source}",
+    tag = "Spatial",
+    params(
+        ("source" = String, Path, description = "Source ID")
+    ),
+    responses(
+        (status = 200, description = "Source statistics", body = SpatialStatsResponse),
+        (status = 404, description = "Source not found", body = ApiError)
+    )
+)]
+pub async fn get_spatial_stats() {}
+
+/// Query features from a source
+///
+/// Decodes vector tiles at the requested location and returns features as JSON.
+/// Supports bounding box filtering, layer filtering, and result limits.
+#[utoipa::path(
+    post,
+    path = "/api/spatial/query",
+    tag = "Spatial",
+    request_body = SpatialQueryRequest,
+    responses(
+        (status = 200, description = "Query results", body = SpatialQueryResponse),
+        (status = 400, description = "Invalid request (non-vector source)", body = ApiError),
+        (status = 404, description = "Source not found", body = ApiError)
+    )
+)]
+pub async fn post_spatial_query() {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -551,6 +781,28 @@ mod tests {
             "/fonts.json",
             "/fonts/{fontstack}/{range}",
             "/files/{filepath}",
+            "/api/upload",
+            "/api/upload/{id}",
+            "/api/spatial/schema/{source}",
+            "/api/spatial/stats/{source}",
+            "/api/spatial/query",
+            "/health",
+            "/ping",
+            "/index.json",
+            "/data.json",
+            "/data/{source}",
+            "/data/{source}/{z}/{x}/{y}.{format}",
+            "/styles.json",
+            "/styles/{style}.json",
+            "/styles/{style}/style.json",
+            "/styles/{style}/{z}/{x}/{y}.{format}",
+            "/styles/{style}/{tileSize}/{z}/{x}/{y}.{format}",
+            "/styles/{style}/static/{center}/{size}.{format}",
+            "/styles/{style}/sprite.{ext}",
+            "/styles/{style}/wmts.xml",
+            "/fonts.json",
+            "/fonts/{fontstack}/{range}",
+            "/files/{filepath}",
         ];
 
         for path in expected_paths {
@@ -568,7 +820,7 @@ mod tests {
         assert!(spec.tags.is_some(), "Tags should be defined");
         assert_eq!(
             spec.tags.as_ref().unwrap().len(),
-            5,
+            7,
             "Should have 5 tags defined"
         );
     }
@@ -584,5 +836,11 @@ mod tests {
         assert!(schemas.contains_key("GeoJSON"));
         assert!(schemas.contains_key("ApiError"));
         assert!(schemas.contains_key("PingResponse"));
+        assert!(schemas.contains_key("UploadResponse"));
+        assert!(schemas.contains_key("UploadInfo"));
+        assert!(schemas.contains_key("SpatialSchemaResponse"));
+        assert!(schemas.contains_key("SpatialStatsResponse"));
+        assert!(schemas.contains_key("SpatialQueryRequest"));
+        assert!(schemas.contains_key("SpatialQueryResponse"));
     }
 }

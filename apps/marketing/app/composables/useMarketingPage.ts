@@ -11,6 +11,8 @@ import {
   Sparkles,
   Terminal,
   BarChart3,
+  Upload,
+  Cloud,
 } from 'lucide-vue-next';
 import type {
   Feature,
@@ -92,6 +94,18 @@ export function useMarketingPage() {
       title: 'Hot-Reload',
       description:
         'Reload configuration without downtime via SIGHUP or admin API. Zero-request-drop with ArcSwap.',
+    },
+    {
+      icon: Upload,
+      title: 'Drag & Drop',
+      description:
+        'Drop GeoJSON, KML, GPX, CSV, Shapefile, PMTiles, MBTiles, or COG files onto the map for instant visualization with auto-styling.',
+    },
+    {
+      icon: Cloud,
+      title: 'One-Click Deploy',
+      description:
+        'Deploy to Railway, Render, DigitalOcean, or Fly.io in minutes. Sample data auto-downloads on first start.',
     },
   ];
 
