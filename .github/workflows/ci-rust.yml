@@ -49,7 +49,7 @@ jobs:
           max_attempts=3
           for attempt in $(seq 1 $max_attempts); do
             echo "Build attempt $attempt/$max_attempts..."
-            if ulimit -s unlimited && bun run --filter @tileserver-rs/client build; then
+            if (ulimit -s unlimited 2>/dev/null || true) && bun run --filter @tileserver-rs/client build; then
               echo "Build succeeded on attempt $attempt"
               exit 0
             fi
@@ -95,7 +95,7 @@ jobs:
           max_attempts=3
           for attempt in $(seq 1 $max_attempts); do
             echo "Build attempt $attempt/$max_attempts..."
-            if ulimit -s unlimited && bun run --filter @tileserver-rs/client build; then
+            if (ulimit -s unlimited 2>/dev/null || true) && bun run --filter @tileserver-rs/client build; then
               echo "Build succeeded on attempt $attempt"
               exit 0
             fi
@@ -139,7 +139,7 @@ jobs:
           max_attempts=3
           for attempt in $(seq 1 $max_attempts); do
             echo "Build attempt $attempt/$max_attempts..."
-            if ulimit -s unlimited && bun run --filter @tileserver-rs/client build; then
+            if (ulimit -s unlimited 2>/dev/null || true) && bun run --filter @tileserver-rs/client build; then
               echo "Build succeeded on attempt $attempt"
               exit 0
             fi
@@ -183,7 +183,7 @@ jobs:
           max_attempts=3
           for attempt in $(seq 1 $max_attempts); do
             echo "Build attempt $attempt/$max_attempts..."
-            if ulimit -s unlimited && bun run --filter @tileserver-rs/client build; then
+            if (ulimit -s unlimited 2>/dev/null || true) && bun run --filter @tileserver-rs/client build; then
               echo "Build succeeded on attempt $attempt"
               exit 0
             fi

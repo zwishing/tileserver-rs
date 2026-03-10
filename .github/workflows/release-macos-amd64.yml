@@ -71,7 +71,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build client
-        run: ulimit -s unlimited && bun run --filter @tileserver-rs/client generate
+        run: (ulimit -s unlimited 2>/dev/null || true) && bun run --filter @tileserver-rs/client generate
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
 
