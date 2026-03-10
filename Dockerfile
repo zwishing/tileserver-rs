@@ -64,6 +64,10 @@ FROM oven/bun:1 AS node-builder
 
 ARG FEATURES="frontend mlt"
 
+# Install Node.js for nuxt generate (--stack-size flag needed to work around
+# @mlc-ai/web-llm CJS resolver stack overflow in Vite builds)
+RUN apt-get update && apt-get install -y --no-install-recommends nodejs && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy workspace files
@@ -75,7 +79,7 @@ COPY apps/client ./apps/client
 # so the COPY --from=node-builder in the rust-builder stage still works
 RUN if echo "$FEATURES" | grep -q "frontend"; then \
       bun install --filter '@tileserver-rs/client' && \
-      bun run --filter @tileserver-rs/client generate; \
+      cd apps/client && node --stack-size=65536 ../../node_modules/.bin/nuxt generate; \
     else \
       mkdir -p apps/client/.output/public; \
     fi

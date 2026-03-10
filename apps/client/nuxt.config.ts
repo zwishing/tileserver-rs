@@ -89,7 +89,7 @@ export default defineNuxtConfig({
 
   vite: {
     optimizeDeps: {
-      include: ['maplibre-gl', '@geoql/v-maplibre'],
+      include: ['maplibre-gl', '@geoql/v-maplibre', '@mlc-ai/web-llm'],
     },
     worker: {
       format: 'es',

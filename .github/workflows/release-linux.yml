@@ -115,7 +115,10 @@ jobs:
 
       - name: Build client
         if: matrix.variant == 'full'
-        run: bun run --filter @tileserver-rs/client generate
+        run: node --stack-size=65536 ./node_modules/.bin/nuxt generate
+        working-directory: apps/client
+        env:
+          NODE_OPTIONS: '--max-old-space-size=8192'
 
       - name: Build Rust binary
         run: |
