@@ -15,9 +15,14 @@
     <div
       class="geometric-grid-bg pointer-events-none absolute inset-0 opacity-30"
       aria-hidden="true"
-    />
+    ></div>
 
-    <div class="relative px-6 py-16 md:px-12 lg:px-20">
+    <div
+class="
+  relative px-6 py-16
+  md:px-12
+  lg:px-20
+">
       <div
 class="
   grid items-start gap-12

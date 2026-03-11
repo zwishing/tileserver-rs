@@ -17,9 +17,14 @@
     <div
       class="geometric-grid-bg pointer-events-none absolute inset-0 opacity-30"
       aria-hidden="true"
-    />
+    ></div>
 
-    <div class="relative px-6 py-16 md:px-12 lg:px-20">
+    <div
+class="
+  relative px-6 py-16
+  md:px-12
+  lg:px-20
+">
       <div class="mb-16">
         <p class="hud-label mb-4">AI Assistant</p>
         <h2
@@ -76,12 +81,14 @@
         </SpotlightCard>
       </div>
 
-      <div class="mt-12 grid items-start gap-12 lg:grid-cols-2">
+      <div
+class="
+  mt-12 grid items-start gap-12
+  lg:grid-cols-2
+">
         <div class="overflow-hidden border border-border bg-muted/30">
           <div
-            class="
-              flex items-center gap-2 border-b border-border px-4 py-2.5
-            "
+            class="flex items-center gap-2 border-b border-border px-4 py-2.5"
           >
             <BotMessageSquare class="size-3.5 text-primary" />
             <span class="font-mono text-xs text-muted-foreground">
@@ -96,8 +103,7 @@
             >
               <div
                 class="
-                  mt-0.5 flex size-6 shrink-0 items-center justify-center
-                  border
+                  mt-0.5 flex size-6 shrink-0 items-center justify-center border
                 "
                 :class="
                   msg.role === 'user'
@@ -120,7 +126,7 @@
                   {{ msg.role === 'user' ? 'You' : 'AI' }}
                 </p>
                 <p
-                  class="whitespace-pre-line font-mono text-sm"
+                  class="font-mono text-sm whitespace-pre-line"
                   :class="
                     msg.role === 'user'
                       ? 'text-foreground'

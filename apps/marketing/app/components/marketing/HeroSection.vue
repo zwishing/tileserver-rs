@@ -22,9 +22,14 @@
     <div
       class="geometric-grid-bg pointer-events-none absolute inset-0 opacity-30"
       aria-hidden="true"
-    />
+    ></div>
 
-    <div class="relative flex h-full min-h-[inherit] flex-col justify-center px-6 py-16 md:px-12 lg:px-20">
+    <div
+class="
+  relative flex h-full min-h-[inherit] flex-col justify-center px-6 py-16
+  md:px-12
+  lg:px-20
+">
       <div class="mx-auto max-w-4xl text-center">
         <Badge
           variant="outline"
@@ -49,8 +54,8 @@
         <Badge
           variant="outline"
           class="
-            mb-8 ml-2 gap-2 border-primary/30 bg-primary/5 px-4 py-1.5
-            font-mono text-xs tracking-wider uppercase backdrop-blur-sm
+            mb-8 ml-2 gap-2 border-primary/30 bg-primary/5 px-4 py-1.5 font-mono
+            text-xs tracking-wider uppercase backdrop-blur-sm
           "
         >
           <BotMessageSquare class="size-3 text-primary" />

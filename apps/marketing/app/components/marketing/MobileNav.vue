@@ -31,7 +31,10 @@
 <template>
   <div class="md:hidden">
     <button
-      class="flex items-center justify-center p-2 hover:bg-accent"
+      class="
+        flex items-center justify-center p-2
+        hover:bg-accent
+      "
       aria-label="Open menu"
       @click="isOpen = true"
     >
@@ -72,7 +75,10 @@
               </span>
             </div>
             <button
-              class="flex items-center justify-center p-2 hover:bg-accent"
+              class="
+                flex items-center justify-center p-2
+                hover:bg-accent
+              "
               aria-label="Close menu"
               @click="handleClose"
             >

@@ -54,7 +54,11 @@
 
       <!-- Fixed left gutter -->
       <div
-        class="fixed left-0 top-[72px] z-20 flex w-12 items-center justify-center border-r border-border bg-background lg:top-[80px] lg:w-20"
+        class="
+          fixed top-[72px] left-0 z-20 flex w-12 items-center justify-center
+          border-r border-border bg-background
+          lg:top-[80px] lg:w-20
+        "
       >
         <Transition
           name="fade"
@@ -62,7 +66,10 @@
         >
           <span
             :key="activeLabel"
-            class="vertical-text font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground"
+            class="
+              vertical-text font-mono text-[10px] tracking-[0.3em]
+              text-muted-foreground uppercase
+            "
           >
             {{ activeLabel }}
           </span>
@@ -70,7 +77,11 @@
       </div>
 
       <!-- Content with left margin -->
-      <div class="ml-12 mt-[72px] lg:ml-20 lg:mt-[80px]">
+      <div
+class="
+  mt-[72px] ml-12
+  lg:mt-[80px] lg:ml-20
+">
         <MarketingHeroSection />
 
         <FadeContent :duration="0.6">

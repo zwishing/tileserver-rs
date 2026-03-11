@@ -12,9 +12,14 @@
     <div
       class="geometric-grid-bg pointer-events-none absolute inset-0 opacity-30"
       aria-hidden="true"
-    />
+    ></div>
 
-    <div class="relative px-6 py-16 md:px-12 lg:px-20">
+    <div
+class="
+  relative px-6 py-16
+  md:px-12
+  lg:px-20
+">
       <div class="mb-16">
         <p class="hud-label mb-4">API Reference</p>
         <h2
@@ -36,23 +41,33 @@
       </div>
 
       <!-- OpenAPI callout -->
-      <div class="mx-auto mb-16 max-w-2xl border border-primary/30 bg-primary/5 p-6">
+      <div
+class="mx-auto mb-16 max-w-2xl border border-primary/30 bg-primary/5 p-6">
         <div class="flex items-start gap-4">
           <FileJson2 class="mt-0.5 size-6 shrink-0 text-primary" />
           <div class="flex-1">
             <h3 class="mb-1 font-display text-base font-semibold tracking-tight">
               Interactive OpenAPI Spec
             </h3>
-            <p class="mb-3 font-sans text-sm leading-relaxed text-muted-foreground">
+            <p
+class="mb-3 font-sans text-sm/relaxed text-muted-foreground">
               Every endpoint fully documented with request/response schemas. Generate client SDKs, import into Postman, or browse the Scalar UI.
             </p>
             <NuxtLink
               to="https://demo.tileserver.app/_openapi/"
               external
-              class="group inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-primary hover:text-primary/80"
+              class="
+                group inline-flex items-center gap-1.5 font-mono text-xs
+                tracking-wider text-primary uppercase
+                hover:text-primary/80
+              "
             >
               Explore the API
-              <ExternalLink class="size-3 transition-transform group-hover:translate-x-0.5" />
+              <ExternalLink
+class="
+  size-3 transition-transform
+  group-hover:translate-x-0.5
+" />
             </NuxtLink>
           </div>
         </div>

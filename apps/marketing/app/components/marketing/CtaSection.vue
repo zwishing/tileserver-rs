@@ -10,9 +10,14 @@
     <div
       class="geometric-grid-bg pointer-events-none absolute inset-0 opacity-30"
       aria-hidden="true"
-    />
+    ></div>
 
-    <div class="relative px-6 py-16 md:px-12 lg:px-20 text-center">
+    <div
+class="
+  relative px-6 py-16 text-center
+  md:px-12
+  lg:px-20
+">
       <div class="mx-auto max-w-2xl">
         <p class="hud-label mb-4">Get Started</p>
         <h2
