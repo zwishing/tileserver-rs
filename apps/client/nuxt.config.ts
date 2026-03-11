@@ -95,7 +95,13 @@ export default defineNuxtConfig({
       format: 'es',
     },
     ssr: {
-      external: ['maplibre-gl', '@geoql/v-maplibre', 'markstream-vue', '@tanstack/vue-db', '@tanstack/db'],
+      external: [
+        'maplibre-gl',
+        '@geoql/v-maplibre',
+        'markstream-vue',
+        '@tanstack/vue-db',
+        '@tanstack/db',
+      ],
     },
     server: {
       proxy: {

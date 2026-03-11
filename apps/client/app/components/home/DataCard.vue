@@ -17,7 +17,9 @@
     copyUrl: [url: string];
   }>();
 
-  const xyzUrl = computed(() => `${props.baseUrl}/data/${props.source.id}/{z}/{x}/{y}.pbf`);
+  const xyzUrl = computed(
+    () => `${props.baseUrl}/data/${props.source.id}/{z}/{x}/{y}.pbf`,
+  );
 
   function handleToggleXyz() {
     emit('toggleXyz', props.source.id);
@@ -36,7 +38,9 @@
     class="group rounded-xl border border-border/50 bg-background/50 p-4 transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5"
   >
     <div class="flex items-start gap-4">
-      <div class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted ring-1 ring-border/50">
+      <div
+        class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted ring-1 ring-border/50"
+      >
         <Layers class="size-6 text-muted-foreground" />
       </div>
 
@@ -44,8 +48,13 @@
         <div class="flex items-start justify-between gap-2">
           <div>
             <h3 class="font-semibold">{{ source.name || source.id }}</h3>
-            <p class="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <code class="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium">{{ source.id }}</code>
+            <p
+              class="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground"
+            >
+              <code
+                class="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium"
+                >{{ source.id }}</code
+              >
               <Badge variant="outline" class="rounded-md text-[10px]">
                 z{{ source.minzoom }}-{{ source.maxzoom }}
               </Badge>
@@ -69,15 +78,38 @@
         <template v-if="source.vector_layers?.length">
           <div class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
             <span class="text-muted-foreground">Services:</span>
-            <a :href="`/data/${source.id}.json`" target="_blank" class="text-primary hover:underline">TileJSON</a>
+            <a
+              :href="`/data/${source.id}.json`"
+              target="_blank"
+              class="text-primary hover:underline"
+              >TileJSON</a
+            >
             <span class="text-muted-foreground/30">•</span>
-            <button class="text-primary hover:underline" @click="handleToggleXyz">XYZ URL</button>
+            <button
+              class="text-primary hover:underline"
+              @click="handleToggleXyz"
+            >
+              XYZ URL
+            </button>
           </div>
 
-          <div v-if="isXyzExpanded" class="mt-2 flex items-center gap-2 rounded-lg bg-muted/50 p-2">
-            <code class="flex-1 truncate text-xs text-muted-foreground">{{ xyzUrl }}</code>
-            <Button variant="ghost" size="icon" class="size-7 shrink-0 rounded-lg" @click="handleCopyUrl">
-              <Check v-if="copiedUrl === xyzUrl" class="size-3.5 text-green-500" />
+          <div
+            v-if="isXyzExpanded"
+            class="mt-2 flex items-center gap-2 rounded-lg bg-muted/50 p-2"
+          >
+            <code class="flex-1 truncate text-xs text-muted-foreground">{{
+              xyzUrl
+            }}</code>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="size-7 shrink-0 rounded-lg"
+              @click="handleCopyUrl"
+            >
+              <Check
+                v-if="copiedUrl === xyzUrl"
+                class="size-3.5 text-green-500"
+              />
               <Copy v-else class="size-3.5" />
             </Button>
           </div>

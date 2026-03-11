@@ -12,7 +12,10 @@
  */
 
 import { z } from 'zod';
-import { createCollection, localStorageCollectionOptions } from '@tanstack/vue-db';
+import {
+  createCollection,
+  localStorageCollectionOptions,
+} from '@tanstack/vue-db';
 import type { ChatMessage, SpatialResult } from '~/types/llm';
 
 // =============================================================================

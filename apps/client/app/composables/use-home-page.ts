@@ -33,8 +33,8 @@ export function useHomePage() {
     const query = searchQuery.value.toLowerCase();
     return styles.value.filter(
       (s: Style) =>
-        s.name.toLowerCase().includes(query)
-        || s.id.toLowerCase().includes(query),
+        s.name.toLowerCase().includes(query) ||
+        s.id.toLowerCase().includes(query),
     );
   });
 
@@ -43,8 +43,8 @@ export function useHomePage() {
     const query = searchQuery.value.toLowerCase();
     return dataSources.value.filter(
       (s: Data) =>
-        (s.name || '').toLowerCase().includes(query)
-        || s.id.toLowerCase().includes(query),
+        (s.name || '').toLowerCase().includes(query) ||
+        s.id.toLowerCase().includes(query),
     );
   });
 

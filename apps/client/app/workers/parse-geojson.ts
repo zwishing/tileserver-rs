@@ -71,7 +71,10 @@ function analyzeGeoJSON(data: GeoJSON): {
   return { featureCount: 1, geometryTypes: [...types] };
 }
 
-function addGeometryType(geometry: Geometry | null, types: Set<GeometryType>): void {
+function addGeometryType(
+  geometry: Geometry | null,
+  types: Set<GeometryType>,
+): void {
   if (!geometry) return;
 
   switch (geometry.type) {

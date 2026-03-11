@@ -7,14 +7,10 @@
  */
 
 // Re-export core types from TanStack AI Vue
-import type {
-  UIMessage as TanStackUIMessage,
-} from '@tanstack/ai-vue';
+import type { UIMessage as TanStackUIMessage } from '@tanstack/ai-vue';
 import type { MessagePart as TanStackMessagePart } from '@tanstack/ai';
 
-export type {
-  UseChatReturn,
-} from '@tanstack/ai-vue';
+export type { UseChatReturn } from '@tanstack/ai-vue';
 
 // Re-export message part types from TanStack AI
 export type {

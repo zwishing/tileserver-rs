@@ -17,7 +17,12 @@ import type { UIMessage } from '@tanstack/ai-vue';
 import type { MessagePart } from '@tanstack/ai';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import type { OverlayLayer } from '~/types/file-upload';
-import { createMapClientTools, createServerClientTools, WEBLLM_TOOLS, WEBLLM_SERVER_TOOLS } from '~/lib/map-tools';
+import {
+  createMapClientTools,
+  createServerClientTools,
+  WEBLLM_TOOLS,
+  WEBLLM_SERVER_TOOLS,
+} from '~/lib/map-tools';
 import { chatCollection } from '~/lib/chat-db';
 import type { UseChatReturn, StoredToolCall } from '~/types/llm';
 
@@ -86,15 +91,35 @@ Keep responses concise and helpful. You're a map expert.`;
 function convertMessagesToOpenAI(
   messages: UIMessage[],
   systemPrompt: string,
-): Array<{ role: string; content: string; tool_calls?: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }>; tool_call_id?: string }> {
-  const result: Array<{ role: string; content: string; tool_calls?: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }>; tool_call_id?: string }> = [
-    { role: 'system', content: systemPrompt },
-  ];
+): Array<{
+  role: string;
+  content: string;
+  tool_calls?: Array<{
+    id: string;
+    type: 'function';
+    function: { name: string; arguments: string };
+  }>;
+  tool_call_id?: string;
+}> {
+  const result: Array<{
+    role: string;
+    content: string;
+    tool_calls?: Array<{
+      id: string;
+      type: 'function';
+      function: { name: string; arguments: string };
+    }>;
+    tool_call_id?: string;
+  }> = [{ role: 'system', content: systemPrompt }];
 
   for (const msg of messages) {
     // Group parts by type for each message
     const textParts: string[] = [];
-    const toolCallParts: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }> = [];
+    const toolCallParts: Array<{
+      id: string;
+      type: 'function';
+      function: { name: string; arguments: string };
+    }> = [];
     const toolResultParts: Array<{ toolCallId: string; result: unknown }> = [];
 
     for (const part of msg.parts as MessagePart[]) {
@@ -162,14 +187,19 @@ function extractText(message: UIMessage): string {
  * Parse [MAP_ACTION]{...}[/MAP_ACTION] blocks from LLM response text.
  * Used as fallback for non-tool models (Qwen).
  */
-function parseMapActions(text: string): Array<{ action: string } & Record<string, unknown>> {
+function parseMapActions(
+  text: string,
+): Array<{ action: string } & Record<string, unknown>> {
   const regex = /\[MAP_ACTION\](\{[\s\S]*?\})\[\/MAP_ACTION\]/g;
   const actions: Array<{ action: string } & Record<string, unknown>> = [];
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(text)) !== null) {
     try {
-      const parsed = JSON.parse(match[1]) as { action: string } & Record<string, unknown>;
+      const parsed = JSON.parse(match[1]) as { action: string } & Record<
+        string,
+        unknown
+      >;
       if (parsed.action) {
         actions.push(parsed);
       }
@@ -187,7 +217,9 @@ function parseMapActions(text: string): Array<{ action: string } & Record<string
  * as plain text (e.g., "south: 30.7, west: -28.9"). This extracts them
  * so we can execute the intended action on the map.
  */
-function parseToolIntentsFromText(text: string): Array<{ action: string } & Record<string, unknown>> {
+function parseToolIntentsFromText(
+  text: string,
+): Array<{ action: string } & Record<string, unknown>> {
   const intents: Array<{ action: string } & Record<string, unknown>> = [];
 
   // 1. Try Hermes-style <tool_call> JSON blocks
@@ -195,7 +227,10 @@ function parseToolIntentsFromText(text: string): Array<{ action: string } & Reco
   let tcMatch: RegExpExecArray | null;
   while ((tcMatch = toolCallRegex.exec(text)) !== null) {
     try {
-      const parsed = JSON.parse(tcMatch[1]) as { name?: string; arguments?: Record<string, unknown> };
+      const parsed = JSON.parse(tcMatch[1]) as {
+        name?: string;
+        arguments?: Record<string, unknown>;
+      };
       if (parsed.name && parsed.arguments) {
         intents.push({ action: parsed.name, ...parsed.arguments });
       }
@@ -215,10 +250,15 @@ function parseToolIntentsFromText(text: string): Array<{ action: string } & Reco
   const arrayRegex = /\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]/g;
   let arrMatch: RegExpExecArray | null;
   while ((arrMatch = arrayRegex.exec(text)) !== null) {
-    coordArrays.push([Number.parseFloat(arrMatch[1]), Number.parseFloat(arrMatch[2])]);
+    coordArrays.push([
+      Number.parseFloat(arrMatch[1]),
+      Number.parseFloat(arrMatch[2]),
+    ]);
   }
 
-  const mentionsBounds = /fit_bounds|bounds|bounding|southwest|northeast/i.test(text);
+  const mentionsBounds = /fit_bounds|bounds|bounding|southwest|northeast/i.test(
+    text,
+  );
 
   // Two coordinate arrays + bounds context → fit_bounds
   if (coordArrays.length >= 2 && mentionsBounds) {
@@ -243,7 +283,9 @@ function parseToolIntentsFromText(text: string): Array<{ action: string } & Reco
         action: 'fly_to',
         lng,
         lat,
-        ...(zoomMatch ? { zoom: Number.parseFloat(zoomMatch[1]) } : { zoom: 10 }),
+        ...(zoomMatch
+          ? { zoom: Number.parseFloat(zoomMatch[1]) }
+          : { zoom: 10 }),
       });
       return intents;
     }
@@ -292,7 +334,9 @@ function parseToolIntentsFromText(text: string): Array<{ action: string } & Reco
         action: 'fly_to',
         lng,
         lat,
-        ...(zoomMatch ? { zoom: Number.parseFloat(zoomMatch[1]) } : { zoom: 6 }),
+        ...(zoomMatch
+          ? { zoom: Number.parseFloat(zoomMatch[1]) }
+          : { zoom: 6 }),
       });
       return intents;
     }
@@ -327,7 +371,13 @@ function executeFallbackAction(
       const east = Number(action.east);
       const north = Number(action.north);
       const padding = Number(action.padding ?? 50);
-      map.fitBounds([[west, south], [east, north]], { padding, duration: 2000 });
+      map.fitBounds(
+        [
+          [west, south],
+          [east, north],
+        ],
+        { padding, duration: 2000 },
+      );
       return `Fitting to bounds [${west},${south},${east},${north}]`;
     }
     default:
@@ -351,11 +401,17 @@ function executeFallbackAction(
  * @param mapRef - Ref to the MapLibre GL map instance
  * @param overlaysRef - Ref to the overlay layers from file drops
  */
-export function useLlmChat(mapRef: Ref<MaplibreMap | null>, overlaysRef: Ref<readonly OverlayLayer[]>): UseChatReturn {
+export function useLlmChat(
+  mapRef: Ref<MaplibreMap | null>,
+  overlaysRef: Ref<readonly OverlayLayer[]>,
+): UseChatReturn {
   const { engine, status, selectedModel } = useLlmEngine();
 
   // Create client tools bound to the map ref and overlays
-  const clientTools = createMapClientTools(() => mapRef.value, () => overlaysRef.value);
+  const clientTools = createMapClientTools(
+    () => mapRef.value,
+    () => overlaysRef.value,
+  );
   const serverTools = createServerClientTools();
 
   /**
@@ -375,16 +431,25 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>, overlaysRef: Ref<rea
   const connection = stream(async function* (messages: UIMessage[]) {
     const currentEngine = engine.value;
     if (!currentEngine) {
-      throw new Error('LLM engine not initialized. Please wait for model to load.');
+      throw new Error(
+        'LLM engine not initialized. Please wait for model to load.',
+      );
     }
 
     const runId = crypto.randomUUID();
     const messageId = crypto.randomUUID();
     const useTools = selectedModel.value.supportsTools;
-    const systemPrompt = useTools ? SYSTEM_PROMPT_WITH_TOOLS : SYSTEM_PROMPT_NO_TOOLS;
+    const systemPrompt = useTools
+      ? SYSTEM_PROMPT_WITH_TOOLS
+      : SYSTEM_PROMPT_NO_TOOLS;
 
     yield { type: 'RUN_STARTED' as const, runId, timestamp: Date.now() };
-    yield { type: 'TEXT_MESSAGE_START' as const, messageId, role: 'assistant' as const, timestamp: Date.now() };
+    yield {
+      type: 'TEXT_MESSAGE_START' as const,
+      messageId,
+      role: 'assistant' as const,
+      timestamp: Date.now(),
+    };
 
     // Accumulate text outside try so catch block can parse tool intents from it
     let accumulatedText = '';
@@ -401,7 +466,9 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>, overlaysRef: Ref<rea
       const response = await currentEngine.chat.completions.create({
         messages: openaiMessages,
         stream: true,
-        ...(useTools ? { tools: [...WEBLLM_TOOLS, ...WEBLLM_SERVER_TOOLS] } : {}),
+        ...(useTools
+          ? { tools: [...WEBLLM_TOOLS, ...WEBLLM_SERVER_TOOLS] }
+          : {}),
         temperature: 0.7,
         max_tokens: 1024,
       });
@@ -419,7 +486,12 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>, overlaysRef: Ref<rea
         const delta = choice.delta?.content;
         if (delta) {
           accumulatedText += delta;
-          yield { type: 'TEXT_MESSAGE_CONTENT' as const, messageId, delta, timestamp: Date.now() };
+          yield {
+            type: 'TEXT_MESSAGE_CONTENT' as const,
+            messageId,
+            delta,
+            timestamp: Date.now(),
+          };
         }
 
         // Collect tool calls (WebLLM sends them on the last chunk only)
@@ -441,12 +513,30 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>, overlaysRef: Ref<rea
       // --- Native tool calls (Hermes models) ---
       if (pendingToolCalls.length > 0) {
         // End text message, then emit tool call events
-        yield { type: 'TEXT_MESSAGE_END' as const, messageId, timestamp: Date.now() };
+        yield {
+          type: 'TEXT_MESSAGE_END' as const,
+          messageId,
+          timestamp: Date.now(),
+        };
 
         for (const toolCall of pendingToolCalls) {
-          yield { type: 'TOOL_CALL_START' as const, toolCallId: toolCall.id, toolName: toolCall.function.name, timestamp: Date.now() };
-          yield { type: 'TOOL_CALL_ARGS' as const, toolCallId: toolCall.id, delta: toolCall.function.arguments, timestamp: Date.now() };
-          yield { type: 'TOOL_CALL_END' as const, toolCallId: toolCall.id, timestamp: Date.now() };
+          yield {
+            type: 'TOOL_CALL_START' as const,
+            toolCallId: toolCall.id,
+            toolName: toolCall.function.name,
+            timestamp: Date.now(),
+          };
+          yield {
+            type: 'TOOL_CALL_ARGS' as const,
+            toolCallId: toolCall.id,
+            delta: toolCall.function.arguments,
+            timestamp: Date.now(),
+          };
+          yield {
+            type: 'TOOL_CALL_END' as const,
+            toolCallId: toolCall.id,
+            timestamp: Date.now(),
+          };
         }
 
         // useChat will auto-execute matching client tools and re-invoke this adapter
@@ -456,26 +546,47 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>, overlaysRef: Ref<rea
         const actions = parseMapActions(accumulatedText);
         for (const action of actions) {
           const resultText = executeFallbackAction(action, mapRef.value);
-          yield { type: 'TEXT_MESSAGE_CONTENT' as const, messageId, delta: `\n\n✅ ${resultText}`, timestamp: Date.now() };
+          yield {
+            type: 'TEXT_MESSAGE_CONTENT' as const,
+            messageId,
+            delta: `\n\n✅ ${resultText}`,
+            timestamp: Date.now(),
+          };
         }
-        yield { type: 'TEXT_MESSAGE_END' as const, messageId, timestamp: Date.now() };
+        yield {
+          type: 'TEXT_MESSAGE_END' as const,
+          messageId,
+          timestamp: Date.now(),
+        };
       } else {
-        yield { type: 'TEXT_MESSAGE_END' as const, messageId, timestamp: Date.now() };
+        yield {
+          type: 'TEXT_MESSAGE_END' as const,
+          messageId,
+          timestamp: Date.now(),
+        };
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '';
-      const isToolParseError = errorMessage.includes('parsing outputMessage for function calling')
-        || errorMessage.includes('Got outputMessage:');
+      const isToolParseError =
+        errorMessage.includes('parsing outputMessage for function calling') ||
+        errorMessage.includes('Got outputMessage:');
       if (isToolParseError) {
         // WebLLM tool-calling parse error — the model described what it wanted
         // to do in plain text but couldn't format a proper tool call.
         // Parse the intended action from the text and execute it ourselves.
-        console.warn('[LLM] Tool-calling parse failed, parsing intents from text');
+        console.warn(
+          '[LLM] Tool-calling parse failed, parsing intents from text',
+        );
         const intents = parseToolIntentsFromText(accumulatedText);
         if (intents.length > 0) {
           for (const intent of intents) {
             const resultText = executeFallbackAction(intent, mapRef.value);
-            yield { type: 'TEXT_MESSAGE_CONTENT' as const, messageId, delta: `\n\n✅ ${resultText}`, timestamp: Date.now() };
+            yield {
+              type: 'TEXT_MESSAGE_CONTENT' as const,
+              messageId,
+              delta: `\n\n✅ ${resultText}`,
+              timestamp: Date.now(),
+            };
           }
         } else {
           // No parseable intents — inject real map state as fallback
@@ -485,10 +596,14 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>, overlaysRef: Ref<rea
             const zoom = Math.round(map.getZoom() * 100) / 100;
             const bearing = Math.round(map.getBearing());
             const pitch = Math.round(map.getPitch());
-            const layers = map.getStyle()?.layers
-              ?.filter((l) => map.getLayoutProperty(l.id, 'visibility') !== 'none')
-              ?.map((l) => l.id)
-              ?.slice(0, 20) ?? [];
+            const layers =
+              map
+                .getStyle()
+                ?.layers?.filter(
+                  (l) => map.getLayoutProperty(l.id, 'visibility') !== 'none',
+                )
+                ?.map((l) => l.id)
+                ?.slice(0, 20) ?? [];
             const stateBlock = [
               '\n\n---',
               '**Current map state:**',
@@ -497,17 +612,36 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>, overlaysRef: Ref<rea
               `- Bearing: ${bearing}°, Pitch: ${pitch}°`,
               `- Visible layers (${layers.length}): ${layers.slice(0, 10).join(', ')}${layers.length > 10 ? '...' : ''}`,
             ].join('\n');
-            yield { type: 'TEXT_MESSAGE_CONTENT' as const, messageId, delta: stateBlock, timestamp: Date.now() };
+            yield {
+              type: 'TEXT_MESSAGE_CONTENT' as const,
+              messageId,
+              delta: stateBlock,
+              timestamp: Date.now(),
+            };
           }
         }
       } else if (errorMessage) {
         // Genuine error (engine not ready, network, etc.) — show a clean user message
-        yield { type: 'TEXT_MESSAGE_CONTENT' as const, messageId, delta: '\n\nSomething went wrong. Please try again.', timestamp: Date.now() };
+        yield {
+          type: 'TEXT_MESSAGE_CONTENT' as const,
+          messageId,
+          delta: '\n\nSomething went wrong. Please try again.',
+          timestamp: Date.now(),
+        };
       }
-      yield { type: 'TEXT_MESSAGE_END' as const, messageId, timestamp: Date.now() };
+      yield {
+        type: 'TEXT_MESSAGE_END' as const,
+        messageId,
+        timestamp: Date.now(),
+      };
     }
 
-    yield { type: 'RUN_FINISHED' as const, runId, finishReason: 'stop' as const, timestamp: Date.now() };
+    yield {
+      type: 'RUN_FINISHED' as const,
+      runId,
+      finishReason: 'stop' as const,
+      timestamp: Date.now(),
+    };
   });
 
   const chat = useChat({
@@ -521,12 +655,23 @@ export function useLlmChat(mapRef: Ref<MaplibreMap | null>, overlaysRef: Ref<rea
       if (!import.meta.client) return;
       // Extract text content from message parts
       const textContent = message.parts
-        .filter((p): p is { type: 'text'; content: string } => p.type === 'text')
+        .filter(
+          (p): p is { type: 'text'; content: string } => p.type === 'text',
+        )
         .map((p) => p.content)
         .join('');
       // Extract tool calls if present
       const toolCalls: StoredToolCall[] = message.parts
-        .filter((p): p is { type: 'tool-call'; toolCallId: string; toolName: string; args: Record<string, unknown> } => p.type === 'tool-call')
+        .filter(
+          (
+            p,
+          ): p is {
+            type: 'tool-call';
+            toolCallId: string;
+            toolName: string;
+            args: Record<string, unknown>;
+          } => p.type === 'tool-call',
+        )
         .map((p) => ({
           id: p.toolCallId,
           name: p.toolName,

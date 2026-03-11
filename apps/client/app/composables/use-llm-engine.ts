@@ -10,7 +10,11 @@
 
 import { CreateMLCEngine } from '@mlc-ai/web-llm';
 import type { MLCEngine } from '@mlc-ai/web-llm';
-import type { LlmEngineStatus, LlmLoadProgress, LlmModelConfig } from '~/types/llm';
+import type {
+  LlmEngineStatus,
+  LlmLoadProgress,
+  LlmModelConfig,
+} from '~/types/llm';
 
 /** Available models for the chat — Hermes models support native tool calling */
 const AVAILABLE_MODELS: LlmModelConfig[] = [
@@ -81,7 +85,8 @@ export function useLlmEngine() {
 
     if (!isWebGpuSupported()) {
       status.value = 'error';
-      errorMessage.value = 'WebGPU is not supported in this browser. Try Chrome 113+ or Edge 113+.';
+      errorMessage.value =
+        'WebGPU is not supported in this browser. Try Chrome 113+ or Edge 113+.';
       return;
     }
 
@@ -106,7 +111,8 @@ export function useLlmEngine() {
       loadProgress.value = { text: 'Ready', progress: 1 };
     } catch (err) {
       status.value = 'error';
-      errorMessage.value = err instanceof Error ? err.message : 'Failed to load model';
+      errorMessage.value =
+        err instanceof Error ? err.message : 'Failed to load model';
       console.error('[LLM Engine] Failed to initialize:', err);
     }
   }

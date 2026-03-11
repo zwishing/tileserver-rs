@@ -24,8 +24,14 @@
 </script>
 
 <template>
-  <UiSelect :model-value="selectedId" :disabled="disabled" @update:model-value="handleChange">
-    <UiSelectTrigger class="h-8 w-full gap-1.5 border border-border/60 bg-background px-2.5 text-[11px] shadow-none transition-colors hover:border-primary/40 hover:bg-primary/5">
+  <UiSelect
+    :model-value="selectedId"
+    :disabled="disabled"
+    @update:model-value="handleChange"
+  >
+    <UiSelectTrigger
+      class="h-8 w-full gap-1.5 border border-border/60 bg-background px-2.5 text-[11px] shadow-none transition-colors hover:border-primary/40 hover:bg-primary/5"
+    >
       <UiSelectValue placeholder="Select model" />
     </UiSelectTrigger>
     <UiSelectContent class="w-[--reka-popper-anchor-width]">

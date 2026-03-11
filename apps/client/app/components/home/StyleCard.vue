@@ -17,7 +17,9 @@
     copyUrl: [url: string];
   }>();
 
-  const xyzUrl = computed(() => `${props.baseUrl}/styles/${props.style.id}/{z}/{x}/{y}.png`);
+  const xyzUrl = computed(
+    () => `${props.baseUrl}/styles/${props.style.id}/{z}/{x}/{y}.png`,
+  );
 
   function handleToggleXyz() {
     emit('toggleXyz', props.style.id);
@@ -43,7 +45,9 @@
   >
     <div class="flex gap-4">
       <!-- Thumbnail -->
-      <div class="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted ring-1 ring-border/50">
+      <div
+        class="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted ring-1 ring-border/50"
+      >
         <img
           v-if="!imgError"
           :src="`/styles/${style.id}/static/0,0,1/160x160.png`"
@@ -61,7 +65,10 @@
           <div>
             <h3 class="font-semibold">{{ style.name }}</h3>
             <p class="mt-0.5 text-sm text-muted-foreground">
-              <code class="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium">{{ style.id }}</code>
+              <code
+                class="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium"
+                >{{ style.id }}</code
+              >
             </p>
           </div>
           <Button as-child size="sm" class="rounded-lg">
@@ -93,20 +100,50 @@
         <!-- Service links -->
         <div class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           <span class="text-muted-foreground">Services:</span>
-          <a :href="`/styles/${style.id}/style.json`" target="_blank" class="text-primary hover:underline">GL Style</a>
+          <a
+            :href="`/styles/${style.id}/style.json`"
+            target="_blank"
+            class="text-primary hover:underline"
+            >GL Style</a
+          >
           <span class="text-muted-foreground/30">•</span>
-          <a :href="`/styles/${style.id}.json`" target="_blank" class="text-primary hover:underline">TileJSON</a>
+          <a
+            :href="`/styles/${style.id}.json`"
+            target="_blank"
+            class="text-primary hover:underline"
+            >TileJSON</a
+          >
           <span class="text-muted-foreground/30">•</span>
-          <a :href="`/styles/${style.id}/wmts.xml`" target="_blank" class="text-primary hover:underline">WMTS</a>
+          <a
+            :href="`/styles/${style.id}/wmts.xml`"
+            target="_blank"
+            class="text-primary hover:underline"
+            >WMTS</a
+          >
           <span class="text-muted-foreground/30">•</span>
-          <button class="text-primary hover:underline" @click="handleToggleXyz">XYZ URL</button>
+          <button class="text-primary hover:underline" @click="handleToggleXyz">
+            XYZ URL
+          </button>
         </div>
 
         <!-- XYZ URL expandable -->
-        <div v-if="isXyzExpanded" class="mt-2 flex items-center gap-2 rounded-lg bg-muted/50 p-2">
-          <code class="flex-1 truncate text-xs text-muted-foreground">{{ xyzUrl }}</code>
-          <Button variant="ghost" size="icon" class="size-7 shrink-0 rounded-lg" @click="handleCopyUrl">
-            <Check v-if="copiedUrl === xyzUrl" class="size-3.5 text-green-500" />
+        <div
+          v-if="isXyzExpanded"
+          class="mt-2 flex items-center gap-2 rounded-lg bg-muted/50 p-2"
+        >
+          <code class="flex-1 truncate text-xs text-muted-foreground">{{
+            xyzUrl
+          }}</code>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="size-7 shrink-0 rounded-lg"
+            @click="handleCopyUrl"
+          >
+            <Check
+              v-if="copiedUrl === xyzUrl"
+              class="size-3.5 text-green-500"
+            />
             <Copy v-else class="size-3.5" />
           </Button>
         </div>

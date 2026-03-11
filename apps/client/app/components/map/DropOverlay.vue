@@ -1,6 +1,10 @@
 <script setup lang="ts">
   import { Upload, AlertCircle, CheckCircle2, Loader2 } from 'lucide-vue-next';
-  import type { FileDropError, FileDropSuccess, FileDropStatus } from '~/types/file-upload';
+  import type {
+    FileDropError,
+    FileDropSuccess,
+    FileDropStatus,
+  } from '~/types/file-upload';
 
   const props = defineProps<{
     status: FileDropStatus;
@@ -9,9 +13,18 @@
     success: FileDropSuccess | null;
   }>();
 
-  const showOverlay = computed(() => props.isOver || props.status === 'processing' || props.status === 'uploading');
-  const showError = computed(() => props.error !== null && props.status === 'idle');
-  const showSuccess = computed(() => props.success !== null && props.status === 'idle');
+  const showOverlay = computed(
+    () =>
+      props.isOver ||
+      props.status === 'processing' ||
+      props.status === 'uploading',
+  );
+  const showError = computed(
+    () => props.error !== null && props.status === 'idle',
+  );
+  const showSuccess = computed(
+    () => props.success !== null && props.status === 'idle',
+  );
 </script>
 
 <template>
@@ -24,10 +37,19 @@
       <div
         class="flex flex-col items-center gap-3 border-2 border-dashed border-primary/50 bg-background/90 px-12 py-10 shadow-2xl"
       >
-        <Loader2 v-if="status === 'processing' || status === 'uploading'" class="size-10 animate-spin text-primary" />
+        <Loader2
+          v-if="status === 'processing' || status === 'uploading'"
+          class="size-10 animate-spin text-primary"
+        />
         <Upload v-else class="size-10 text-primary" />
         <p class="text-lg font-medium">
-          {{ status === 'uploading' ? 'Uploading to server…' : status === 'processing' ? 'Processing file…' : 'Drop file to visualize' }}
+          {{
+            status === 'uploading'
+              ? 'Uploading to server…'
+              : status === 'processing'
+                ? 'Processing file…'
+                : 'Drop file to visualize'
+          }}
         </p>
         <p class="text-sm text-muted-foreground">
           GeoJSON, KML, GPX, CSV, Shapefile, PMTiles, MBTiles, SQLite, COG
@@ -60,13 +82,20 @@
       v-if="showSuccess"
       class="absolute bottom-6 left-1/2 z-50 flex max-w-md -translate-x-1/2 items-start gap-3 border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 shadow-lg backdrop-blur-sm"
     >
-      <CheckCircle2 class="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+      <CheckCircle2
+        class="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+      />
       <div class="min-w-0">
         <p class="text-sm font-medium text-emerald-700 dark:text-emerald-300">
           Loaded {{ success?.fileName }}
         </p>
         <p class="mt-0.5 text-xs text-muted-foreground">
-          {{ success?.featureCount ? `${success.featureCount.toLocaleString()} features` : success?.format?.toUpperCase() }} added as overlay
+          {{
+            success?.featureCount
+              ? `${success.featureCount.toLocaleString()} features`
+              : success?.format?.toUpperCase()
+          }}
+          added as overlay
         </p>
       </div>
     </div>

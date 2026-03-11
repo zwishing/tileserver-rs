@@ -3,9 +3,18 @@
 </script>
 
 <template>
-  <section class="border-t border-border py-20">
-    <div class="mx-auto max-w-6xl px-6">
-      <div class="mb-16 text-center">
+  <section
+    data-label="Features"
+    class="section-full relative border-b border-border"
+  >
+    <!-- Geometric grid background -->
+    <div
+      class="geometric-grid-bg pointer-events-none absolute inset-0 opacity-30"
+      aria-hidden="true"
+    />
+
+    <div class="relative px-6 py-16 md:px-12 lg:px-20">
+      <div class="mb-16">
         <p class="hud-label mb-4">Features</p>
         <h2
           class="

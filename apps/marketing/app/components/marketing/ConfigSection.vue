@@ -8,8 +8,16 @@
 </script>
 
 <template>
-  <section class="border-t border-border py-20">
-    <div class="mx-auto max-w-6xl px-6">
+  <section
+    data-label="Configuration"
+    class="section-full relative border-b border-border"
+  >
+    <div
+      class="geometric-grid-bg pointer-events-none absolute inset-0 opacity-30"
+      aria-hidden="true"
+    />
+
+    <div class="relative px-6 py-16 md:px-12 lg:px-20">
       <div
 class="
   grid items-start gap-12

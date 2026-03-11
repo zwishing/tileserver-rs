@@ -31,12 +31,14 @@ const SUGGESTIONS: SuggestedPrompt[] = [
   },
   {
     title: 'Explore layers',
-    prompt: 'What layers are available on this map? Show me the current map state.',
+    prompt:
+      'What layers are available on this map? Show me the current map state.',
     icon: 'layers',
   },
   {
     title: 'Find a place',
-    prompt: 'Take me to Tokyo, Japan at a good zoom level to see the city center',
+    prompt:
+      'Take me to Tokyo, Japan at a good zoom level to see the city center',
     icon: 'search',
   },
   {
@@ -91,8 +93,19 @@ export function formatMessageTime(date: Date | undefined): string {
  * } = useLlmPanel(mapRef, overlaysRef);
  * ```
  */
-export function useLlmPanel(mapRef: Ref<MaplibreMap | null>, overlaysRef: Ref<readonly OverlayLayer[]>) {
-  const { status: engineStatus, loadProgress, errorMessage, selectedModel, availableModels, initEngine, resetEngine } = useLlmEngine();
+export function useLlmPanel(
+  mapRef: Ref<MaplibreMap | null>,
+  overlaysRef: Ref<readonly OverlayLayer[]>,
+) {
+  const {
+    status: engineStatus,
+    loadProgress,
+    errorMessage,
+    selectedModel,
+    availableModels,
+    initEngine,
+    resetEngine,
+  } = useLlmEngine();
   const chat = useLlmChat(mapRef, overlaysRef);
 
   // Panel open/close state
@@ -109,9 +122,11 @@ export function useLlmPanel(mapRef: Ref<MaplibreMap | null>, overlaysRef: Ref<re
    */
   const loadStageText = computed(() => {
     const text = loadProgress.value.text.toLowerCase();
-    if (text.includes('fetching') || text.includes('download')) return 'Downloading model files\u2026';
+    if (text.includes('fetching') || text.includes('download'))
+      return 'Downloading model files\u2026';
     if (text.includes('loading')) return 'Loading into memory\u2026';
-    if (text.includes('compiling') || text.includes('shader')) return 'Compiling for your GPU\u2026';
+    if (text.includes('compiling') || text.includes('shader'))
+      return 'Compiling for your GPU\u2026';
     if (text === 'ready') return 'Ready!';
     return 'Initializing\u2026';
   });
@@ -127,8 +142,8 @@ export function useLlmPanel(mapRef: Ref<MaplibreMap | null>, overlaysRef: Ref<re
 
     const hasText = lastMessage.parts.some(
       (part) =>
-        part.type === 'text'
-        && (part as { type: 'text'; content: string }).content.trim(),
+        part.type === 'text' &&
+        (part as { type: 'text'; content: string }).content.trim(),
     );
     return !hasText;
   });

@@ -15,7 +15,9 @@
   }>();
 
   const isDisabled = computed(
-    () => props.engineStatus === 'loading' || (!props.modelValue.trim() && !props.isLoading),
+    () =>
+      props.engineStatus === 'loading' ||
+      (!props.modelValue.trim() && !props.isLoading),
   );
 
   const placeholder = computed(() => {

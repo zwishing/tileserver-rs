@@ -52,7 +52,7 @@ export interface OverlayLayer {
   layerIds: string[];
   /** Server-side upload ID (for cleanup on remove) */
   uploadId?: string;
-  }
+}
 
 /** Configuration for adding an overlay to the map */
 export interface OverlaySourceConfig {
@@ -62,7 +62,12 @@ export interface OverlaySourceConfig {
 }
 
 /** File drop processing status */
-export type FileDropStatus = 'idle' | 'dragging' | 'processing' | 'uploading' | 'error';
+export type FileDropStatus =
+  | 'idle'
+  | 'dragging'
+  | 'processing'
+  | 'uploading'
+  | 'error';
 
 /** Error info from file drop processing */
 export interface FileDropError {

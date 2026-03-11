@@ -6,7 +6,11 @@ import type {
   SourceSpecification,
 } from 'maplibre-gl';
 import type { GeoJSON } from 'geojson';
-import type { GeometryType, OverlaySourceConfig, ParsedFile } from '~/types/file-upload';
+import type {
+  GeometryType,
+  OverlaySourceConfig,
+  ParsedFile,
+} from '~/types/file-upload';
 
 /**
  * Color palette for overlay layers.
@@ -62,13 +66,20 @@ export function createOverlayConfig(
     data: parsed.data as GeoJSON,
   };
 
-  const layers = createLayersForGeometryTypes(sourceId, parsed.geometryTypes, color);
+  const layers = createLayersForGeometryTypes(
+    sourceId,
+    parsed.geometryTypes,
+    color,
+  );
 
   return { sourceId, source, layers };
 }
 
 /** Create source config for a PMTiles file */
-function createPMTilesConfig(sourceId: string, objectUrl: string): OverlaySourceConfig {
+function createPMTilesConfig(
+  sourceId: string,
+  objectUrl: string,
+): OverlaySourceConfig {
   const source: SourceSpecification = {
     type: 'vector',
     url: `pmtiles://${objectUrl}`,
@@ -88,7 +99,10 @@ function createLayersForGeometryTypes(
   const layers: LayerSpecification[] = [];
 
   // If no geometry types detected (e.g., empty file), add all three
-  const types = geometryTypes.length > 0 ? geometryTypes : (['Point', 'LineString', 'Polygon'] as GeometryType[]);
+  const types =
+    geometryTypes.length > 0
+      ? geometryTypes
+      : (['Point', 'LineString', 'Polygon'] as GeometryType[]);
 
   for (const type of types) {
     switch (type) {
@@ -109,12 +123,16 @@ function createLayersForGeometryTypes(
 }
 
 /** Create a fill layer for polygon features */
-function createFillLayer(sourceId: string, color: string): FillLayerSpecification {
+function createFillLayer(
+  sourceId: string,
+  color: string,
+): FillLayerSpecification {
   return {
     id: `${sourceId}-fill`,
     type: 'fill',
     source: sourceId,
-    filter: ['any',
+    filter: [
+      'any',
       ['==', ['geometry-type'], 'Polygon'],
       ['==', ['geometry-type'], 'MultiPolygon'],
     ],
@@ -126,12 +144,16 @@ function createFillLayer(sourceId: string, color: string): FillLayerSpecificatio
 }
 
 /** Create an outline layer for polygon features */
-function createOutlineLayer(sourceId: string, color: string): LineLayerSpecification {
+function createOutlineLayer(
+  sourceId: string,
+  color: string,
+): LineLayerSpecification {
   return {
     id: `${sourceId}-outline`,
     type: 'line',
     source: sourceId,
-    filter: ['any',
+    filter: [
+      'any',
       ['==', ['geometry-type'], 'Polygon'],
       ['==', ['geometry-type'], 'MultiPolygon'],
     ],
@@ -144,12 +166,16 @@ function createOutlineLayer(sourceId: string, color: string): LineLayerSpecifica
 }
 
 /** Create a line layer for linestring features */
-function createLineLayer(sourceId: string, color: string): LineLayerSpecification {
+function createLineLayer(
+  sourceId: string,
+  color: string,
+): LineLayerSpecification {
   return {
     id: `${sourceId}-line`,
     type: 'line',
     source: sourceId,
-    filter: ['any',
+    filter: [
+      'any',
       ['==', ['geometry-type'], 'LineString'],
       ['==', ['geometry-type'], 'MultiLineString'],
     ],
@@ -162,12 +188,16 @@ function createLineLayer(sourceId: string, color: string): LineLayerSpecificatio
 }
 
 /** Create a circle layer for point features */
-function createCircleLayer(sourceId: string, color: string): CircleLayerSpecification {
+function createCircleLayer(
+  sourceId: string,
+  color: string,
+): CircleLayerSpecification {
   return {
     id: `${sourceId}-circle`,
     type: 'circle',
     source: sourceId,
-    filter: ['any',
+    filter: [
+      'any',
       ['==', ['geometry-type'], 'Point'],
       ['==', ['geometry-type'], 'MultiPoint'],
     ],

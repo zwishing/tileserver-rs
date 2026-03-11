@@ -13,10 +13,8 @@
   const isRaster = computed(() => 'raster' in route.query);
   const isScreenshot = computed(() => 'screenshot' in route.query);
 
-  const { mapOptions, mapRef, isLoading, navigateBack, onMapLoaded } = useStyleViewer(
-    styleId,
-    isRaster,
-  );
+  const { mapOptions, mapRef, isLoading, navigateBack, onMapLoaded } =
+    useStyleViewer(styleId, isRaster);
 
   // File drop overlay
   const {
@@ -71,7 +69,10 @@
     >
       <Sparkles class="size-4 text-primary" />
       <span class="text-sm text-muted-foreground">Ask about the map…</span>
-      <kbd class="border border-border/60 bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">⌘K</kbd>
+      <kbd
+        class="border border-border/60 bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+        >⌘K</kbd
+      >
     </button>
 
     <!-- Loading -->
@@ -88,8 +89,17 @@
       class="absolute inset-0 size-full overflow-hidden"
     >
       <ClientOnly>
-        <VMap :options="mapOptions" :support-pmtiles="false" class="size-full" @loaded="onMapLoaded">
-          <VControlScale v-if="!isScreenshot" position="bottom-left" :unit="'metric'" />
+        <VMap
+          :options="mapOptions"
+          :support-pmtiles="false"
+          class="size-full"
+          @loaded="onMapLoaded"
+        >
+          <VControlScale
+            v-if="!isScreenshot"
+            position="bottom-left"
+            :unit="'metric'"
+          />
           <VControlNavigation v-if="!isScreenshot" position="bottom-right" />
           <VControlGeolocate v-if="!isScreenshot" position="bottom-right" />
         </VMap>
@@ -97,7 +107,12 @@
     </div>
 
     <!-- File drop overlay + toast notifications -->
-    <MapDropOverlay :status="dropStatus" :is-over="isOverDropZone" :error="dropError" :success="dropSuccess" />
+    <MapDropOverlay
+      :status="dropStatus"
+      :is-over="isOverDropZone"
+      :error="dropError"
+      :success="dropSuccess"
+    />
 
     <!-- Overlay layer panel -->
     <MapOverlayPanel

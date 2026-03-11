@@ -24,24 +24,21 @@ import type { ChatMessage, SpatialResult, StoredToolCall } from '~/types/llm';
  */
 export function useChatHistory() {
   // Reactive query: all messages sorted by timestamp ascending
-  const {
-    data: messages,
-    isLoading: messagesLoading,
-  } = useLiveQuery((q) =>
-    q.from({ chat: chatCollection })
+  const { data: messages, isLoading: messagesLoading } = useLiveQuery((q) =>
+    q
+      .from({ chat: chatCollection })
       .orderBy(({ chat }) => asc(chat.timestamp))
       .select(({ chat }) => chat),
   );
 
   // Reactive query: all spatial results sorted by timestamp ascending
-  const {
-    data: spatialResults,
-    isLoading: spatialResultsLoading,
-  } = useLiveQuery((q) =>
-    q.from({ results: spatialResultsCollection })
-      .orderBy(({ results }) => asc(results.timestamp))
-      .select(({ results }) => results),
-  );
+  const { data: spatialResults, isLoading: spatialResultsLoading } =
+    useLiveQuery((q) =>
+      q
+        .from({ results: spatialResultsCollection })
+        .orderBy(({ results }) => asc(results.timestamp))
+        .select(({ results }) => results),
+    );
 
   /**
    * Persist a chat message to the collection.

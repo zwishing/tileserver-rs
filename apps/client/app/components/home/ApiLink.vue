@@ -12,14 +12,20 @@
     :transition="{ duration: 0.35, delay: 0.35 }"
     class="block"
   >
-    <Card class="overflow-hidden rounded-xl border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
+    <Card
+      class="overflow-hidden rounded-xl border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5"
+    >
       <div class="flex items-center gap-3 p-4">
-        <div class="flex size-8 items-center justify-center rounded-lg bg-muted/50">
+        <div
+          class="flex size-8 items-center justify-center rounded-lg bg-muted/50"
+        >
           <ExternalLink class="size-4 text-muted-foreground" />
         </div>
         <div class="flex-1">
           <span class="font-medium">API Documentation</span>
-          <p class="text-xs text-muted-foreground">OpenAPI 3.1 specification with Swagger UI</p>
+          <p class="text-xs text-muted-foreground">
+            OpenAPI 3.1 specification with Swagger UI
+          </p>
         </div>
         <ChevronRight class="size-4 text-muted-foreground" />
       </div>

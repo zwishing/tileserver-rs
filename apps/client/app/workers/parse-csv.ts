@@ -13,7 +13,10 @@ interface ParseResult {
   geometryTypes: GeometryType[];
 }
 
-export async function parseCSV(fileName: string, text: string): Promise<ParseResult> {
+export async function parseCSV(
+  fileName: string,
+  text: string,
+): Promise<ParseResult> {
   const Papa = await import('papaparse');
 
   return new Promise((resolve, reject) => {
@@ -62,9 +65,20 @@ export async function parseCSV(fileName: string, text: string): Promise<ParseRes
 // ---------------------------------------------------------------------------
 
 const LAT_ALIASES = new Set(['lat', 'latitude', 'y', 'lat_y', 'point_y']);
-const LON_ALIASES = new Set(['lon', 'lng', 'longitude', 'x', 'long', 'lon_x', 'point_x']);
+const LON_ALIASES = new Set([
+  'lon',
+  'lng',
+  'longitude',
+  'x',
+  'long',
+  'lon_x',
+  'point_x',
+]);
 
-function csvToFeatures(rows: Record<string, string>[], fields: string[]): Feature[] {
+function csvToFeatures(
+  rows: Record<string, string>[],
+  fields: string[],
+): Feature[] {
   const latField = fields.find((f) => LAT_ALIASES.has(f.toLowerCase().trim()));
   const lonField = fields.find((f) => LON_ALIASES.has(f.toLowerCase().trim()));
 

@@ -22,7 +22,8 @@ import type { OverlayLayer } from '~/types/file-upload';
 
 export const flyToDef = toolDefinition({
   name: 'fly_to',
-  description: 'Animate the map camera to a specific location. Use when the user asks to go to, show, or navigate to a place.',
+  description:
+    'Animate the map camera to a specific location. Use when the user asks to go to, show, or navigate to a place.',
   inputSchema: z.object({
     lng: z.number().describe('Longitude (-180 to 180)'),
     lat: z.number().describe('Latitude (-90 to 90)'),
@@ -38,7 +39,8 @@ export const flyToDef = toolDefinition({
 
 export const fitBoundsDef = toolDefinition({
   name: 'fit_bounds',
-  description: 'Fit the map camera to a bounding box. Use when showing a region, country, or area.',
+  description:
+    'Fit the map camera to a bounding box. Use when showing a region, country, or area.',
   inputSchema: z.object({
     west: z.number().describe('West longitude'),
     south: z.number().describe('South latitude'),
@@ -54,7 +56,8 @@ export const fitBoundsDef = toolDefinition({
 
 export const getMapStateDef = toolDefinition({
   name: 'get_map_state',
-  description: 'Get the current map center, zoom, bearing, pitch, and visible layers. Use to understand what the user is looking at.',
+  description:
+    'Get the current map center, zoom, bearing, pitch, and visible layers. Use to understand what the user is looking at.',
   inputSchema: z.object({}),
   outputSchema: z.object({
     center: z.object({ lng: z.number(), lat: z.number() }),
@@ -80,11 +83,18 @@ export const setLayerVisibilityDef = toolDefinition({
 
 export const setLayerPaintDef = toolDefinition({
   name: 'set_layer_paint',
-  description: 'Change a paint property of a map layer (e.g., color, opacity, width).',
+  description:
+    'Change a paint property of a map layer (e.g., color, opacity, width).',
   inputSchema: z.object({
     layerId: z.string().describe('The layer ID to modify'),
-    property: z.string().describe('Paint property name (e.g., fill-color, line-width, fill-opacity)'),
-    value: z.union([z.string(), z.number(), z.array(z.unknown())]).describe('New value for the property'),
+    property: z
+      .string()
+      .describe(
+        'Paint property name (e.g., fill-color, line-width, fill-opacity)',
+      ),
+    value: z
+      .union([z.string(), z.number(), z.array(z.unknown())])
+      .describe('New value for the property'),
   }),
   outputSchema: z.object({
     success: z.boolean(),
@@ -94,10 +104,13 @@ export const setLayerPaintDef = toolDefinition({
 
 export const setLayerFilterDef = toolDefinition({
   name: 'set_layer_filter',
-  description: 'Apply a MapLibre filter expression to a layer to show only matching features.',
+  description:
+    'Apply a MapLibre filter expression to a layer to show only matching features.',
   inputSchema: z.object({
     layerId: z.string().describe('The layer ID to filter'),
-    filter: z.array(z.unknown()).describe('MapLibre filter expression (e.g., ["==", "type", "park"])'),
+    filter: z
+      .array(z.unknown())
+      .describe('MapLibre filter expression (e.g., ["==", "type", "park"])'),
   }),
   outputSchema: z.object({
     success: z.boolean(),
@@ -107,28 +120,43 @@ export const setLayerFilterDef = toolDefinition({
 
 export const queryRenderedFeaturesDef = toolDefinition({
   name: 'query_rendered_features',
-  description: 'Query features visible in the current map viewport. Returns feature properties and geometry type.',
+  description:
+    'Query features visible in the current map viewport. Returns feature properties and geometry type.',
   inputSchema: z.object({
-    layers: z.array(z.string()).optional().describe('Layer IDs to query (omit for all layers)'),
-    limit: z.number().optional().describe('Max features to return (default 10)'),
+    layers: z
+      .array(z.string())
+      .optional()
+      .describe('Layer IDs to query (omit for all layers)'),
+    limit: z
+      .number()
+      .optional()
+      .describe('Max features to return (default 10)'),
   }),
   outputSchema: z.object({
-    features: z.array(z.object({
-      layer: z.string(),
-      geometryType: z.string(),
-      properties: z.record(z.string(), z.unknown()),
-    })),
+    features: z.array(
+      z.object({
+        layer: z.string(),
+        geometryType: z.string(),
+        properties: z.record(z.string(), z.unknown()),
+      }),
+    ),
     total: z.number(),
   }),
 });
 
 export const addHighlightDef = toolDefinition({
   name: 'add_highlight',
-  description: 'Temporarily highlight features on the map matching a filter. Highlight auto-removes after 8 seconds.',
+  description:
+    'Temporarily highlight features on the map matching a filter. Highlight auto-removes after 8 seconds.',
   inputSchema: z.object({
     layerId: z.string().describe('Source layer ID to highlight features from'),
-    filter: z.array(z.unknown()).describe('MapLibre filter expression for features to highlight'),
-    color: z.string().optional().describe('Highlight color (default "#ff0000")'),
+    filter: z
+      .array(z.unknown())
+      .describe('MapLibre filter expression for features to highlight'),
+    color: z
+      .string()
+      .optional()
+      .describe('Highlight color (default "#ff0000")'),
   }),
   outputSchema: z.object({
     success: z.boolean(),
@@ -138,14 +166,23 @@ export const addHighlightDef = toolDefinition({
 
 export const generateStyleDef = toolDefinition({
   name: 'generate_style',
-  description: 'Modify the current map style based on a description (e.g., "make the water blue", "dark mode"). Adjusts paint properties of matching layers.',
+  description:
+    'Modify the current map style based on a description (e.g., "make the water blue", "dark mode"). Adjusts paint properties of matching layers.',
   inputSchema: z.object({
-    description: z.string().describe('Natural language description of style changes'),
-    changes: z.array(z.object({
-      layerId: z.string().describe('Layer ID to modify'),
-      property: z.string().describe('Paint property to change'),
-      value: z.union([z.string(), z.number(), z.array(z.unknown())]).describe('New value'),
-    })).describe('Array of specific paint property changes to apply'),
+    description: z
+      .string()
+      .describe('Natural language description of style changes'),
+    changes: z
+      .array(
+        z.object({
+          layerId: z.string().describe('Layer ID to modify'),
+          property: z.string().describe('Paint property to change'),
+          value: z
+            .union([z.string(), z.number(), z.array(z.unknown())])
+            .describe('New value'),
+        }),
+      )
+      .describe('Array of specific paint property changes to apply'),
   }),
   outputSchema: z.object({
     success: z.boolean(),
@@ -156,17 +193,20 @@ export const generateStyleDef = toolDefinition({
 
 export const getOverlaysDef = toolDefinition({
   name: 'get_overlays',
-  description: 'Get the list of user-dropped file overlays currently on the map. Returns file names, formats, feature counts, colors, and visibility state.',
+  description:
+    'Get the list of user-dropped file overlays currently on the map. Returns file names, formats, feature counts, colors, and visibility state.',
   inputSchema: z.object({}),
   outputSchema: z.object({
-    overlays: z.array(z.object({
-      id: z.string(),
-      fileName: z.string(),
-      format: z.string(),
-      featureCount: z.number(),
-      color: z.string(),
-      visible: z.boolean(),
-    })),
+    overlays: z.array(
+      z.object({
+        id: z.string(),
+        fileName: z.string(),
+        format: z.string(),
+        featureCount: z.number(),
+        color: z.string(),
+        visible: z.boolean(),
+      }),
+    ),
     total: z.number(),
   }),
 });
@@ -213,15 +253,29 @@ export function createMapClientTools(
       pitch: pitch ?? 0,
       duration: 2000,
     });
-    return { success: true, message: `Flying to [${lng}, ${lat}] at zoom ${zoom ?? 12}` };
+    return {
+      success: true,
+      message: `Flying to [${lng}, ${lat}] at zoom ${zoom ?? 12}`,
+    };
   });
 
-  const fitBounds = fitBoundsDef.client(({ west, south, east, north, padding }) => {
-    const map = getMap();
-    if (!map) return { success: false, message: 'Map not available' };
-    map.fitBounds([[west, south], [east, north]], { padding: padding ?? 50, duration: 2000 });
-    return { success: true, message: `Fitting to bounds [${west},${south},${east},${north}]` };
-  });
+  const fitBounds = fitBoundsDef.client(
+    ({ west, south, east, north, padding }) => {
+      const map = getMap();
+      if (!map) return { success: false, message: 'Map not available' };
+      map.fitBounds(
+        [
+          [west, south],
+          [east, north],
+        ],
+        { padding: padding ?? 50, duration: 2000 },
+      );
+      return {
+        success: true,
+        message: `Fitting to bounds [${west},${south},${east},${north}]`,
+      };
+    },
+  );
 
   const getMapState = getMapStateDef.client(() => {
     const map = getMap();
@@ -235,9 +289,16 @@ export function createMapClientTools(
       };
     }
     const center = map.getCenter();
-    const layers = map.getStyle()?.layers?.map((l) => l.id).slice(0, 30) ?? [];
+    const layers =
+      map
+        .getStyle()
+        ?.layers?.map((l) => l.id)
+        .slice(0, 30) ?? [];
     return {
-      center: { lng: Math.round(center.lng * 1000) / 1000, lat: Math.round(center.lat * 1000) / 1000 },
+      center: {
+        lng: Math.round(center.lng * 1000) / 1000,
+        lat: Math.round(center.lat * 1000) / 1000,
+      },
       zoom: Math.round(map.getZoom() * 100) / 100,
       bearing: Math.round(map.getBearing()),
       pitch: Math.round(map.getPitch()),
@@ -245,27 +306,47 @@ export function createMapClientTools(
     };
   });
 
-  const setLayerVisibility = setLayerVisibilityDef.client(({ layerId, visible }) => {
-    const map = getMap();
-    if (!map) return { success: false, message: 'Map not available' };
-    try {
-      map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
-      return { success: true, message: `Layer "${layerId}" ${visible ? 'shown' : 'hidden'}` };
-    } catch (err) {
-      return { success: false, message: `Failed to toggle layer: ${err instanceof Error ? err.message : String(err)}` };
-    }
-  });
+  const setLayerVisibility = setLayerVisibilityDef.client(
+    ({ layerId, visible }) => {
+      const map = getMap();
+      if (!map) return { success: false, message: 'Map not available' };
+      try {
+        map.setLayoutProperty(
+          layerId,
+          'visibility',
+          visible ? 'visible' : 'none',
+        );
+        return {
+          success: true,
+          message: `Layer "${layerId}" ${visible ? 'shown' : 'hidden'}`,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          message: `Failed to toggle layer: ${err instanceof Error ? err.message : String(err)}`,
+        };
+      }
+    },
+  );
 
-  const setLayerPaint = setLayerPaintDef.client(({ layerId, property, value }) => {
-    const map = getMap();
-    if (!map) return { success: false, message: 'Map not available' };
-    try {
-      map.setPaintProperty(layerId, property, value);
-      return { success: true, message: `Set ${property} = ${JSON.stringify(value)} on "${layerId}"` };
-    } catch (err) {
-      return { success: false, message: `Failed to set paint: ${err instanceof Error ? err.message : String(err)}` };
-    }
-  });
+  const setLayerPaint = setLayerPaintDef.client(
+    ({ layerId, property, value }) => {
+      const map = getMap();
+      if (!map) return { success: false, message: 'Map not available' };
+      try {
+        map.setPaintProperty(layerId, property, value);
+        return {
+          success: true,
+          message: `Set ${property} = ${JSON.stringify(value)} on "${layerId}"`,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          message: `Failed to set paint: ${err instanceof Error ? err.message : String(err)}`,
+        };
+      }
+    },
+  );
 
   const setLayerFilter = setLayerFilterDef.client(({ layerId, filter }) => {
     const map = getMap();
@@ -274,26 +355,31 @@ export function createMapClientTools(
       map.setFilter(layerId, filter as FilterSpecification);
       return { success: true, message: `Filter applied to "${layerId}"` };
     } catch (err) {
-      return { success: false, message: `Failed to set filter: ${err instanceof Error ? err.message : String(err)}` };
+      return {
+        success: false,
+        message: `Failed to set filter: ${err instanceof Error ? err.message : String(err)}`,
+      };
     }
   });
 
-  const queryRenderedFeatures = queryRenderedFeaturesDef.client(({ layers, limit }) => {
-    const map = getMap();
-    if (!map) return { features: [], total: 0 };
-    const maxFeatures = limit ?? 10;
-    const opts: { layers?: string[] } = {};
-    if (layers?.length) opts.layers = layers;
-    const features = map.queryRenderedFeatures(undefined, opts);
-    return {
-      features: features.slice(0, maxFeatures).map((f) => ({
-        layer: f.layer?.id ?? 'unknown',
-        geometryType: f.geometry.type,
-        properties: f.properties ?? {},
-      })),
-      total: features.length,
-    };
-  });
+  const queryRenderedFeatures = queryRenderedFeaturesDef.client(
+    ({ layers, limit }) => {
+      const map = getMap();
+      if (!map) return { features: [], total: 0 };
+      const maxFeatures = limit ?? 10;
+      const opts: { layers?: string[] } = {};
+      if (layers?.length) opts.layers = layers;
+      const features = map.queryRenderedFeatures(undefined, opts);
+      return {
+        features: features.slice(0, maxFeatures).map((f) => ({
+          layer: f.layer?.id ?? 'unknown',
+          geometryType: f.geometry.type,
+          properties: f.properties ?? {},
+        })),
+        total: features.length,
+      };
+    },
+  );
 
   const addHighlight = addHighlightDef.client(({ layerId, filter, color }) => {
     const map = getMap();
@@ -306,10 +392,14 @@ export function createMapClientTools(
       // Find the source of the target layer
       const targetLayer = map.getStyle()?.layers?.find((l) => l.id === layerId);
       if (!targetLayer || !('source' in targetLayer)) {
-        return { success: false, message: `Layer "${layerId}" not found or has no source` };
+        return {
+          success: false,
+          message: `Layer "${layerId}" not found or has no source`,
+        };
       }
 
-      const sourceLayer = 'source-layer' in targetLayer ? targetLayer['source-layer'] : undefined;
+      const sourceLayer =
+        'source-layer' in targetLayer ? targetLayer['source-layer'] : undefined;
 
       map.addLayer({
         id: highlightId,
@@ -335,15 +425,26 @@ export function createMapClientTools(
         }
       }, 8000);
 
-      return { success: true, message: `Highlighted features on "${layerId}" in ${highlightColor} (auto-removes in 8s)` };
+      return {
+        success: true,
+        message: `Highlighted features on "${layerId}" in ${highlightColor} (auto-removes in 8s)`,
+      };
     } catch (err) {
-      return { success: false, message: `Failed to highlight: ${err instanceof Error ? err.message : String(err)}` };
+      return {
+        success: false,
+        message: `Failed to highlight: ${err instanceof Error ? err.message : String(err)}`,
+      };
     }
   });
 
   const generateStyle = generateStyleDef.client(({ description, changes }) => {
     const map = getMap();
-    if (!map) return { success: false, message: 'Map not available', changesApplied: 0 };
+    if (!map)
+      return {
+        success: false,
+        message: 'Map not available',
+        changesApplied: 0,
+      };
 
     let applied = 0;
     for (const change of changes) {
@@ -409,15 +510,25 @@ export const WEBLLM_TOOLS: Array<{
     type: 'function',
     function: {
       name: 'fly_to',
-      description: 'Animate the map camera to a specific location. Use when the user asks to go to, show, or navigate to a place.',
+      description:
+        'Animate the map camera to a specific location. Use when the user asks to go to, show, or navigate to a place.',
       parameters: {
         type: 'object',
         properties: {
           lng: { type: 'number', description: 'Longitude (-180 to 180)' },
           lat: { type: 'number', description: 'Latitude (-90 to 90)' },
-          zoom: { type: 'number', description: 'Zoom level (0-22, default 12)' },
-          bearing: { type: 'number', description: 'Bearing in degrees (default 0)' },
-          pitch: { type: 'number', description: 'Pitch in degrees 0-85 (default 0)' },
+          zoom: {
+            type: 'number',
+            description: 'Zoom level (0-22, default 12)',
+          },
+          bearing: {
+            type: 'number',
+            description: 'Bearing in degrees (default 0)',
+          },
+          pitch: {
+            type: 'number',
+            description: 'Pitch in degrees 0-85 (default 0)',
+          },
         },
         required: ['lng', 'lat'],
       },
@@ -427,7 +538,8 @@ export const WEBLLM_TOOLS: Array<{
     type: 'function',
     function: {
       name: 'fit_bounds',
-      description: 'Fit the map camera to a bounding box. Use when showing a region, country, or area.',
+      description:
+        'Fit the map camera to a bounding box. Use when showing a region, country, or area.',
       parameters: {
         type: 'object',
         properties: {
@@ -435,7 +547,10 @@ export const WEBLLM_TOOLS: Array<{
           south: { type: 'number', description: 'South latitude' },
           east: { type: 'number', description: 'East longitude' },
           north: { type: 'number', description: 'North latitude' },
-          padding: { type: 'number', description: 'Padding in pixels (default 50)' },
+          padding: {
+            type: 'number',
+            description: 'Padding in pixels (default 50)',
+          },
         },
         required: ['west', 'south', 'east', 'north'],
       },
@@ -445,7 +560,8 @@ export const WEBLLM_TOOLS: Array<{
     type: 'function',
     function: {
       name: 'get_map_state',
-      description: 'Get the current map center, zoom, bearing, pitch, and visible layers.',
+      description:
+        'Get the current map center, zoom, bearing, pitch, and visible layers.',
       parameters: { type: 'object', properties: {} },
     },
   },
@@ -458,7 +574,10 @@ export const WEBLLM_TOOLS: Array<{
         type: 'object',
         properties: {
           layerId: { type: 'string', description: 'The layer ID to toggle' },
-          visible: { type: 'boolean', description: 'true to show, false to hide' },
+          visible: {
+            type: 'boolean',
+            description: 'true to show, false to hide',
+          },
         },
         required: ['layerId', 'visible'],
       },
@@ -468,13 +587,20 @@ export const WEBLLM_TOOLS: Array<{
     type: 'function',
     function: {
       name: 'set_layer_paint',
-      description: 'Change a paint property of a map layer (e.g., color, opacity, width).',
+      description:
+        'Change a paint property of a map layer (e.g., color, opacity, width).',
       parameters: {
         type: 'object',
         properties: {
           layerId: { type: 'string', description: 'The layer ID to modify' },
-          property: { type: 'string', description: 'Paint property name (e.g., fill-color, line-width)' },
-          value: { description: 'New value for the property (string, number, or array)' },
+          property: {
+            type: 'string',
+            description: 'Paint property name (e.g., fill-color, line-width)',
+          },
+          value: {
+            description:
+              'New value for the property (string, number, or array)',
+          },
         },
         required: ['layerId', 'property', 'value'],
       },
@@ -489,7 +615,11 @@ export const WEBLLM_TOOLS: Array<{
         type: 'object',
         properties: {
           layerId: { type: 'string', description: 'The layer ID to filter' },
-          filter: { type: 'array', description: 'MapLibre filter expression (e.g., ["==", "type", "park"])' },
+          filter: {
+            type: 'array',
+            description:
+              'MapLibre filter expression (e.g., ["==", "type", "park"])',
+          },
         },
         required: ['layerId', 'filter'],
       },
@@ -503,8 +633,15 @@ export const WEBLLM_TOOLS: Array<{
       parameters: {
         type: 'object',
         properties: {
-          layers: { type: 'array', items: { type: 'string' }, description: 'Layer IDs to query (omit for all)' },
-          limit: { type: 'number', description: 'Max features to return (default 10)' },
+          layers: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Layer IDs to query (omit for all)',
+          },
+          limit: {
+            type: 'number',
+            description: 'Max features to return (default 10)',
+          },
         },
       },
     },
@@ -513,13 +650,23 @@ export const WEBLLM_TOOLS: Array<{
     type: 'function',
     function: {
       name: 'add_highlight',
-      description: 'Temporarily highlight features on the map matching a filter.',
+      description:
+        'Temporarily highlight features on the map matching a filter.',
       parameters: {
         type: 'object',
         properties: {
-          layerId: { type: 'string', description: 'Source layer ID to highlight features from' },
-          filter: { type: 'array', description: 'MapLibre filter expression for features to highlight' },
-          color: { type: 'string', description: 'Highlight color (default "#ff0000")' },
+          layerId: {
+            type: 'string',
+            description: 'Source layer ID to highlight features from',
+          },
+          filter: {
+            type: 'array',
+            description: 'MapLibre filter expression for features to highlight',
+          },
+          color: {
+            type: 'string',
+            description: 'Highlight color (default "#ff0000")',
+          },
         },
         required: ['layerId', 'filter'],
       },
@@ -529,11 +676,15 @@ export const WEBLLM_TOOLS: Array<{
     type: 'function',
     function: {
       name: 'generate_style',
-      description: 'Modify the current map style based on a description. Adjusts paint properties of matching layers.',
+      description:
+        'Modify the current map style based on a description. Adjusts paint properties of matching layers.',
       parameters: {
         type: 'object',
         properties: {
-          description: { type: 'string', description: 'Natural language description of style changes' },
+          description: {
+            type: 'string',
+            description: 'Natural language description of style changes',
+          },
           changes: {
             type: 'array',
             items: {
@@ -556,7 +707,8 @@ export const WEBLLM_TOOLS: Array<{
     type: 'function',
     function: {
       name: 'get_overlays',
-      description: 'Get the list of user-dropped file overlays currently on the map. Returns file names, formats, feature counts, colors, and visibility.',
+      description:
+        'Get the list of user-dropped file overlays currently on the map. Returns file names, formats, feature counts, colors, and visibility.',
       parameters: { type: 'object', properties: {} },
     },
   },
@@ -568,7 +720,8 @@ export const WEBLLM_TOOLS: Array<{
 
 export const getSourceSchemaDef = toolDefinition({
   name: 'get_source_schema',
-  description: 'Get the schema of a tile source: available layers, field names/types, zoom range, and bounds.',
+  description:
+    'Get the schema of a tile source: available layers, field names/types, zoom range, and bounds.',
   inputSchema: z.object({
     source: z.string().describe('Source ID to get schema for'),
   }),
@@ -578,22 +731,27 @@ export const getSourceSchemaDef = toolDefinition({
     minzoom: z.number(),
     maxzoom: z.number(),
     bounds: z.array(z.number()).nullable(),
-    layers: z.array(z.object({
-      id: z.string(),
-      description: z.string().nullable().optional(),
-      minzoom: z.number().nullable().optional(),
-      maxzoom: z.number().nullable().optional(),
-      fields: z.array(z.object({
-        name: z.string(),
-        type: z.string(),
-      })),
-    })),
+    layers: z.array(
+      z.object({
+        id: z.string(),
+        description: z.string().nullable().optional(),
+        minzoom: z.number().nullable().optional(),
+        maxzoom: z.number().nullable().optional(),
+        fields: z.array(
+          z.object({
+            name: z.string(),
+            type: z.string(),
+          }),
+        ),
+      }),
+    ),
   }),
 });
 
 export const getSourceStatsDef = toolDefinition({
   name: 'get_source_stats',
-  description: 'Get statistics for a tile source: bounds, zoom range, layer count, attribution.',
+  description:
+    'Get statistics for a tile source: bounds, zoom range, layer count, attribution.',
   inputSchema: z.object({
     source: z.string().describe('Source ID to get stats for'),
   }),
@@ -613,21 +771,36 @@ export const getSourceStatsDef = toolDefinition({
 
 export const spatialQueryDef = toolDefinition({
   name: 'spatial_query',
-  description: 'Query features from a tile source within a bounding box. Returns feature properties from vector tiles.',
+  description:
+    'Query features from a tile source within a bounding box. Returns feature properties from vector tiles.',
   inputSchema: z.object({
     source: z.string().describe('Source ID to query'),
-    bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]).optional().describe('Bounding box [west, south, east, north]'),
-    zoom: z.number().optional().describe('Zoom level for tile resolution (default 14)'),
-    layers: z.array(z.string()).optional().describe('Layer IDs to query (omit for all)'),
-    limit: z.number().optional().describe('Max features to return (default 100)'),
+    bbox: z
+      .tuple([z.number(), z.number(), z.number(), z.number()])
+      .optional()
+      .describe('Bounding box [west, south, east, north]'),
+    zoom: z
+      .number()
+      .optional()
+      .describe('Zoom level for tile resolution (default 14)'),
+    layers: z
+      .array(z.string())
+      .optional()
+      .describe('Layer IDs to query (omit for all)'),
+    limit: z
+      .number()
+      .optional()
+      .describe('Max features to return (default 100)'),
   }),
   outputSchema: z.object({
     source: z.string(),
-    features: z.array(z.object({
-      layer: z.string(),
-      geometry_type: z.string().nullable().optional(),
-      properties: z.record(z.string(), z.unknown()),
-    })),
+    features: z.array(
+      z.object({
+        layer: z.string(),
+        geometry_type: z.string().nullable().optional(),
+        properties: z.record(z.string(), z.unknown()),
+      }),
+    ),
     total: z.number(),
     truncated: z.boolean(),
   }),
@@ -640,7 +813,9 @@ export const spatialQueryDef = toolDefinition({
 export function createServerClientTools() {
   const getSourceSchema = getSourceSchemaDef.client(async ({ source }) => {
     try {
-      const response = await fetch(`/api/spatial/schema/${encodeURIComponent(source)}`);
+      const response = await fetch(
+        `/api/spatial/schema/${encodeURIComponent(source)}`,
+      );
       if (!response.ok) {
         return {
           source,
@@ -666,7 +841,9 @@ export function createServerClientTools() {
 
   const getSourceStats = getSourceStatsDef.client(async ({ source }) => {
     try {
-      const response = await fetch(`/api/spatial/stats/${encodeURIComponent(source)}`);
+      const response = await fetch(
+        `/api/spatial/stats/${encodeURIComponent(source)}`,
+      );
       if (!response.ok) {
         return {
           source,
@@ -698,21 +875,23 @@ export function createServerClientTools() {
     }
   });
 
-  const spatialQuery = spatialQueryDef.client(async ({ source, bbox, zoom, layers, limit }) => {
-    try {
-      const response = await fetch('/api/spatial/query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source, bbox, zoom, layers, limit }),
-      });
-      if (!response.ok) {
+  const spatialQuery = spatialQueryDef.client(
+    async ({ source, bbox, zoom, layers, limit }) => {
+      try {
+        const response = await fetch('/api/spatial/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source, bbox, zoom, layers, limit }),
+        });
+        if (!response.ok) {
+          return { source, features: [], total: 0, truncated: false };
+        }
+        return await response.json();
+      } catch {
         return { source, features: [], total: 0, truncated: false };
       }
-      return await response.json();
-    } catch {
-      return { source, features: [], total: 0, truncated: false };
-    }
-  });
+    },
+  );
 
   return [getSourceSchema, getSourceStats, spatialQuery];
 }
@@ -730,11 +909,15 @@ export const WEBLLM_SERVER_TOOLS: Array<{
     type: 'function',
     function: {
       name: 'get_source_schema',
-      description: 'Get the schema of a tile source: available layers, field names/types, zoom range, and bounds.',
+      description:
+        'Get the schema of a tile source: available layers, field names/types, zoom range, and bounds.',
       parameters: {
         type: 'object',
         properties: {
-          source: { type: 'string', description: 'Source ID to get schema for' },
+          source: {
+            type: 'string',
+            description: 'Source ID to get schema for',
+          },
         },
         required: ['source'],
       },
@@ -744,7 +927,8 @@ export const WEBLLM_SERVER_TOOLS: Array<{
     type: 'function',
     function: {
       name: 'get_source_stats',
-      description: 'Get statistics for a tile source: bounds, zoom range, layer count, attribution.',
+      description:
+        'Get statistics for a tile source: bounds, zoom range, layer count, attribution.',
       parameters: {
         type: 'object',
         properties: {
@@ -768,9 +952,19 @@ export const WEBLLM_SERVER_TOOLS: Array<{
             items: { type: 'number' },
             description: 'Bounding box [west, south, east, north]',
           },
-          zoom: { type: 'number', description: 'Zoom level for tile resolution (default 14)' },
-          layers: { type: 'array', items: { type: 'string' }, description: 'Layer IDs to query' },
-          limit: { type: 'number', description: 'Max features to return (default 100)' },
+          zoom: {
+            type: 'number',
+            description: 'Zoom level for tile resolution (default 14)',
+          },
+          layers: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Layer IDs to query',
+          },
+          limit: {
+            type: 'number',
+            description: 'Max features to return (default 100)',
+          },
         },
         required: ['source'],
       },

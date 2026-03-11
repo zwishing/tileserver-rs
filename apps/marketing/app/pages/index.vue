@@ -15,6 +15,26 @@
   const backgroundColor = computed(() =>
     isDark.value ? '#030014' : '#f8fafc',
   );
+
+  const activeLabel = ref('Tileserver RS');
+
+  onMounted(() => {
+    const sections = document.querySelectorAll<HTMLElement>(
+      'section[data-label]',
+    );
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            activeLabel.value = entry.target.dataset.label ?? '';
+          }
+        }
+      },
+      { rootMargin: '-40% 0px -40% 0px' },
+    );
+    sections.forEach((s) => observer.observe(s));
+    onUnmounted(() => observer.disconnect());
+  });
 </script>
 
 <template>
@@ -32,33 +52,53 @@
     <div class="relative z-10">
       <MarketingNavigation />
 
-      <MarketingHeroSection />
+      <!-- Fixed left gutter -->
+      <div
+        class="fixed left-0 top-[72px] z-20 flex w-12 items-center justify-center border-r border-border bg-background lg:top-[80px] lg:w-20"
+      >
+        <Transition
+          name="fade"
+          mode="out-in"
+        >
+          <span
+            :key="activeLabel"
+            class="vertical-text font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground"
+          >
+            {{ activeLabel }}
+          </span>
+        </Transition>
+      </div>
 
-      <FadeContent :duration="0.6">
-        <MarketingFeaturesSection />
-      </FadeContent>
+      <!-- Content with left margin -->
+      <div class="ml-12 mt-[72px] lg:ml-20 lg:mt-[80px]">
+        <MarketingHeroSection />
 
-      <FadeContent :duration="0.6">
-        <MarketingAiSection />
-      </FadeContent>
+        <FadeContent :duration="0.6">
+          <MarketingFeaturesSection />
+        </FadeContent>
 
-      <FadeContent :duration="0.6">
-        <MarketingPerformanceSection />
-      </FadeContent>
+        <FadeContent :duration="0.6">
+          <MarketingAiSection />
+        </FadeContent>
 
-      <FadeContent :duration="0.6">
-        <MarketingConfigSection />
-      </FadeContent>
+        <FadeContent :duration="0.6">
+          <MarketingPerformanceSection />
+        </FadeContent>
 
-      <FadeContent :duration="0.6">
-        <MarketingApiSection />
-      </FadeContent>
+        <FadeContent :duration="0.6">
+          <MarketingConfigSection />
+        </FadeContent>
 
-      <FadeContent :duration="0.6">
-        <MarketingCtaSection />
-      </FadeContent>
+        <FadeContent :duration="0.6">
+          <MarketingApiSection />
+        </FadeContent>
 
-      <MarketingFooter />
+        <FadeContent :duration="0.6">
+          <MarketingCtaSection />
+        </FadeContent>
+
+        <MarketingFooter />
+      </div>
     </div>
   </div>
 </template>

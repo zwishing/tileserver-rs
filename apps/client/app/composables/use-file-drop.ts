@@ -10,7 +10,11 @@ import type {
 import type { Data } from '~/types/data';
 import { SERVER_SIDE_FORMATS } from '~/types/file-upload';
 import { validateFile, parseFile } from '~/lib/file-parsers';
-import { createOverlayConfig, nextOverlayColor, resetOverlayColors } from '~/lib/auto-style';
+import {
+  createOverlayConfig,
+  nextOverlayColor,
+  resetOverlayColors,
+} from '~/lib/auto-style';
 import { useUploadFileMutation } from '~/utils/api/upload/use-upload-file.mutation';
 import { useDeleteUploadMutation } from '~/utils/api/upload/use-delete-upload.mutation';
 
@@ -62,8 +66,7 @@ export function useFileDrop(mapRef: ShallowRef<Map | null>) {
     for (const file of files) {
       try {
         await processFile(file);
-      }
-      catch (err) {
+      } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         lastError.value = { fileName: file.name, message };
         console.warn(`[file-drop] Failed to process ${file.name}:`, message);
@@ -79,8 +82,7 @@ export function useFileDrop(mapRef: ShallowRef<Map | null>) {
 
     if (SERVER_SIDE_FORMATS.has(format)) {
       await processServerSide(file, format);
-    }
-    else {
+    } else {
       status.value = 'processing';
       const parsed = await parseFile(file, format);
       const color = nextOverlayColor();
@@ -94,7 +96,9 @@ export function useFileDrop(mapRef: ShallowRef<Map | null>) {
   async function processServerSide(file: File, format: string) {
     const map = mapRef.value;
     if (!map) {
-      throw new Error('Map not ready. Please wait for the map to finish loading.');
+      throw new Error(
+        'Map not ready. Please wait for the map to finish loading.',
+      );
     }
 
     status.value = 'uploading';
@@ -134,15 +138,19 @@ export function useFileDrop(mapRef: ShallowRef<Map | null>) {
         bounds: tileJson?.bounds,
       });
       notifySuccess(file.name, 0, format as FileDropSuccess['format']);
-    }
-    else {
+    } else {
       // MBTiles / SQLite = vector source
       map.addSource(sourceId, {
         type: 'vector',
         url: `/data/${response.source_id}.json`,
       });
 
-      const layerIds = addVectorLayersFromTileJSON(map, sourceId, tileJson, color);
+      const layerIds = addVectorLayersFromTileJSON(
+        map,
+        sourceId,
+        tileJson,
+        color,
+      );
       const featureCount = tileJson?.vector_layers?.length ?? 0;
 
       registerOverlay({
@@ -155,7 +163,11 @@ export function useFileDrop(mapRef: ShallowRef<Map | null>) {
         uploadId: response.id,
         bounds: tileJson?.bounds,
       });
-      notifySuccess(file.name, featureCount, format as FileDropSuccess['format']);
+      notifySuccess(
+        file.name,
+        featureCount,
+        format as FileDropSuccess['format'],
+      );
     }
   }
 
@@ -223,7 +235,11 @@ export function useFileDrop(mapRef: ShallowRef<Map | null>) {
         type: 'circle',
         source: sourceId,
         'source-layer': vl.id,
-        filter: ['any', ['==', ['geometry-type'], 'Point'], ['==', ['geometry-type'], 'MultiPoint']],
+        filter: [
+          'any',
+          ['==', ['geometry-type'], 'Point'],
+          ['==', ['geometry-type'], 'MultiPoint'],
+        ],
         paint: {
           'circle-radius': 5,
           'circle-color': color,
@@ -267,7 +283,12 @@ export function useFileDrop(mapRef: ShallowRef<Map | null>) {
     const map = mapRef.value;
     if (map && opts.bounds && opts.bounds.length >= 4) {
       map.fitBounds(
-        [opts.bounds[0]!, opts.bounds[1]!, opts.bounds[2]!, opts.bounds[3]!] as LngLatBoundsLike,
+        [
+          opts.bounds[0]!,
+          opts.bounds[1]!,
+          opts.bounds[2]!,
+          opts.bounds[3]!,
+        ] as LngLatBoundsLike,
         { padding: 50, maxZoom: 15, duration: 1000 },
       );
     }
@@ -281,7 +302,9 @@ export function useFileDrop(mapRef: ShallowRef<Map | null>) {
   ) {
     const map = mapRef.value;
     if (!map) {
-      throw new Error('Map not ready. Please wait for the map to finish loading.');
+      throw new Error(
+        'Map not ready. Please wait for the map to finish loading.',
+      );
     }
 
     // Add source
@@ -387,14 +410,17 @@ export function useFileDrop(mapRef: ShallowRef<Map | null>) {
   }
 
   /** Show a success notification that auto-dismisses after 4 seconds */
-  function notifySuccess(fileName: string, featureCount: number, format: FileDropSuccess['format']) {
+  function notifySuccess(
+    fileName: string,
+    featureCount: number,
+    format: FileDropSuccess['format'],
+  ) {
     if (successTimer) clearTimeout(successTimer);
     lastSuccess.value = { fileName, featureCount, format };
     successTimer = setTimeout(() => {
       lastSuccess.value = null;
     }, 4000);
   }
-
 
   return {
     dropZoneRef,
@@ -434,12 +460,13 @@ function computeBounds(data: GeoJSON): [number, number, number, number] | null {
     hasCoords = true;
   }
 
-  function processCoords(coords: number[] | number[][] | number[][][] | number[][][][]) {
+  function processCoords(
+    coords: number[] | number[][] | number[][][] | number[][][][],
+  ) {
     if (typeof coords[0] === 'number') {
       processCoord(coords as number[]);
-    }
-    else {
-      for (const c of coords as (number[] | number[][] | number[][][] )[]) {
+    } else {
+      for (const c of coords as (number[] | number[][] | number[][][])[]) {
         processCoords(c);
       }
     }

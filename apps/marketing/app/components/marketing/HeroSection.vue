@@ -14,8 +14,17 @@
 </script>
 
 <template>
-  <section class="relative pt-28 pb-20">
-    <div class="mx-auto max-w-6xl px-6">
+  <section
+    data-label="Tileserver RS"
+    class="section-full relative border-b border-border"
+  >
+    <!-- Geometric grid background -->
+    <div
+      class="geometric-grid-bg pointer-events-none absolute inset-0 opacity-30"
+      aria-hidden="true"
+    />
+
+    <div class="relative flex h-full min-h-[inherit] flex-col justify-center px-6 py-16 md:px-12 lg:px-20">
       <div class="mx-auto max-w-4xl text-center">
         <Badge
           variant="outline"

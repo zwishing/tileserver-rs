@@ -3,8 +3,16 @@
 </script>
 
 <template>
-  <section class="border-t border-border py-20">
-    <div class="mx-auto max-w-6xl px-6 text-center">
+  <section
+    data-label="Get Started"
+    class="section-full relative"
+  >
+    <div
+      class="geometric-grid-bg pointer-events-none absolute inset-0 opacity-30"
+      aria-hidden="true"
+    />
+
+    <div class="relative px-6 py-16 md:px-12 lg:px-20 text-center">
       <div class="mx-auto max-w-2xl">
         <p class="hud-label mb-4">Get Started</p>
         <h2

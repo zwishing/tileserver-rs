@@ -13,7 +13,10 @@ interface ParseResult {
   geometryTypes: GeometryType[];
 }
 
-export async function parseShapefile(fileName: string, buffer: ArrayBuffer): Promise<ParseResult> {
+export async function parseShapefile(
+  fileName: string,
+  buffer: ArrayBuffer,
+): Promise<ParseResult> {
   const shp = await import('shpjs');
   const result = await shp.default(buffer);
 
@@ -61,7 +64,10 @@ function analyzeGeoJSON(data: GeoJSON): {
   return { featureCount: 1, geometryTypes: [...types] };
 }
 
-function addGeometryType(geometry: Geometry | null, types: Set<GeometryType>): void {
+function addGeometryType(
+  geometry: Geometry | null,
+  types: Set<GeometryType>,
+): void {
   if (!geometry) return;
 
   switch (geometry.type) {

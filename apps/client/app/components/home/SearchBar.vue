@@ -18,7 +18,9 @@
     :transition="{ duration: 0.3, delay: 0.1 }"
     class="relative"
   >
-    <Search class="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
+    <Search
+      class="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground"
+    />
     <Input
       :model-value="modelValue"
       placeholder="Search styles and data sources..."

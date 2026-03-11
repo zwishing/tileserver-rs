@@ -1,7 +1,14 @@
 import type { FeatureCollection, GeoJSON, Geometry } from 'geojson';
-import type { GeometryType, ParsedFile, SupportedFormat } from '~/types/file-upload';
-import { FORMAT_EXTENSIONS, CLIENT_SIDE_FORMATS, MAX_FILE_SIZE_BYTES } from '~/types/file-upload';
-
+import type {
+  GeometryType,
+  ParsedFile,
+  SupportedFormat,
+} from '~/types/file-upload';
+import {
+  FORMAT_EXTENSIONS,
+  CLIENT_SIDE_FORMATS,
+  MAX_FILE_SIZE_BYTES,
+} from '~/types/file-upload';
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -47,7 +54,9 @@ export function validateFile(file: File): { format: SupportedFormat } {
 
   if (isClientSideFormat(format) && file.size > MAX_FILE_SIZE_BYTES) {
     const sizeMB = Math.round(file.size / 1024 / 1024);
-    throw new Error(`File too large (${sizeMB} MB). Maximum for client-side processing is 50 MB.`);
+    throw new Error(
+      `File too large (${sizeMB} MB). Maximum for client-side processing is 50 MB.`,
+    );
   }
 
   return { format };
@@ -62,7 +71,10 @@ export function validateFile(file: File): { format: SupportedFormat } {
  * KML/GPX stay on main thread — they need DOMParser (unavailable in workers).
  * PMTiles stays on main thread — creates an object URL for MapLibre.
  */
-export async function parseFile(file: File, format: SupportedFormat): Promise<ParsedFile> {
+export async function parseFile(
+  file: File,
+  format: SupportedFormat,
+): Promise<ParsedFile> {
   switch (format) {
     // Worker-offloaded formats (nuxt-workers auto-imports)
     case 'geojson': {
@@ -101,7 +113,9 @@ async function parseKML(file: File): Promise<ParsedFile> {
 
   const parserError = dom.querySelector('parsererror');
   if (parserError) {
-    throw new Error(`Invalid KML file: ${parserError.textContent?.slice(0, 100)}`);
+    throw new Error(
+      `Invalid KML file: ${parserError.textContent?.slice(0, 100)}`,
+    );
   }
 
   const data = kml(dom) as FeatureCollection;
@@ -124,7 +138,9 @@ async function parseGPX(file: File): Promise<ParsedFile> {
 
   const parserError = dom.querySelector('parsererror');
   if (parserError) {
-    throw new Error(`Invalid GPX file: ${parserError.textContent?.slice(0, 100)}`);
+    throw new Error(
+      `Invalid GPX file: ${parserError.textContent?.slice(0, 100)}`,
+    );
   }
 
   const data = gpx(dom) as FeatureCollection;
@@ -181,7 +197,10 @@ function analyzeGeoJSON(data: GeoJSON): {
 }
 
 /** Map GeoJSON geometry types to our simplified GeometryType */
-function addGeometryType(geometry: Geometry | null, types: Set<GeometryType>): void {
+function addGeometryType(
+  geometry: Geometry | null,
+  types: Set<GeometryType>,
+): void {
   if (!geometry) return;
 
   switch (geometry.type) {
