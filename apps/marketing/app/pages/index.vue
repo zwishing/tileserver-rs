@@ -50,15 +50,19 @@
 
       <!-- Fixed left gutter -->
       <div
-        class="fixed left-0 top-[72px] bottom-0 z-20 flex w-[48px] items-center justify-center border-r border-border bg-background lg:top-[80px] lg:w-[80px]"
-      >
-      <div
-        class="fixed top-[72px] left-0 z-20 flex w-12 items-center justify-center border-r border-border bg-background lg:top-[80px] lg:w-20"
+        class="
+          fixed top-[72px] bottom-0 left-0 z-20 flex w-[48px] items-center
+          justify-center border-r border-border bg-background
+          lg:top-[80px] lg:w-[80px]
+        "
       >
         <Transition name="fade" mode="out-in">
           <span
             :key="activeLabel"
-            class="vertical-text font-mono text-[10px] tracking-[0.3em] text-muted-foreground uppercase"
+            class="
+              vertical-text font-mono text-[10px] tracking-[0.3em]
+              text-muted-foreground uppercase
+            "
           >
             {{ activeLabel }}
           </span>
@@ -66,33 +70,18 @@
       </div>
 
       <!-- Content with left margin -->
-      <div class="mt-[72px] ml-12 lg:mt-[80px] lg:ml-20">
+      <div
+class="
+  mt-[72px] ml-[48px]
+  lg:mt-[80px] lg:ml-[80px]
+">
         <MarketingHeroSection />
-
-        <FadeContent :duration="0.6">
-          <MarketingFeaturesSection />
-        </FadeContent>
-
-        <FadeContent :duration="0.6">
-          <MarketingAiSection />
-        </FadeContent>
-
-        <FadeContent :duration="0.6">
-          <MarketingPerformanceSection />
-        </FadeContent>
-
-        <FadeContent :duration="0.6">
-          <MarketingConfigSection />
-        </FadeContent>
-
-        <FadeContent :duration="0.6">
-          <MarketingApiSection />
-        </FadeContent>
-
-        <FadeContent :duration="0.6">
-          <MarketingCtaSection />
-        </FadeContent>
-
+        <MarketingFeaturesSection />
+        <MarketingAiSection />
+        <MarketingPerformanceSection />
+        <MarketingConfigSection />
+        <MarketingApiSection />
+        <MarketingCtaSection />
         <MarketingFooter />
       </div>
     </div>

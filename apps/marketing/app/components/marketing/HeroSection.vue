@@ -25,18 +25,28 @@
     ></div>
 
     <div
-      class="relative flex h-full min-h-[inherit] flex-col justify-center px-6 py-16 md:px-12 lg:px-20"
+      class="
+        relative flex h-full min-h-[inherit] flex-col justify-center px-6 py-16
+        md:px-12
+        lg:px-20
+      "
     >
       <div class="mx-auto max-w-4xl text-center">
         <Badge
           variant="outline"
-          class="mb-8 gap-2 border-border bg-muted/50 px-4 py-1.5 font-mono text-xs tracking-wider uppercase backdrop-blur-sm"
+          class="
+            mb-8 gap-2 border-border bg-muted/50 px-4 py-1.5 font-mono text-xs
+            tracking-wider uppercase backdrop-blur-sm
+          "
         >
           <span class="status-online"></span>
           <span class="text-muted-foreground">Available on</span>
           <a
             href="https://github.com/vinayakkulkarni/tileserver-rs/releases"
-            class="text-primary hover:underline"
+            class="
+              text-primary
+              hover:underline
+            "
           >
             GitHub Releases
           </a>
@@ -44,7 +54,10 @@
 
         <Badge
           variant="outline"
-          class="mb-8 ml-2 gap-2 border-primary/30 bg-primary/5 px-4 py-1.5 font-mono text-xs tracking-wider uppercase backdrop-blur-sm"
+          class="
+            mb-8 ml-2 gap-2 border-primary/30 bg-primary/5 px-4 py-1.5 font-mono
+            text-xs tracking-wider uppercase backdrop-blur-sm
+          "
         >
           <BotMessageSquare class="size-3 text-primary" />
           <span class="text-primary">Browser-Local AI</span>
@@ -52,7 +65,12 @@
         </Badge>
 
         <h1
-          class="mb-8 font-display text-5xl leading-[1.1] font-bold tracking-[-0.04em] sm:text-6xl lg:text-7xl"
+          class="
+            mb-8 font-display text-5xl leading-[1.1] font-bold
+            tracking-[-0.04em]
+            sm:text-6xl
+            lg:text-7xl
+          "
         >
           <span class="text-foreground">Serve Vector Tiles</span>
           <ShinyText
@@ -67,22 +85,35 @@
           by="words"
           :delay="30"
           :duration="0.4"
-          class="mx-auto mb-10 max-w-2xl justify-center font-sans text-lg/relaxed text-muted-foreground sm:text-xl"
+          class="
+            mx-auto mb-10 max-w-2xl justify-center font-sans text-lg/relaxed
+            text-muted-foreground
+            sm:text-xl
+          "
         />
 
         <div
-          class="flex flex-col items-center justify-center gap-3 sm:flex-row"
+          class="
+            flex flex-col items-center justify-center gap-3
+            sm:flex-row
+          "
         >
           <Button
             size="lg"
             as="a"
             href="https://docs.tileserver.app/getting-started/quickstart"
-            class="group gap-2 bg-primary px-8 text-primary-foreground hover:bg-primary/90"
+            class="
+              group gap-2 bg-primary px-8 text-primary-foreground
+              hover:bg-primary/90
+            "
           >
             <Sparkles class="size-4" />
             Get Started
             <ArrowRight
-              class="size-4 transition-transform group-hover:translate-x-0.5"
+              class="
+                size-4 transition-transform
+                group-hover:translate-x-0.5
+              "
             />
           </Button>
           <Button
@@ -90,7 +121,10 @@
             size="lg"
             as="a"
             href="https://github.com/vinayakkulkarni/tileserver-rs"
-            class="gap-2 border-border bg-transparent hover:border-foreground/20 hover:bg-accent"
+            class="
+              gap-2 border-border bg-transparent
+              hover:border-foreground/20 hover:bg-accent
+            "
           >
             <Github class="size-4" />
             View on GitHub
@@ -113,7 +147,10 @@
               as="a"
               href="https://demo.tileserver.app"
               target="_blank"
-              class="gap-2 border-0 bg-transparent text-emerald-400 hover:bg-transparent"
+              class="
+                gap-2 border-0 bg-transparent text-emerald-400
+                hover:bg-transparent
+              "
             >
               <ExternalLink class="size-4" />
               Live Demo
@@ -135,7 +172,10 @@
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    class="text-muted-foreground hover:text-primary"
+                    class="
+                      text-muted-foreground
+                      hover:text-primary
+                    "
                     @click="copyToClipboard()"
                   >
                     <Check v-if="copied" class="size-4 text-emerald-400" />
