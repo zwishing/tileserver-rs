@@ -14,7 +14,7 @@
         "vue-tsc": "^3.2.5",
         "typescript": "^5.9.3",
         "oxlint": "^1.53.0",
-        "oxfmt": "^0.38.0",
+        "oxfmt": "^0.36.0",
         "nuxt": "^4.3.1",
         "maplibre-gl": "^5.20.0",
         "@nuxtjs/color-mode": "^4.0.0",
