@@ -1,7 +1,7 @@
 # tileserver-rs 🦀
 
 [![CI Pipeline](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/pipeline.yml/badge.svg)](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/pipeline.yml)
-[![Docker](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/docker.yml/badge.svg)](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/docker.yml)
+[![Docker](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/release-docker.yml/badge.svg)](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/release-docker.yml)
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/1u-LMi)
 [![Deploy on Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/vinayakkulkarni/tileserver-rs)
@@ -514,7 +514,9 @@ This project uses [Release Please](https://github.com/googleapis/release-please)
 **Release artifacts:**
 - GitHub Release with changelog
 - macOS ARM64 binary (`.tar.gz`)
-- Docker image (`ghcr.io/vinayakkulkarni/tileserver-rs`)
+- macOS AMD64 (Intel) binary (`.tar.gz`)
+- Linux x86_64 + ARM64 binaries — full (with MapLibre Native) and headless variants
+- Docker image (`ghcr.io/vinayakkulkarni/tileserver-rs`) — multi-arch `linux/amd64` + `linux/arm64`
 - Homebrew formula auto-update
 
 ## Contributing

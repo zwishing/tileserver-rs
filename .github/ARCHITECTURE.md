@@ -46,9 +46,9 @@ tileserver-rs is distributed as a **single self-contained binary**, similar to [
 | Platform | Architecture | Runner | Target Triple | Status |
 |----------|-------------|--------|---------------|--------|
 | macOS | ARM64 (Apple Silicon) | `macos-14` | `aarch64-apple-darwin` | ✅ |
-| macOS | x86_64 (Intel) | `macos-13` | `x86_64-apple-darwin` | 🚧 Planned |
-| Linux | x86_64 | `ubuntu-latest` | `x86_64-unknown-linux-gnu` | 🚧 Planned |
-| Linux | ARM64 | `ubuntu-latest` + cross | `aarch64-unknown-linux-gnu` | 🚧 Planned |
+| macOS | x86_64 (Intel) | `macos-13` | `x86_64-apple-darwin` | ✅ |
+| Linux | x86_64 | `ubuntu-latest` | `x86_64-unknown-linux-gnu` | ✅ |
+| Linux | ARM64 | `ubuntu-latest` + cross | `aarch64-unknown-linux-gnu` | ✅ |
 | Windows | x86_64 | `windows-latest` | `x86_64-pc-windows-msvc` | 🚧 Planned |
 | Windows | ARM64 | `windows-latest` | `aarch64-pc-windows-msvc` | 🚧 Planned |
 
@@ -147,15 +147,40 @@ Options:
 
 ## Workflow Files
 
-| Workflow | Purpose | Trigger |
-|----------|---------|---------|
-| `release-macos-arm64.yml` | macOS Apple Silicon | Tags `v*`, manual |
-| `release-macos-x64.yml` | macOS Intel | 🚧 Planned |
-| `release-linux-x64.yml` | Linux x86_64 | 🚧 Planned |
-| `release-linux-arm64.yml` | Linux ARM64 | 🚧 Planned |
-| `release-windows-x64.yml` | Windows x86_64 | 🚧 Planned |
-| `release-windows-arm64.yml` | Windows ARM64 | 🚧 Planned |
-| `release.yml` | Unified multi-platform | 🚧 Planned |
+### CI & Quality
+
+| Workflow | File | Purpose | Trigger |
+|----------|------|---------|---------|
+| Pipeline | `pipeline.yml` | Orchestrator — runs lint + CI jobs | Push to `main`, PRs |
+| CI Node | `ci-node.yml` | Lint, typecheck, build Nuxt client | Called by pipeline |
+| CI Rust | `ci-rust.yml` | Format, clippy, check, test, build Rust | Called by pipeline |
+| Lint Branch | `lint-branch.yml` | Validate branch naming convention | Called by pipeline |
+| Lint PR | `lint-pr.yml` | Validate PR title (conventional commits) | Called by pipeline |
+
+### Releases
+
+| Workflow | File | Purpose | Trigger |
+|----------|------|---------|---------|
+| Release Please | `release-please.yml` | Version bumps, changelog, GitHub Release | Push to `main` |
+| macOS ARM64 | `release-macos-arm64.yml` | Apple Silicon binary | Tags `v*`, manual |
+| macOS AMD64 | `release-macos-amd64.yml` | Intel binary | Tags `v*`, manual |
+| Linux | `release-linux.yml` | x86_64 + ARM64 (full & headless variants) | Tags `v*`, manual |
+| Docker | `release-docker.yml` | Multi-arch Docker image (amd64/arm64) | Push to `main` (path-filtered), tags `v*`, manual |
+| Homebrew | `release-homebrew.yml` | Update Homebrew formula | Tags `v*` |
+| Sample Data | `release-sample-data.yml` | Package sample tile data | Manual |
+
+### Deployment
+
+| Workflow | File | Purpose | Trigger |
+|----------|------|---------|---------|
+| Deploy Docs | `deploy-docs.yml` | Build & deploy docs to CF Pages | Push to `main` (`apps/docs/**`), manual |
+| Deploy Marketing | `deploy-marketing.yml` | Build & deploy marketing to CF Pages | Push to `main` (`apps/marketing/**`), manual |
+
+### Utilities
+
+| Workflow | File | Purpose | Trigger |
+|----------|------|---------|---------|
+| Automerger | `automerger.yml` | Auto-merge Dependabot PRs | PR events |
 
 ## GitHub Actions Runners
 
@@ -217,9 +242,11 @@ rustup target add x86_64-pc-windows-msvc
 | Language | Rust | Rust | JavaScript |
 ## Future Improvements
 
-- [ ] Unified release workflow (all platforms in parallel)
-- [ ] Automatic changelog generation
+- [x] ~~Homebrew formula~~ (done — `release-homebrew.yml`)
+- [x] ~~Multi-platform release builds~~ (done — macOS ARM64/AMD64, Linux x86_64/ARM64)
+- [x] ~~Consolidated CI pipeline~~ (done — `pipeline.yml` orchestrator)
+- [ ] Automatic changelog generation (beyond Release Please)
 - [ ] Code signing (macOS notarization, Windows signing)
-- [ ] Homebrew formula
 - [ ] APT/RPM packages
 - [ ] MSI/PKG installers
+- [ ] Windows builds

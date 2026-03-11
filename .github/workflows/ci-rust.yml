@@ -6,12 +6,12 @@ on:
 env:
   CI: 1
   CARGO_INCREMENTAL: 0
-  RUST_LOG: 'debug'
 
 jobs:
   fmt:
-    name: CI (Rust) | Format
+    name: Format
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     env:
       RUST_LOG: '0'
     steps:
@@ -26,20 +26,31 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-  clippy:
-    name: CI (Rust) | Clippy
+  ci:
+    name: 'Clippy, Check, Test & Build'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RUST_LOG: 'debug'
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Install GDAL
+      - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libgdal-dev libclang-dev pkg-config
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -72,134 +83,11 @@ jobs:
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
-  check:
-    name: CI (Rust) | Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Install GDAL
-        run: sudo apt-get update && sudo apt-get install -y libgdal-dev libclang-dev pkg-config
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Build client
-        run: |
-          max_attempts=3
-          for attempt in $(seq 1 $max_attempts); do
-            echo "Build attempt $attempt/$max_attempts..."
-            if (ulimit -s unlimited 2>/dev/null || true) && bun run --filter @tileserver-rs/client build; then
-              echo "Build succeeded on attempt $attempt"
-              exit 0
-            fi
-            if [ $attempt -lt $max_attempts ]; then
-              echo "Build failed, retrying in 15s..."
-              sleep 15
-            fi
-          done
-          echo "Build failed after $max_attempts attempts"
-          exit 1
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-
       - name: Run cargo check
         run: cargo check --all --all-targets --all-features
 
-  test:
-    name: CI (Rust) | Test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Install GDAL
-        run: sudo apt-get update && sudo apt-get install -y libgdal-dev libclang-dev pkg-config
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Build client
-        run: |
-          max_attempts=3
-          for attempt in $(seq 1 $max_attempts); do
-            echo "Build attempt $attempt/$max_attempts..."
-            if (ulimit -s unlimited 2>/dev/null || true) && bun run --filter @tileserver-rs/client build; then
-              echo "Build succeeded on attempt $attempt"
-              exit 0
-            fi
-            if [ $attempt -lt $max_attempts ]; then
-              echo "Build failed, retrying in 15s..."
-              sleep 15
-            fi
-          done
-          echo "Build failed after $max_attempts attempts"
-          exit 1
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-
       - name: Run tests
         run: cargo test --all --all-features
-
-  build:
-    name: CI (Rust) | Build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Install GDAL
-        run: sudo apt-get update && sudo apt-get install -y libgdal-dev libclang-dev pkg-config
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Build client
-        run: |
-          max_attempts=3
-          for attempt in $(seq 1 $max_attempts); do
-            echo "Build attempt $attempt/$max_attempts..."
-            if (ulimit -s unlimited 2>/dev/null || true) && bun run --filter @tileserver-rs/client build; then
-              echo "Build succeeded on attempt $attempt"
-              exit 0
-            fi
-            if [ $attempt -lt $max_attempts ]; then
-              echo "Build failed, retrying in 15s..."
-              sleep 15
-            fi
-          done
-          echo "Build failed after $max_attempts attempts"
-          exit 1
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
 
       - name: Build release
         run: cargo build --release --all-features
