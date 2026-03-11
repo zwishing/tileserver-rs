@@ -10,7 +10,9 @@
 
   const starColor = computed(() => (isDark.value ? '#a5b4fc' : '#6366f1'));
 
-  const backgroundColor = computed(() => (isDark.value ? '#030014' : '#f8fafc'));
+  const backgroundColor = computed(() =>
+    isDark.value ? '#030014' : '#f8fafc',
+  );
 
   const activeLabel = ref('Tileserver RS');
 
