@@ -159,6 +159,41 @@
   );
 }
 
+  .vertical-text {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    white-space: nowrap;
+  }
+
+  .geometric-grid-bg {
+    background-image:
+      linear-gradient(to right, var(--border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+    background-size: 80px 80px;
+  }
+
+  .section-full {
+    min-height: calc(100dvh - 72px);
+  }
+
+  @supports (height: 100svh) {
+    .section-full {
+      min-height: calc(100svh - 72px);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .section-full {
+      min-height: calc(100dvh - 80px);
+    }
+    @supports (height: 100svh) {
+      .section-full {
+        min-height: calc(100svh - 80px);
+      }
+    }
+  }
+
 /* ═══════════════════════════════════════════════════════════════
    CODE SYNTAX HIGHLIGHTING
    ═══════════════════════════════════════════════════════════════ */

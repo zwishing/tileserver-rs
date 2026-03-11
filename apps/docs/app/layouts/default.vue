@@ -22,12 +22,15 @@
 
 <template>
   <div class="min-h-dvh bg-background">
-    <!-- Top nav -->
-    <nav
-      class="fixed top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md"
-    >
-      <div class="flex h-14 items-center justify-between px-6">
-        <div class="flex items-center gap-4">
+    <!-- ═══ Header: Grid-cell nav ═══ -->
+    <nav class="fixed top-0 z-50 w-full bg-background">
+      <div
+        class="grid h-[72px] grid-cols-[72px_1fr_48px] border-b border-border lg:h-[80px] lg:grid-cols-[80px_1fr_auto_80px]"
+      >
+        <!-- Logo cell -->
+        <div
+          class="flex items-center justify-center border-r border-border"
+        >
           <button
             class="text-muted-foreground hover:text-foreground lg:hidden"
             @click="toggleSidebar()"
@@ -43,14 +46,21 @@
           </button>
           <NuxtLink
             to="/"
+            class="hidden items-center justify-center lg:flex"
+          >
+            <Globe class="size-6 text-primary" />
+          </NuxtLink>
+        </div>
+
+        <!-- Nav + title -->
+        <div class="flex items-center px-5 lg:px-6">
+          <NuxtLink
+            to="/"
             class="flex items-center gap-2.5"
           >
-            <Globe class="size-5 text-primary" />
-            <span
-              class="font-display text-sm font-semibold uppercase tracking-[0.15em]"
-            >
-              <span class="text-foreground">Tileserver</span>
-              <span class="text-primary"> RS</span>
+            <Globe class="size-5 text-primary lg:hidden" />
+            <span class="font-display text-sm font-semibold uppercase tracking-[0.15em]">
+              <span class="text-foreground">Tileserver</span><span class="text-primary"> RS</span>
             </span>
             <span
               class="border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
@@ -58,23 +68,21 @@
               docs
             </span>
           </NuxtLink>
+          <div class="ml-auto hidden items-center gap-6 lg:flex">
+            <NuxtLink
+              to="https://tileserver.app"
+              external
+              class="font-mono text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Home
+            </NuxtLink>
+          </div>
         </div>
-        <div class="flex items-center gap-1">
-          <NuxtLink
-            to="https://tileserver.app"
-            external
-            class="px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
-          >
-            Home
-          </NuxtLink>
-          <NuxtLink
-            to="https://github.com/vinayakkulkarni/tileserver-rs"
-            external
-            class="flex items-center gap-1.5 border border-border bg-transparent px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground hover:border-foreground/20 hover:text-foreground"
-          >
-            <Github class="size-3.5" />
-            GitHub
-          </NuxtLink>
+
+        <!-- Theme toggle cell (desktop) -->
+        <div
+          class="hidden items-center justify-center border-l border-border px-4 lg:flex"
+        >
           <button
             class="flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
             aria-label="Toggle theme"
@@ -90,6 +98,33 @@
             />
           </button>
         </div>
+
+        <!-- GitHub cell (desktop) / Theme toggle (mobile) -->
+        <div
+          class="flex items-center justify-center border-l border-border lg:hidden"
+        >
+          <button
+            class="flex items-center justify-center text-muted-foreground hover:text-foreground"
+            aria-label="Toggle theme"
+            @click="toggleTheme"
+          >
+            <Sun
+              v-if="isDark"
+              class="size-4"
+            />
+            <Moon
+              v-else
+              class="size-4"
+            />
+          </button>
+        </div>
+        <NuxtLink
+          to="https://github.com/vinayakkulkarni/tileserver-rs"
+          external
+          class="hidden items-center justify-center border-l border-border text-muted-foreground transition-colors hover:text-foreground lg:flex"
+        >
+          <Github class="size-5" />
+        </NuxtLink>
       </div>
     </nav>
 
@@ -100,10 +135,10 @@
       @click="closeSidebar()"
     />
 
-    <!-- Sidebar -->
+    <!-- ═══ Sidebar with geometric borders ═══ -->
     <aside
       :class="[
-        'fixed top-14 bottom-0 z-40 w-64 overflow-y-auto border-r border-border bg-background px-4 py-6',
+        'fixed top-[72px] bottom-0 z-40 w-64 overflow-y-auto border-r border-border bg-background px-4 py-6 lg:top-[80px]',
         'transition-transform lg:translate-x-0',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full',
       ]"
@@ -114,7 +149,7 @@
           :key="section.path"
         >
           <p
-            class="mb-2 font-mono text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground"
+            class="mb-2 font-mono text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground"
           >
             {{ section.title }}
           </p>
@@ -127,7 +162,7 @@
                 :to="item.path"
                 :class="[
                   'block py-1.5 pl-3 text-sm transition-colors',
-                  'border-l-2',
+                  'border-l',
                   isActive(item.path)
                     ? 'border-primary text-foreground font-medium'
                     : isInSection(section.path)
@@ -144,7 +179,7 @@
     </aside>
 
     <!-- Main content -->
-    <main class="pt-14 lg:pl-64">
+    <main class="pt-[72px] lg:pl-64 lg:pt-[80px]">
       <slot />
     </main>
   </div>
