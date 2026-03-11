@@ -5,11 +5,7 @@
 <template>
   <footer class="border-t border-border py-8">
     <div class="mx-auto max-w-6xl px-6">
-      <div
-class="
-  flex flex-col items-center justify-between gap-4
-  sm:flex-row
-">
+      <div class="flex flex-col items-center justify-between gap-4 sm:flex-row">
         <div class="flex items-center gap-2">
           <Globe class="size-4 text-primary" />
           <span
@@ -23,10 +19,7 @@ class="
           Built by
           <a
             href="https://vinayakkulkarni.dev"
-            class="
-              text-primary
-              hover:underline
-            "
+            class="text-primary hover:underline"
           >
             Vinayak Kulkarni </a
           >. Open source under MIT License.
