@@ -50,6 +50,9 @@
 
       <!-- Fixed left gutter -->
       <div
+        class="fixed left-0 top-[72px] bottom-0 z-20 flex w-[48px] items-center justify-center border-r border-border bg-background lg:top-[80px] lg:w-[80px]"
+      >
+      <div
         class="fixed top-[72px] left-0 z-20 flex w-12 items-center justify-center border-r border-border bg-background lg:top-[80px] lg:w-20"
       >
         <Transition name="fade" mode="out-in">
