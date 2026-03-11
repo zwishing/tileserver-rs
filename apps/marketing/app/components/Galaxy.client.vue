@@ -70,34 +70,34 @@
 
       const program = new Program(gl, {
         vertex: `
-          attribute vec3 position;
-          attribute float random;
-          uniform mat4 modelViewMatrix;
-          uniform mat4 projectionMatrix;
-          uniform float uTime;
-          uniform float uSize;
-          varying float vAlpha;
-          void main() {
-            vec3 pos = position;
-            pos.z = mod(pos.z + uTime, 20.0) - 10.0;
-            vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
-            gl_PointSize = uSize * (1.0 / -mvPos.z);
-            gl_Position = projectionMatrix * mvPos;
-            vAlpha = smoothstep(-10.0, -5.0, mvPos.z) * (0.5 + 0.5 * random);
-          }
-        `,
+            attribute vec3 position;
+            attribute float random;
+            uniform mat4 modelViewMatrix;
+            uniform mat4 projectionMatrix;
+            uniform float uTime;
+            uniform float uSize;
+            varying float vAlpha;
+            void main() {
+              vec3 pos = position;
+              pos.z = mod(pos.z + uTime, 20.0) - 10.0;
+              vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
+              gl_PointSize = uSize * (1.0 / -mvPos.z);
+              gl_Position = projectionMatrix * mvPos;
+              vAlpha = smoothstep(-10.0, -5.0, mvPos.z) * (0.5 + 0.5 * random);
+            }
+          `,
         fragment: `
-          precision highp float;
-          uniform vec3 uColor;
-          varying float vAlpha;
-          void main() {
-            vec2 uv = gl_PointCoord.xy - 0.5;
-            float d = length(uv);
-            if (d > 0.5) discard;
-            float alpha = smoothstep(0.5, 0.1, d) * vAlpha;
-            gl_FragColor = vec4(uColor, alpha);
-          }
-        `,
+            precision highp float;
+            uniform vec3 uColor;
+            varying float vAlpha;
+            void main() {
+              vec2 uv = gl_PointCoord.xy - 0.5;
+              float d = length(uv);
+              if (d > 0.5) discard;
+              float alpha = smoothstep(0.5, 0.1, d) * vAlpha;
+              gl_FragColor = vec4(uColor, alpha);
+            }
+          `,
         uniforms: {
           uTime: { value: 0 },
           uSize: { value: props.starSize * 10 },
@@ -120,7 +120,6 @@
       const resizeObserver = new ResizeObserver(resize);
       resizeObserver.observe(container);
       animId = requestAnimationFrame(animate);
-
 
       return () => {
         cancelAnimationFrame(animId);

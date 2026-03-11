@@ -184,8 +184,14 @@
             aria-label="Toggle theme"
             @click="toggleTheme"
           >
-            <Sun v-if="isDark" class="size-4" />
-            <Moon v-else class="size-4" />
+            <Sun
+              v-if="isDark"
+              class="size-4"
+            />
+            <Moon
+              v-else
+              class="size-4"
+            />
           </button>
         </div>
 

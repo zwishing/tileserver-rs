@@ -8,13 +8,9 @@
     path: '/',
   });
 
-  const starColor = computed(() =>
-    isDark.value ? '#a5b4fc' : '#6366f1',
-  );
+  const starColor = computed(() => (isDark.value ? '#a5b4fc' : '#6366f1'));
 
-  const backgroundColor = computed(() =>
-    isDark.value ? '#030014' : '#f8fafc',
-  );
+  const backgroundColor = computed(() => (isDark.value ? '#030014' : '#f8fafc'));
 
   const activeLabel = ref('Tileserver RS');
 
@@ -54,22 +50,12 @@
 
       <!-- Fixed left gutter -->
       <div
-        class="
-          fixed top-[72px] left-0 z-20 flex w-12 items-center justify-center
-          border-r border-border bg-background
-          lg:top-[80px] lg:w-20
-        "
+        class="fixed top-[72px] left-0 z-20 flex w-12 items-center justify-center border-r border-border bg-background lg:top-[80px] lg:w-20"
       >
-        <Transition
-          name="fade"
-          mode="out-in"
-        >
+        <Transition name="fade" mode="out-in">
           <span
             :key="activeLabel"
-            class="
-              vertical-text font-mono text-[10px] tracking-[0.3em]
-              text-muted-foreground uppercase
-            "
+            class="vertical-text font-mono text-[10px] tracking-[0.3em] text-muted-foreground uppercase"
           >
             {{ activeLabel }}
           </span>
@@ -77,11 +63,7 @@
       </div>
 
       <!-- Content with left margin -->
-      <div
-class="
-  mt-[72px] ml-12
-  lg:mt-[80px] lg:ml-20
-">
+      <div class="mt-[72px] ml-12 lg:mt-[80px] lg:ml-20">
         <MarketingHeroSection />
 
         <FadeContent :duration="0.6">

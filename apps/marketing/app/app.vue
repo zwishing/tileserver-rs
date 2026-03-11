@@ -13,8 +13,7 @@
           url: 'https://tileserver.app',
           description:
             'High-performance vector tile server built in Rust. Serve PMTiles and MBTiles with native MapLibre rendering.',
-          codeRepository:
-            'https://github.com/vinayakkulkarni/tileserver-rs',
+          codeRepository: 'https://github.com/vinayakkulkarni/tileserver-rs',
           programmingLanguage: 'Rust',
           runtimePlatform: 'Docker',
           license: 'https://opensource.org/licenses/MIT',

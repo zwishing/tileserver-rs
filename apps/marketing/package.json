@@ -28,13 +28,13 @@
     "lucide-vue-next": "catalog:default",
     "motion-v": "catalog:default",
     "nuxt": "catalog:default",
+    "ogl": "catalog:marketing",
     "radix-vue": "catalog:default",
     "reka-ui": "catalog:default",
     "tailwind-merge": "catalog:default",
     "tailwindcss-animate": "catalog:default",
     "tw-animate-css": "catalog:default",
-    "vue": "catalog:default",
-    "ogl": "catalog:marketing"
+    "vue": "catalog:default"
   },
   "devDependencies": {
     "@nuxt/eslint": "catalog:default",
