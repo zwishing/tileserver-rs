@@ -1,4 +1,6 @@
 <script setup lang="ts">
+  import { FileJson2, ExternalLink } from 'lucide-vue-next';
+
   const { apiEndpoints } = useMarketingPage();
 </script>
 
@@ -21,8 +23,31 @@
             mx-auto max-w-xl font-sans text-lg/relaxed text-muted-foreground
           "
         >
-          Simple, standards-compliant API for all your tile serving needs.
+          Simple, standards-compliant API with a built-in OpenAPI spec — something neither tileserver-gl nor martin offer.
         </p>
+      </div>
+
+      <!-- OpenAPI callout -->
+      <div class="mx-auto mb-16 max-w-2xl border border-primary/30 bg-primary/5 p-6">
+        <div class="flex items-start gap-4">
+          <FileJson2 class="mt-0.5 size-6 shrink-0 text-primary" />
+          <div class="flex-1">
+            <h3 class="mb-1 font-display text-base font-semibold tracking-tight">
+              Interactive OpenAPI Spec
+            </h3>
+            <p class="mb-3 font-sans text-sm leading-relaxed text-muted-foreground">
+              Every endpoint fully documented with request/response schemas. Generate client SDKs, import into Postman, or browse the Scalar UI.
+            </p>
+            <NuxtLink
+              to="https://demo.tileserver.app/_openapi/"
+              external
+              class="group inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-primary hover:text-primary/80"
+            >
+              Explore the API
+              <ExternalLink class="size-3 transition-transform group-hover:translate-x-0.5" />
+            </NuxtLink>
+          </div>
+        </div>
       </div>
 
       <div
