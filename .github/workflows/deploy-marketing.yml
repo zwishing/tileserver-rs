@@ -9,6 +9,10 @@ on:
       - '.github/workflows/deploy-marketing.yml'
   workflow_dispatch:
 
+concurrency:
+  group: deploy-marketing-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy:
     name: Deploy to Cloudflare Pages

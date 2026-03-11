@@ -9,6 +9,10 @@ on:
       - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
 
+concurrency:
+  group: deploy-docs-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy:
     name: Deploy to Cloudflare Pages
