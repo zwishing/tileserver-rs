@@ -17,12 +17,6 @@ export default defineNuxtConfig({
     ],
   ],
 
-  runtimeConfig: {
-    public: {
-      baseUrl: process.env.NUXT_PUBLIC_BASE_URL || 'https://docs.tileserver.app',
-    },
-  },
-
   devtools: { enabled: false },
 
   app: {
@@ -93,6 +87,12 @@ export default defineNuxtConfig({
     },
   },
 
+  runtimeConfig: {
+    public: {
+      baseUrl: process.env.NUXT_PUBLIC_BASE_URL || 'https://docs.tileserver.app',
+    },
+  },
+
   future: {
     compatibilityVersion: 4,
   },
@@ -116,6 +116,12 @@ export default defineNuxtConfig({
     },
   },
 
+  vite: {
+    ssr: {
+      external: ['ogl'],
+    },
+  },
+
   typescript: {
     strict: true,
     typeCheck: false,
@@ -126,13 +132,6 @@ export default defineNuxtConfig({
       '@tailwindcss/postcss': {},
     },
   },
-
-  vite: {
-    ssr: {
-      external: ['ogl'],
-    },
-  },
-
 
   fonts: {
     families: [

@@ -6,15 +6,15 @@
         innerHTML: JSON.stringify({
           '@context': 'https://schema.org',
           '@type': 'WebSite',
-          name: 'Tileserver RS Docs',
-          url: 'https://docs.tileserver.app',
-          description:
+          'name': 'Tileserver RS Docs',
+          'url': 'https://docs.tileserver.app',
+          'description':
             'Documentation for tileserver-rs — a high-performance vector tile server built in Rust.',
-          potentialAction: {
+          'potentialAction': {
             '@type': 'SearchAction',
-            target: {
+            'target': {
               '@type': 'EntryPoint',
-              urlTemplate:
+              'urlTemplate':
                 'https://docs.tileserver.app/search?q={search_term_string}',
             },
             'query-input': 'required name=search_term_string',
