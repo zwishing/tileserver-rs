@@ -58,7 +58,7 @@
         "@tanstack/ai": "^0.8.0",
         "@tanstack/ai-vue": "^0.6.6",
         "@mlc-ai/web-llm": "^0.2.82",
-        "markstream-vue": "^0.0.8",
+        "markstream-vue": "^0.0.9-beta.0",
         "zod": "^4.3.6",
         "@tmcw/togeojson": "^7.1.2",
         "destr": "^2.0.5",

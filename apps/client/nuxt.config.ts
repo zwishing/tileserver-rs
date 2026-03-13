@@ -91,6 +91,14 @@ export default defineNuxtConfig({
     optimizeDeps: {
       include: ['maplibre-gl', '@geoql/v-maplibre', '@mlc-ai/web-llm'],
     },
+    build: {
+      commonjsOptions: {
+        // @mlc-ai/web-llm has deep circular CJS require chains that overflow
+        // Rollup's commonjs resolver stack during production builds.
+        // Its package.json declares ESM exports so CJS transformation is unnecessary.
+        exclude: [/[\\/]@mlc-ai[\\/]web-llm[\\/]/],
+      },
+    },
     worker: {
       format: 'es',
     },
