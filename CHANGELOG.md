@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.17.2](https://github.com/vinayakkulkarni/tileserver-rs/compare/v2.17.1...v2.17.2) (2026-03-13)
+
+
+### Bug Fixes
+
+* **ci:** fix ulimit subshell bug in release-linux and ci-rust workflows ([51201f3](https://github.com/vinayakkulkarni/tileserver-rs/commit/51201f3c4528b189deabc84a070db64d16e49c63))
+* **ci:** resolve web-llm CJS resolver stack overflow in release builds ([89e1bd2](https://github.com/vinayakkulkarni/tileserver-rs/commit/89e1bd2fc93b2efc6a08f7a7aa341559bdf52a15))
+* **render:** use per-thread RunLoop to fix concurrent rendering deadlock ([610bd1e](https://github.com/vinayakkulkarni/tileserver-rs/commit/610bd1e8ae0ac4ef416323519646ef9e6053c1fb)), closes [#692](https://github.com/vinayakkulkarni/tileserver-rs/issues/692)
+
 ## [2.17.1](https://github.com/vinayakkulkarni/tileserver-rs/compare/v2.17.0...v2.17.1) (2026-03-13)
 
 
