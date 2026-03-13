@@ -29,6 +29,37 @@ pub struct Config {
     #[serde(default)]
     #[cfg(feature = "raster")]
     pub raster: RasterConfig,
+    /// Native renderer pool configuration
+    #[serde(default)]
+    pub render: RenderPoolConfig,
+}
+
+/// Native renderer pool configuration for server-side raster tile generation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RenderPoolConfig {
+    /// Number of concurrent renderer worker threads (default: 4)
+    #[serde(default = "default_render_pool_size")]
+    pub pool_size: usize,
+    /// Render timeout in seconds — requests exceeding this are dropped (default: 30)
+    #[serde(default = "default_render_timeout_secs")]
+    pub render_timeout_secs: u64,
+}
+
+fn default_render_pool_size() -> usize {
+    4
+}
+
+fn default_render_timeout_secs() -> u64 {
+    30
+}
+
+impl Default for RenderPoolConfig {
+    fn default() -> Self {
+        Self {
+            pool_size: default_render_pool_size(),
+            render_timeout_secs: default_render_timeout_secs(),
+        }
+    }
 }
 
 #[cfg(feature = "raster")]

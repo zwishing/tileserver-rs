@@ -3863,6 +3863,7 @@ dependencies = [
  "bytes",
  "clap",
  "criterion",
+ "crossbeam-channel",
  "deadpool-postgres",
  "dotenvy",
  "flate2",

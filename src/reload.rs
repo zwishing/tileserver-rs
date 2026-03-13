@@ -7,7 +7,12 @@ use std::{
 };
 use tokio::sync::{Mutex, RwLock};
 
-use crate::{config::Config, render::Renderer, sources::SourceManager, styles::StyleManager};
+use crate::{
+    config::Config,
+    render::{pool::PoolConfig, Renderer},
+    sources::SourceManager,
+    styles::StyleManager,
+};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -15,6 +20,8 @@ pub struct AppState {
     pub styles: Arc<StyleManager>,
     pub renderer: Option<Arc<Renderer>>,
     pub base_url: String,
+    /// Localhost URL for native renderer self-fetch (bypasses reverse proxy)
+    pub render_base_url: String,
     pub ui_enabled: bool,
     pub fonts_dir: Option<PathBuf>,
     pub files_dir: Option<PathBuf>,
@@ -195,7 +202,12 @@ pub async fn build_app_state(
 
     // Initialize native renderer (if styles are configured)
     let renderer = if !styles.is_empty() {
-        match Renderer::new() {
+        let pool_config = PoolConfig {
+            tile_size: 512,
+            pool_size: config.render.pool_size,
+            render_timeout: std::time::Duration::from_secs(config.render.render_timeout_secs),
+        };
+        match Renderer::with_config(pool_config, 3) {
             Ok(r) => {
                 tracing::info!("Native MapLibre renderer initialized");
                 Some(Arc::new(r))
@@ -222,6 +234,8 @@ pub async fn build_app_state(
         };
         format!("http://{}:{}", host_for_url, runtime.runtime_port)
     };
+
+    let render_base_url = format!("http://127.0.0.1:{}", runtime.runtime_port);
 
     // Log fonts directory
     if let Some(ref fonts_path) = config.fonts {
@@ -261,6 +275,7 @@ pub async fn build_app_state(
         styles: Arc::new(styles),
         renderer,
         base_url,
+        render_base_url,
         ui_enabled: runtime.ui_enabled,
         fonts_dir: config.fonts.clone(),
         files_dir: config.files.clone(),

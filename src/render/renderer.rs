@@ -15,12 +15,10 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    /// Create a new renderer with default configuration
     pub fn new() -> Result<Self> {
         Self::with_config(PoolConfig::default(), 3)
     }
 
-    /// Create a new renderer with custom configuration
     pub fn with_config(config: PoolConfig, max_scale: u8) -> Result<Self> {
         let pool = RendererPool::new(config, max_scale)?;
         Ok(Self {

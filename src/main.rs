@@ -987,11 +987,9 @@ async fn get_raster_tile(
         .get(&params.style)
         .ok_or_else(|| TileServerError::StyleNotFound(params.style.clone()))?;
 
-    // Rewrite style to inline tile URLs for native rendering
     let rewritten_style =
-        styles::rewrite_style_for_native(&style.style_json, &state.base_url, &state.sources);
+        styles::rewrite_style_for_native(&style.style_json, &state.render_base_url, &state.sources);
 
-    // Render the tile
     let image_data = renderer
         .render_tile(
             &rewritten_style.to_string(),
@@ -1003,7 +1001,6 @@ async fn get_raster_tile(
         )
         .await?;
 
-    // Build response
     let mut headers = HeaderMap::new();
     headers.insert(
         CONTENT_TYPE,
@@ -1093,11 +1090,9 @@ async fn get_raster_tile_with_size(
         .get(&params.style)
         .ok_or_else(|| TileServerError::StyleNotFound(params.style.clone()))?;
 
-    // Rewrite style to inline tile URLs for native rendering
     let rewritten_style =
-        styles::rewrite_style_for_native(&style.style_json, &state.base_url, &state.sources);
+        styles::rewrite_style_for_native(&style.style_json, &state.render_base_url, &state.sources);
 
-    // Render the tile
     let image_data = renderer
         .render_tile(
             &rewritten_style.to_string(),
@@ -1109,7 +1104,6 @@ async fn get_raster_tile_with_size(
         )
         .await?;
 
-    // Build response
     let mut headers = HeaderMap::new();
     headers.insert(
         CONTENT_TYPE,
@@ -1189,7 +1183,7 @@ async fn get_static_image(
 
     // Rewrite style to inline tile URLs for native rendering
     let rewritten_style =
-        styles::rewrite_style_for_native(&style.style_json, &state.base_url, &state.sources);
+        styles::rewrite_style_for_native(&style.style_json, &state.render_base_url, &state.sources);
 
     // Create render options
     let options = RenderOptions::for_static(

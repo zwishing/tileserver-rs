@@ -1,6 +1,6 @@
 mod native;
 pub mod overlay;
-mod pool;
+pub mod pool;
 mod renderer;
 mod types;
 
