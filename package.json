@@ -13,8 +13,8 @@
         "vue": "^3.5.30",
         "vue-tsc": "^3.2.5",
         "typescript": "^5.9.3",
-        "oxlint": "^1.53.0",
-        "oxfmt": "^0.34.0",
+        "oxlint": "^1.55.0",
+        "oxfmt": "^0.40.0",
         "nuxt": "^4.3.1",
         "maplibre-gl": "^5.20.0",
         "@nuxtjs/color-mode": "^4.0.0",
@@ -36,10 +36,10 @@
         "@types/node": "^25.4.0",
         "eslint": "^10.0.3",
         "eslint-plugin-better-tailwindcss": "^4.3.2",
-        "eslint-plugin-oxlint": "^1.51.0",
+        "eslint-plugin-oxlint": "^1.55.0",
         "shadcn-nuxt": "^2.4.3",
         "tailwindcss": "^4.2.1",
-        "vite": "^7.3.1"
+        "vite": "^8.0.0"
       },
       "client": {
         "@deck.gl/aggregation-layers": "^9.2.11",
@@ -90,8 +90,8 @@
     "prepare": "is-ci || husky"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.4.3",
-    "@commitlint/config-conventional": "^20.4.3",
+    "@commitlint/cli": "^20.4.4",
+    "@commitlint/config-conventional": "^20.4.4",
     "husky": "^9.1.7",
     "is-ci": "^4.1.0",
     "lint-staged": "^16.3.3",

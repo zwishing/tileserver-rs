@@ -8,54 +8,56 @@
 </script>
 
 <template>
-  <section
-    data-label="Configuration"
-    class="section-full relative border-b border-border"
-  >
-    <div
-      class="geometric-grid-bg pointer-events-none absolute inset-0 opacity-30"
-      aria-hidden="true"
-    ></div>
+  <section data-label="Configuration" class="border-b border-border bg-background">
+    <div class="px-6 pt-16 pb-10 md:px-12 lg:px-20">
+      <p
+        class="mb-3 font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground lg:text-xs"
+      >
+        Configuration
+      </p>
+      <h2
+        class="max-w-2xl font-display text-3xl font-semibold lg:text-4xl"
+        style="letter-spacing: -0.03em; line-height: 1.15"
+      >
+        Simple Setup
+      </h2>
+    </div>
 
-    <div class="relative px-6 py-16 md:px-12 lg:px-20">
-      <div class="grid items-start gap-12 lg:grid-cols-2">
-        <div>
-          <p class="hud-label mb-4">Configuration</p>
-          <h2
-            class="mb-4 font-display text-3xl leading-[1.15] font-bold tracking-[-0.03em] sm:text-4xl"
+    <div class="grid gap-px border-t border-b border-border bg-border lg:grid-cols-2">
+      <!-- Left: description -->
+      <div class="bg-background p-6 lg:p-8">
+        <p
+          class="mb-6 font-sans text-sm leading-relaxed text-muted-foreground lg:text-base"
+        >
+          Get started with a simple TOML configuration file. Define your tile
+          sources, styles, and server settings in one place.
+        </p>
+        <ul class="space-y-3">
+          <li
+            v-for="item in configFeatures"
+            :key="item"
+            class="flex items-center gap-3 text-sm"
           >
-            Simple <span class="text-gradient">Setup</span>
-          </h2>
-          <p class="mb-8 font-sans text-lg/relaxed text-muted-foreground">
-            Get started with a simple TOML configuration file. Define your tile
-            sources, styles, and server settings in one place.
-          </p>
-          <ul class="space-y-3">
-            <li
-              v-for="item in configFeatures"
-              :key="item"
-              class="flex items-center gap-3 text-sm"
-            >
-              <span class="size-1.5 bg-primary"></span>
-              <span class="text-foreground">{{ item }}</span>
-            </li>
-          </ul>
+            <span class="size-1.5 bg-primary"></span>
+            <span class="text-foreground">{{ item }}</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Right: code block -->
+      <div class="overflow-hidden bg-background">
+        <div class="flex items-center gap-2 border-b border-border px-4 py-2.5">
+          <span class="size-2.5 rounded-full bg-red-500/60"></span>
+          <span class="size-2.5 rounded-full bg-yellow-500/60"></span>
+          <span class="size-2.5 rounded-full bg-green-500/60"></span>
+          <span class="ml-2 font-mono text-xs text-muted-foreground">
+            config.toml
+          </span>
         </div>
-        <div class="overflow-hidden border border-border bg-muted/30">
-          <div
-            class="flex items-center gap-2 border-b border-border px-4 py-2.5"
-          >
-            <span class="size-2.5 rounded-full bg-red-500/60"></span>
-            <span class="size-2.5 rounded-full bg-yellow-500/60"></span>
-            <span class="size-2.5 rounded-full bg-green-500/60"></span>
-            <span class="ml-2 font-mono text-xs text-muted-foreground">
-              config.toml
-            </span>
-          </div>
-          <!-- eslint-disable vue/no-v-html -->
-          <pre
-            class="overflow-x-auto p-5 font-mono text-sm/relaxed"
-          ><code><span class="token-comment"># Tile sources</span>
+        <!-- eslint-disable vue/no-v-html -->
+        <pre
+          class="overflow-x-auto bg-background p-6 font-mono text-sm leading-relaxed"
+        ><code><span class="token-comment"># Tile sources</span>
 <span class="token-keyword">[[sources]]</span>
 id = <span class="token-string">"openmaptiles"</span>
 type = <span class="token-string">"pmtiles"</span>
@@ -70,7 +72,6 @@ connection_string = <span class="token-string">"postgresql://user:pass@localhost
 id = <span class="token-string">"buildings"</span>
 table = <span class="token-string">"buildings"</span>
 geometry_column = <span class="token-string">"geom"</span></code></pre>
-        </div>
       </div>
     </div>
   </section>

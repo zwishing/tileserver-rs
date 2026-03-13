@@ -64,7 +64,10 @@ export default defineNuxtConfig({
             'High-performance vector tile server built in Rust. Serve PMTiles and MBTiles with native MapLibre rendering.',
         },
       ],
-      link: [{ rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }],
+      link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+      ],
     },
   },
 

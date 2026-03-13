@@ -3,54 +3,35 @@
 </script>
 
 <template>
-  <section
-    data-label="Features"
-    class="section-full relative border-b border-border"
-  >
-    <!-- Geometric grid background -->
-    <div
-      class="geometric-grid-bg pointer-events-none absolute inset-0 opacity-30"
-      aria-hidden="true"
-    ></div>
+  <section data-label="Features" class="border-b border-border">
+    <div class="px-6 pt-16 pb-10 md:px-12 lg:px-20">
+      <p
+        class="mb-3 font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground lg:text-xs"
+      >
+        Capabilities
+      </p>
+      <h2
+        class="max-w-2xl font-display text-3xl font-semibold lg:text-4xl"
+        style="letter-spacing: -0.03em; line-height: 1.15"
+      >
+        Everything you need to serve vector tiles
+      </h2>
+    </div>
 
-    <div class="relative px-6 py-16 md:px-12 lg:px-20">
-      <div class="mb-16">
-        <p class="hud-label mb-4">Features</p>
-        <h2
-          class="mb-4 font-display text-3xl leading-[1.15] font-bold tracking-[-0.03em] sm:text-4xl"
-        >
-          Everything You <span class="text-gradient">Need</span>
-        </h2>
-        <p
-          class="mx-auto max-w-xl font-sans text-lg/relaxed text-muted-foreground"
-        >
-          A complete solution for serving vector tiles in production.
+    <!-- Feature grid -->
+    <div class="grid gap-px border-t border-border bg-border md:grid-cols-3">
+      <div
+        v-for="feature in features"
+        :key="feature.title"
+        class="bg-background p-6 lg:p-8"
+      >
+        <component :is="feature.icon" class="mb-4 size-5 text-primary" />
+        <h3 class="mb-2 font-display text-sm font-semibold tracking-tight">
+          {{ feature.title }}
+        </h3>
+        <p class="font-sans text-sm leading-relaxed text-muted-foreground">
+          {{ feature.description }}
         </p>
-      </div>
-
-      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <SpotlightCard
-          v-for="feature in features"
-          :key="feature.title"
-          :border-radius="0"
-          spotlight-color="rgba(139, 92, 246, 0.08)"
-        >
-          <SpotlightCardHeader>
-            <div
-              class="mb-3 inline-flex size-10 items-center justify-center border border-primary/20 bg-primary/5 text-primary"
-            >
-              <component :is="feature.icon" class="size-5" />
-            </div>
-            <SpotlightCardTitle class="text-base">
-              {{ feature.title }}
-            </SpotlightCardTitle>
-          </SpotlightCardHeader>
-          <SpotlightCardContent>
-            <SpotlightCardDescription>
-              {{ feature.description }}
-            </SpotlightCardDescription>
-          </SpotlightCardContent>
-        </SpotlightCard>
       </div>
     </div>
   </section>

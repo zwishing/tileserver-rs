@@ -120,6 +120,12 @@ export function useMarketingPage() {
       description:
         'Talk to your maps with a built-in LLM. Runs entirely in your browser via WebGPU — no API keys, no cloud, no token costs.',
     },
+    {
+      icon: BarChart3,
+      title: 'OpenAPI & Analytics',
+      description:
+        'Interactive OpenAPI spec with Scalar UI. Generate SDKs, import into Postman, or track usage with built-in telemetry.',
+    },
   ];
 
   const performanceStats: PerformanceStat[] = [
@@ -229,6 +235,14 @@ export function useMarketingPage() {
           method: 'GET',
           path: '/styles/{style}/static/{lon},{lat},{zoom}/{w}x{h}.png',
         },
+      ],
+    },
+    {
+      title: 'Health & Admin',
+      endpoints: [
+        { method: 'GET', path: '/health' },
+        { method: 'GET', path: '/ping' },
+        { method: 'POST', path: '/__admin/reload' },
       ],
     },
   ];

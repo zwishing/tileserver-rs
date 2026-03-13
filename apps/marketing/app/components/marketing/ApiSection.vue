@@ -5,86 +5,89 @@
 </script>
 
 <template>
-  <section
-    data-label="API Reference"
-    class="section-full relative border-b border-border"
-  >
+  <section data-label="API Reference" class="border-b border-border">
     <div
-      class="geometric-grid-bg pointer-events-none absolute inset-0 opacity-30"
-      aria-hidden="true"
-    ></div>
-
-    <div class="relative px-6 py-16 md:px-12 lg:px-20">
-      <div class="mb-16">
-        <p class="hud-label mb-4">API Reference</p>
-        <h2
-          class="mb-4 font-display text-3xl leading-[1.15] font-bold tracking-[-0.03em] sm:text-4xl"
+      class="grid items-start gap-8 px-6 pt-16 pb-10 md:px-12 lg:grid-cols-2 lg:px-20"
+    >
+      <!-- Left: section header -->
+      <div>
+        <p
+          class="mb-3 font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground lg:text-xs"
         >
-          RESTful <span class="text-gradient">API</span>
+          API Reference
+        </p>
+        <h2
+          class="mb-4 font-display text-3xl font-semibold lg:text-4xl"
+          style="letter-spacing: -0.03em; line-height: 1.15"
+        >
+          RESTful API
         </h2>
         <p
-          class="mx-auto max-w-xl font-sans text-lg/relaxed text-muted-foreground"
+          class="font-sans text-sm leading-relaxed text-muted-foreground lg:text-base"
         >
           Simple, standards-compliant API with a built-in OpenAPI spec —
           something neither tileserver-gl nor martin offer.
+          <NuxtLink
+            to="https://demo.tileserver.app/_openapi/"
+            external
+            class="group ml-1 inline-flex items-center gap-1 font-mono text-xs uppercase tracking-wider text-primary transition-colors hover:text-primary/80"
+          >
+            Explore the API
+            <ExternalLink
+              class="size-3 transition-transform group-hover:translate-x-0.5"
+            />
+          </NuxtLink>
         </p>
       </div>
 
-      <!-- OpenAPI callout -->
-      <div
-        class="mx-auto mb-16 max-w-2xl border border-primary/30 bg-primary/5 p-6"
-      >
-        <div class="flex items-start gap-4">
-          <FileJson2 class="mt-0.5 size-6 shrink-0 text-primary" />
-          <div class="flex-1">
-            <h3
-              class="mb-1 font-display text-base font-semibold tracking-tight"
-            >
-              Interactive OpenAPI Spec
-            </h3>
-            <p class="mb-3 font-sans text-sm/relaxed text-muted-foreground">
-              Every endpoint fully documented with request/response schemas.
-              Generate client SDKs, import into Postman, or browse the Scalar
-              UI.
-            </p>
-            <NuxtLink
-              to="https://demo.tileserver.app/_openapi/"
-              external
-              class="group inline-flex items-center gap-1.5 font-mono text-xs tracking-wider text-primary uppercase hover:text-primary/80"
-            >
-              Explore the API
-              <ExternalLink
-                class="size-3 transition-transform group-hover:translate-x-0.5"
-              />
-            </NuxtLink>
+      <!-- Right: OpenAPI callout -->
+      <div class="flex h-full items-center">
+        <div class="w-full border border-primary/30 bg-primary/5 p-6">
+          <div class="flex items-start gap-4">
+            <FileJson2 class="mt-0.5 size-6 shrink-0 text-primary" />
+            <div class="flex-1">
+              <h3
+                class="mb-1 font-display text-base font-semibold tracking-tight"
+              >
+                Interactive OpenAPI Spec
+              </h3>
+              <p
+                class="font-sans text-sm leading-relaxed text-muted-foreground"
+              >
+                Every endpoint fully documented with request/response schemas.
+                Generate client SDKs, import into Postman, or browse the Scalar
+                UI.
+              </p>
+            </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <div class="grid gap-6 sm:grid-cols-2">
-        <div
-          v-for="group in apiEndpoints"
-          :key="group.title"
-          class="border border-border bg-background p-6"
+    <!-- Endpoint groups grid -->
+    <div class="grid gap-px border-t border-b border-border bg-border sm:grid-cols-2">
+      <div
+        v-for="group in apiEndpoints"
+        :key="group.title"
+        class="bg-background p-6 lg:p-8"
+      >
+        <h3
+          class="mb-4 font-mono text-sm font-semibold uppercase tracking-wider text-foreground"
         >
-          <h3
-            class="mb-4 font-mono text-sm font-semibold tracking-wider text-foreground uppercase"
+          {{ group.title }}
+        </h3>
+        <div class="space-y-2">
+          <div
+            v-for="endpoint in group.endpoints"
+            :key="endpoint.path"
+            class="flex items-center gap-3 border border-border bg-muted/30 px-3 py-2 font-mono text-sm"
           >
-            {{ group.title }}
-          </h3>
-          <div class="space-y-2">
-            <div
-              v-for="endpoint in group.endpoints"
-              :key="endpoint.path"
-              class="flex items-center gap-3 border border-border bg-muted/30 px-3 py-2 font-mono text-sm"
+            <span
+              class="bg-emerald-500/20 px-1.5 py-0.5 text-xs font-medium text-emerald-400"
             >
-              <span
-                class="bg-emerald-500/20 px-1.5 py-0.5 text-xs font-medium text-emerald-400"
-              >
-                {{ endpoint.method }}
-              </span>
-              <span class="text-muted-foreground">{{ endpoint.path }}</span>
-            </div>
+              {{ endpoint.method }}
+            </span>
+            <span class="text-muted-foreground">{{ endpoint.path }}</span>
           </div>
         </div>
       </div>

@@ -135,7 +135,7 @@
 </script>
 
 <template>
-  <div class="relative min-h-dvh bg-background text-foreground">
+  <div class="min-h-dvh bg-background text-foreground">
     <!-- ═══ Header: Grid-cell nav (full-width, above gutter) ═══ -->
     <header class="fixed top-0 z-50 w-full bg-background">
       <div
@@ -199,6 +199,8 @@
         <div class="flex items-center justify-center border-l border-border lg:hidden">
           <span class="font-mono text-xs text-muted-foreground">docs</span>
         </div>
+
+        <!-- GitHub cell (desktop) -->
         <NuxtLink
           to="https://github.com/vinayakkulkarni/tileserver-rs"
           external
@@ -208,6 +210,23 @@
         </NuxtLink>
       </div>
     </header>
+
+    <!-- ═══ Fixed left gutter: persistent structural frame ═══ -->
+    <div
+      class="fixed left-0 top-[72px] bottom-0 z-20 flex w-[48px] items-center justify-center border-r border-border bg-background lg:top-[80px] lg:w-[80px]"
+    >
+      <Transition
+        name="fade"
+        mode="out-in"
+      >
+        <span
+          :key="activeLabel"
+          class="vertical-text font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground"
+        >
+          {{ activeLabel }}
+        </span>
+      </Transition>
+    </div>
 
     <!-- Galaxy background -->
     <div class="pointer-events-none fixed inset-0">
@@ -220,8 +239,9 @@
       />
     </div>
 
-    <div class="relative z-10">
-      <!-- Hero -->
+    <!-- ═══ Scrollable content area ═══ -->
+    <div class="relative z-10 ml-[48px] mt-[72px] lg:ml-[80px] lg:mt-[80px]">
+      <!-- ═══ Hero: Full-height ═══ -->
       <section
         data-label="Documentation"
         class="section-full relative border-b border-border"
@@ -231,9 +251,7 @@
           aria-hidden="true"
         />
         <div class="relative flex h-full min-h-[inherit] flex-col justify-center px-6 py-16 md:px-12 lg:px-20">
-          <p
-            class="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground"
-          >
+          <p class="mb-4 font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground lg:text-xs">
             Documentation
           </p>
           <h1
@@ -243,9 +261,7 @@
             Tileserver
             <span class="text-primary">RS</span>
           </h1>
-          <p
-            class="mb-10 max-w-2xl font-sans text-lg leading-relaxed text-muted-foreground"
-          >
+          <p class="mb-10 max-w-2xl font-sans text-lg leading-relaxed text-muted-foreground">
             High-performance vector tile server built in Rust. Serve PMTiles and
             MBTiles with native raster rendering, static map images, and TileJSON
             3.0 metadata.
@@ -280,114 +296,138 @@
         </div>
       </section>
 
-      <!-- Features -->
+      <!-- ═══ Features ═══ -->
       <section
         data-label="Features"
-        class="section-full relative border-b border-border"
+        class="border-b border-border"
       >
-        <div
-          class="geometric-grid-bg pointer-events-none absolute inset-0 opacity-30"
-          aria-hidden="true"
-        />
-        <div class="relative px-6 py-16 md:px-12 lg:px-20">
-          <p
-            class="mb-3 font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground"
-          >
+        <div class="px-6 pt-16 pb-10 md:px-12 lg:px-20">
+          <p class="mb-3 font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground lg:text-xs">
             Features
           </p>
           <h2
-            class="mb-12 font-display text-3xl font-semibold"
+            class="max-w-2xl font-display text-3xl font-semibold lg:text-4xl"
             style="letter-spacing: -0.03em; line-height: 1.15"
           >
             Everything you need to serve tiles
           </h2>
-          <div class="grid gap-px border border-border bg-border md:grid-cols-3">
-            <div
-              v-for="feature in features"
-              :key="feature.title"
-              class="bg-background p-6"
-            >
-              <component
-                :is="feature.icon"
-                class="mb-3 size-5 text-primary"
-              />
-              <h3 class="mb-2 font-display text-sm font-semibold tracking-tight">
-                {{ feature.title }}
-              </h3>
-              <p class="font-sans text-sm leading-relaxed text-muted-foreground">
-                {{ feature.description }}
-              </p>
-            </div>
+        </div>
+
+        <!-- Feature grid -->
+        <div class="grid gap-px border-t border-border bg-border md:grid-cols-3">
+          <div
+            v-for="feature in features"
+            :key="feature.title"
+            class="bg-background p-6 lg:p-8"
+          >
+            <component
+              :is="feature.icon"
+              class="mb-4 size-5 text-primary"
+            />
+            <h3 class="mb-2 font-display text-sm font-semibold tracking-tight">
+              {{ feature.title }}
+            </h3>
+            <p class="font-sans text-sm leading-relaxed text-muted-foreground">
+              {{ feature.description }}
+            </p>
           </div>
         </div>
       </section>
 
-      <!-- Quick links -->
+      <!-- ═══ Explore (Quick links) ═══ -->
       <section
         data-label="Explore"
-        class="section-full relative"
+        class="border-b border-border"
       >
-        <div
-          class="geometric-grid-bg pointer-events-none absolute inset-0 opacity-30"
-          aria-hidden="true"
-        />
-        <div class="relative px-6 py-16 md:px-12 lg:px-20">
-          <p
-            class="mb-3 font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground"
-          >
+        <div class="px-6 pt-16 pb-10 md:px-12 lg:px-20">
+          <p class="mb-3 font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground lg:text-xs">
             Explore
           </p>
           <h2
-            class="mb-12 font-display text-3xl font-semibold"
+            class="max-w-2xl font-display text-3xl font-semibold lg:text-4xl"
             style="letter-spacing: -0.03em; line-height: 1.15"
           >
             Jump into the docs
           </h2>
-          <div class="grid gap-4 md:grid-cols-2">
-            <NuxtLink
-              v-for="section in sections"
-              :key="section.path"
-              :to="section.path"
-              class="group border border-border p-6 transition-colors hover:border-foreground/20"
+        </div>
+
+        <!-- Links grid -->
+        <div class="grid gap-px border-t border-border bg-border md:grid-cols-2">
+          <NuxtLink
+            v-for="section in sections"
+            :key="section.path"
+            :to="section.path"
+            class="group bg-background p-6 transition-colors hover:bg-muted/30 lg:p-8"
+          >
+            <h3 class="mb-2 font-display text-sm font-semibold tracking-tight group-hover:text-primary">
+              {{ section.title }}
+            </h3>
+            <p class="mb-4 font-sans text-sm leading-relaxed text-muted-foreground">
+              {{ section.description }}
+            </p>
+            <span
+              class="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground group-hover:text-foreground"
             >
-              <h3
-                class="mb-2 font-display text-lg font-semibold tracking-tight group-hover:text-primary"
-              >
-                {{ section.title }}
-              </h3>
-              <p class="font-sans text-sm leading-relaxed text-muted-foreground">
-                {{ section.description }}
-              </p>
-              <span
-                class="mt-4 inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground group-hover:text-foreground"
-              >
-                Read more
-                <ArrowRight
-                  class="size-3 transition-transform group-hover:translate-x-0.5"
-                />
-              </span>
-            </NuxtLink>
-          </div>
+              Read more
+              <ArrowRight
+                class="size-3 transition-transform group-hover:translate-x-0.5"
+              />
+            </span>
+          </NuxtLink>
         </div>
       </section>
 
-      <!-- Footer -->
-      <footer class="border-t border-border py-8">
-        <div
-          class="mx-auto flex max-w-6xl items-center justify-between px-6 text-muted-foreground"
-        >
-          <span class="font-mono text-xs">
-            &copy; {{ new Date().getFullYear() }} Vinayak Kulkarni
-          </span>
-          <NuxtLink
-            to="https://github.com/vinayakkulkarni/tileserver-rs"
-            external
-            class="font-mono text-xs hover:text-foreground"
-          >
-            GitHub
-          </NuxtLink>
+      <!-- ═══ Footer ═══ -->
+      <footer>
+        <div class="flex items-center justify-between px-5 py-6 lg:px-8">
+          <div class="flex items-center gap-3">
+            <Globe class="size-4 text-muted-foreground" />
+            <span class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground lg:text-xs">
+              &copy; {{ new Date().getFullYear() }}
+              <NuxtLink
+                to="https://vinayakkulkarni.dev"
+                external
+                class="transition-colors hover:text-foreground"
+              >Vinayak Kulkarni</NuxtLink>
+            </span>
+          </div>
+          <div class="flex items-center gap-4">
+            <NuxtLink
+              to="https://tileserver.app"
+              external
+              class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground lg:text-xs"
+            >
+              Home
+            </NuxtLink>
+            <NuxtLink
+              to="https://github.com/vinayakkulkarni/tileserver-rs"
+              external
+              class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground lg:text-xs"
+            >
+              GitHub
+            </NuxtLink>
+            <NuxtLink
+              to="https://github.com/vinayakkulkarni/tileserver-rs/blob/main/LICENSE"
+              external
+              class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground lg:text-xs"
+            >
+              MIT License
+            </NuxtLink>
+          </div>
         </div>
       </footer>
     </div>
   </div>
 </template>
+
+<style scoped>
+  .fade-enter-active,
+  .fade-leave-active {
+    transition: opacity 0.15s ease;
+  }
+
+  .fade-enter-from,
+  .fade-leave-to {
+    opacity: 0;
+  }
+</style>

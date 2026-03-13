@@ -10,10 +10,6 @@
 
   const starColor = computed(() => (isDark.value ? '#a5b4fc' : '#6366f1'));
 
-  const backgroundColor = computed(() =>
-    isDark.value ? '#030014' : '#f8fafc',
-  );
-
   const activeLabel = ref('Tileserver RS');
 
   onMounted(() => {
@@ -36,14 +32,13 @@
 </script>
 
 <template>
-  <div class="relative min-h-dvh bg-background">
+  <div class="relative min-h-dvh overflow-x-hidden bg-background">
     <div class="pointer-events-none fixed inset-0">
       <Galaxy
         :speed="0.3"
         :star-count="1500"
         :star-size="2"
         :star-color="starColor"
-        :background-color="backgroundColor"
       />
     </div>
 
@@ -65,7 +60,9 @@
       </div>
 
       <!-- Content with left margin -->
-      <div class="mt-[72px] ml-[48px] lg:mt-[80px] lg:ml-[80px]">
+      <div
+        class="mt-[72px] ml-[48px] w-[calc(100vw-48px)] overflow-hidden lg:mt-[80px] lg:ml-[80px] lg:w-[calc(100vw-80px)]"
+      >
         <MarketingHeroSection />
         <MarketingFeaturesSection />
         <MarketingAiSection />

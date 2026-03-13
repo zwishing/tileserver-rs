@@ -3,27 +3,44 @@
 </script>
 
 <template>
-  <footer class="border-t border-border py-8">
-    <div class="mx-auto max-w-6xl px-6">
-      <div class="flex flex-col items-center justify-between gap-4 sm:flex-row">
-        <div class="flex items-center gap-2">
-          <Globe class="size-4 text-primary" />
-          <span
-            class="font-display text-sm font-medium tracking-[0.15em] uppercase"
+  <footer>
+    <div class="flex items-center justify-between px-5 py-6 lg:px-8">
+      <div class="flex items-center gap-3">
+        <Globe class="size-4 text-muted-foreground" />
+        <span
+          class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground lg:text-xs"
+        >
+          &copy; {{ new Date().getFullYear() }}
+          <NuxtLink
+            to="https://vinayakkulkarni.dev"
+            external
+            class="transition-colors hover:text-foreground"
+            >Vinayak Kulkarni</NuxtLink
           >
-            <span class="text-foreground">Tileserver</span>
-            <span class="text-primary"> RS</span>
-          </span>
-        </div>
-        <p class="text-sm text-muted-foreground">
-          Built by
-          <a
-            href="https://vinayakkulkarni.dev"
-            class="text-primary hover:underline"
-          >
-            Vinayak Kulkarni </a
-          >. Open source under MIT License.
-        </p>
+        </span>
+      </div>
+      <div class="flex items-center gap-4">
+        <NuxtLink
+          to="https://docs.tileserver.app"
+          external
+          class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground lg:text-xs"
+        >
+          Docs
+        </NuxtLink>
+        <NuxtLink
+          to="https://github.com/vinayakkulkarni/tileserver-rs"
+          external
+          class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground lg:text-xs"
+        >
+          GitHub
+        </NuxtLink>
+        <NuxtLink
+          to="https://github.com/vinayakkulkarni/tileserver-rs/blob/main/LICENSE"
+          external
+          class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground lg:text-xs"
+        >
+          MIT License
+        </NuxtLink>
       </div>
     </div>
   </footer>
