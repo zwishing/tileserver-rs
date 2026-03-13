@@ -187,6 +187,7 @@ RUN apt-get update && \
     libwebp7 \
     libsqlite3-0 \
     libopengl0 \
+    libgles2 \
     libx11-6 \
     libegl1 \
     libgdal34t64 \

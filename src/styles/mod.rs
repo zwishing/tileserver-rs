@@ -359,20 +359,24 @@ fn rewrite_source(
     };
 
     // Check if this is a reference to our data endpoint
-    // e.g., "/data/protomaps.json" or "http://localhost:8080/data/protomaps.json"
+    // Supports both with and without .json suffix:
+    //   "/data/protomaps.json" or "/data/protomaps"
+    //   "http://localhost:8080/data/protomaps.json" or "http://localhost:8080/data/protomaps"
     let data_source_id = if let Some(rest) = url.strip_prefix("/data/") {
-        rest.strip_suffix(".json")
-    } else if url.contains("/data/") && url.ends_with(".json") {
+        // "/data/protomaps.json" -> "protomaps" or "/data/protomaps" -> "protomaps"
+        Some(rest.strip_suffix(".json").unwrap_or(rest))
+    } else if url.contains("/data/") {
+        // "http://host/data/protomaps.json" or "http://host/data/protomaps"
         url.rsplit("/data/")
             .next()
-            .and_then(|s| s.strip_suffix(".json"))
+            .map(|s| s.strip_suffix(".json").unwrap_or(s))
     } else {
         None
     };
 
     let data_source_id = match data_source_id {
-        Some(id) => id,
-        None => return, // Not a reference to our data endpoint
+        Some(id) if !id.is_empty() => id,
+        _ => return, // Not a reference to our data endpoint
     };
 
     // Look up the source metadata

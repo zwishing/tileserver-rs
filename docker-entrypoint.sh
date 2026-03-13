@@ -60,6 +60,11 @@ fi
 # Set display for headless OpenGL rendering
 export DISPLAY=:99
 
+# Force EGL to use the X11 platform (via Xvfb) with software rasterization.
+# Without this, Mesa defaults to GBM which fails without a GPU.
+export EGL_PLATFORM=x11
+export LIBGL_ALWAYS_SOFTWARE=1
+
 # Start Xvfb in background (no unix socket for security)
 Xvfb "${DISPLAY}" -nolisten unix &
 
