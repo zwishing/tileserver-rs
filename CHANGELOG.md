@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.17.3](https://github.com/vinayakkulkarni/tileserver-rs/compare/v2.17.2...v2.17.3) (2026-03-13)
+
+
+### Bug Fixes
+
+* **render:** keep persistent NativeMap per worker to prevent EGL race condition ([8ccc184](https://github.com/vinayakkulkarni/tileserver-rs/commit/8ccc184c3a05c3a123e11a0ac82ae15cf8edc43e))
+
 ## [2.17.2](https://github.com/vinayakkulkarni/tileserver-rs/compare/v2.17.1...v2.17.2) (2026-03-13)
 
 
