@@ -422,7 +422,6 @@ impl NativeMap {
         unsafe { mln_map_is_fully_loaded(self.ptr) }
     }
 
-    /// Set the camera options
     #[allow(dead_code)]
     pub fn set_camera(&mut self, camera: CameraOptions) {
         let c_camera: MLNCameraOptions = camera.into();
@@ -431,8 +430,6 @@ impl NativeMap {
         }
     }
 
-    /// Set the map size
-    #[allow(dead_code)]
     pub fn set_size(&mut self, size: Size) {
         unsafe {
             mln_map_set_size(self.ptr, size.into());

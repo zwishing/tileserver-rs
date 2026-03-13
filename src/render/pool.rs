@@ -1,9 +1,12 @@
 //! Worker-thread renderer pool for concurrent tile rendering
 //!
-//! Each worker thread owns its own MapLibre Native instance (EGL context,
-//! HeadlessFrontend, Map). Work is distributed via a shared crossbeam channel
-//! and results return through tokio oneshot channels.
+//! Each worker thread owns persistent MapLibre Native instances keyed by
+//! pixel ratio. EGL contexts stay alive for the worker's lifetime, avoiding
+//! race conditions in MapLibre Native's shared EGLDisplay singleton.
+//! Work is distributed via a shared crossbeam channel and results return
+//! through tokio oneshot channels.
 
+use std::collections::HashMap;
 use std::thread;
 use std::time::Duration;
 
@@ -56,11 +59,6 @@ struct RenderRequest {
     response: oneshot::Sender<RenderOutput>,
 }
 
-/// Pool of native MapLibre renderer worker threads.
-///
-/// Each worker receives jobs from a shared crossbeam channel,
-/// creates a fresh NativeMap per render (for EGL context isolation),
-/// and sends results back via tokio oneshot channels.
 pub struct RendererPool {
     sender: Option<Sender<RenderRequest>>,
     config: PoolConfig,
@@ -73,6 +71,7 @@ impl RendererPool {
         super::native::init()?;
 
         let pool_size = config.pool_size.max(1);
+        let tile_size = config.tile_size;
         let (sender, receiver) = crossbeam_channel::unbounded::<RenderRequest>();
         let mut handles = Vec::with_capacity(pool_size);
 
@@ -82,6 +81,8 @@ impl RendererPool {
                 .name(format!("renderer-{i}"))
                 .spawn(move || {
                     tracing::info!(worker = i, "renderer worker started");
+                    let mut maps = WorkerMaps::new(tile_size);
+
                     while let Ok(request) = rx.recv() {
                         let output = match request.job {
                             RenderJob::Tile {
@@ -91,13 +92,13 @@ impl RendererPool {
                                 y,
                                 tile_size,
                                 scale,
-                            } => RenderOutput::Tile(execute_tile_render(
-                                style_json, z, x, y, tile_size, scale,
-                            )),
+                            } => RenderOutput::Tile(
+                                maps.render_tile(style_json, z, x, y, tile_size, scale),
+                            ),
                             RenderJob::Static {
                                 ref style_json,
                                 ref options,
-                            } => RenderOutput::Static(execute_static_render(style_json, options)),
+                            } => RenderOutput::Static(maps.render_static(style_json, options)),
                         };
                         let _ = request.response.send(output);
                     }
@@ -234,29 +235,79 @@ pub struct PoolStats {
     pub pool_size: usize,
 }
 
-fn execute_tile_render(
-    style_json: &str,
-    z: u8,
-    x: u32,
-    y: u32,
+/// Per-worker persistent NativeMap instances keyed by scale factor.
+/// Pixel ratio is fixed at NativeMap creation, so we keep one per distinct scale.
+/// Maps are created lazily and reused across renders, keeping EGL contexts alive.
+struct WorkerMaps {
+    tile_maps: HashMap<u32, NativeMap>,
+    static_map: Option<(u32, NativeMap)>,
     tile_size: u32,
-    scale: f32,
-) -> Result<Vec<u8>> {
-    let mut map = NativeMap::new(Size::new(tile_size, tile_size), scale, MapMode::Tile)?;
-    map.load_style(style_json)?;
-    let image = map.render_tile(z, x, y, tile_size, scale)?;
-    image.to_png()
 }
 
-fn execute_static_render(style_json: &str, options: &RenderOptions) -> Result<RenderedImage> {
-    let mut map = NativeMap::new(options.size, options.pixel_ratio, MapMode::Static)?;
-    map.load_style(style_json)?;
-    map.render(Some(RenderOptions {
-        size: options.size,
-        pixel_ratio: options.pixel_ratio,
-        camera: options.camera,
-        mode: options.mode,
-    }))
+impl WorkerMaps {
+    fn new(tile_size: u32) -> Self {
+        Self {
+            tile_maps: HashMap::new(),
+            static_map: None,
+            tile_size,
+        }
+    }
+
+    fn get_tile_map(&mut self, scale: f32) -> Result<&mut NativeMap> {
+        let key = (scale * 100.0) as u32;
+        if !self.tile_maps.contains_key(&key) {
+            let map = NativeMap::new(
+                Size::new(self.tile_size, self.tile_size),
+                scale,
+                MapMode::Tile,
+            )?;
+            self.tile_maps.insert(key, map);
+        }
+        Ok(self.tile_maps.get_mut(&key).unwrap())
+    }
+
+    fn render_tile(
+        &mut self,
+        style_json: &str,
+        z: u8,
+        x: u32,
+        y: u32,
+        tile_size: u32,
+        scale: f32,
+    ) -> Result<Vec<u8>> {
+        let map = self.get_tile_map(scale)?;
+        map.set_size(Size::new(tile_size, tile_size));
+        map.load_style(style_json)?;
+        let image = map.render_tile(z, x, y, tile_size, scale)?;
+        image.to_png()
+    }
+
+    fn render_static(
+        &mut self,
+        style_json: &str,
+        options: &RenderOptions,
+    ) -> Result<RenderedImage> {
+        let ratio_key = (options.pixel_ratio * 100.0) as u32;
+        let needs_new = match &self.static_map {
+            Some((key, _)) => *key != ratio_key,
+            None => true,
+        };
+
+        if needs_new {
+            let map = NativeMap::new(options.size, options.pixel_ratio, MapMode::Static)?;
+            self.static_map = Some((ratio_key, map));
+        }
+
+        let (_, map) = self.static_map.as_mut().unwrap();
+        map.set_size(options.size);
+        map.load_style(style_json)?;
+        map.render(Some(RenderOptions {
+            size: options.size,
+            pixel_ratio: options.pixel_ratio,
+            camera: options.camera,
+            mode: options.mode,
+        }))
+    }
 }
 
 #[cfg(test)]
