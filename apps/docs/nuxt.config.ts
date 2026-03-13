@@ -120,6 +120,15 @@ export default defineNuxtConfig({
   },
 
   vite: {
+    optimizeDeps: {
+      include: [
+        '@plausible-analytics/tracker',
+        'lucide-vue-next',
+        'ogl',
+        'clsx',
+        'tailwind-merge',
+      ],
+    },
     ssr: {
       external: ['ogl'],
     },
