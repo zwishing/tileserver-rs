@@ -44,10 +44,15 @@ public:
 /* Flag to track if logging is suppressed */
 static bool loggingSuppressed = false;
 
-/* Ensure the current thread has a RunLoop */
+/* Ensure the current thread has a RunLoop.
+ * Worker threads MUST use Type::New to get their own private uv_loop_t.
+ * Type::Default uses uv_default_loop() which is a global singleton —
+ * running it from multiple threads simultaneously causes deadlocks.
+ */
 static void ensureRunLoop() {
     if (!threadRunLoop) {
-        threadRunLoop = std::make_unique<mbgl::util::RunLoop>();
+        threadRunLoop = std::make_unique<mbgl::util::RunLoop>(
+            mbgl::util::RunLoop::Type::New);
     }
 }
 
