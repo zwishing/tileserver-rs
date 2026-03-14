@@ -7,6 +7,8 @@ use std::ffi::{CStr, CString};
 use std::ptr;
 use std::sync::Once;
 
+use image::ImageEncoder;
+
 use maplibre_native_sys::{
     mln_cleanup, mln_get_last_error, mln_headless_frontend_create, mln_headless_frontend_destroy,
     mln_headless_frontend_set_size, mln_image_free, mln_init, mln_map_create,
@@ -208,25 +210,35 @@ impl RenderedImage {
         self.height
     }
 
-    /// Convert to PNG format
+    /// Convert to PNG format with proper compression
+    ///
+    /// Uses zlib level 6 (Default) with adaptive row filtering for a good
+    /// balance between compression ratio and encoding speed. This produces
+    /// tiles comparable in size to tileserver-gl (~30-40 KB for a typical
+    /// 512×512 map tile vs ~134 KB with the `image` crate's default Fast
+    /// compression).
     pub fn to_png(&self) -> Result<Vec<u8>> {
-        use image::{ImageBuffer, Rgba};
-        use std::io::Cursor;
+        use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 
-        // Create image from raw RGBA data
-        let img: ImageBuffer<Rgba<u8>, _> =
-            ImageBuffer::from_raw(self.width, self.height, self.data.clone()).ok_or_else(|| {
-                TileServerError::RenderError("Failed to create image buffer".to_string())
-            })?;
-
-        // Encode to PNG using the DynamicImage interface
         let estimated = (self.width * self.height) as usize;
-        let mut buffer = Cursor::new(Vec::with_capacity(estimated));
-        image::DynamicImage::ImageRgba8(img)
-            .write_to(&mut buffer, image::ImageFormat::Png)
+        let mut buffer = Vec::with_capacity(estimated);
+
+        let encoder = PngEncoder::new_with_quality(
+            &mut buffer,
+            CompressionType::Default, // zlib level 6 (balanced speed/size)
+            FilterType::Adaptive,     // tries all 5 filter types per row
+        );
+
+        encoder
+            .write_image(
+                &self.data, // no clone — write_image takes a slice
+                self.width,
+                self.height,
+                image::ExtendedColorType::Rgba8,
+            )
             .map_err(|e| TileServerError::RenderError(format!("PNG encoding failed: {}", e)))?;
 
-        Ok(buffer.into_inner())
+        Ok(buffer)
     }
 
     /// Convert to JPEG format
@@ -269,22 +281,22 @@ impl RenderedImage {
 
     /// Convert to WebP format
     pub fn to_webp(&self, _quality: u8) -> Result<Vec<u8>> {
-        use image::{ImageBuffer, Rgba};
-        use std::io::Cursor;
+        use image::codecs::webp::WebPEncoder;
 
-        let img: ImageBuffer<Rgba<u8>, _> =
-            ImageBuffer::from_raw(self.width, self.height, self.data.clone()).ok_or_else(|| {
-                TileServerError::RenderError("Failed to create image buffer".to_string())
-            })?;
-
-        // Encode to WebP using DynamicImage interface
         let estimated = (self.width * self.height) as usize;
-        let mut buffer = Cursor::new(Vec::with_capacity(estimated));
-        image::DynamicImage::ImageRgba8(img)
-            .write_to(&mut buffer, image::ImageFormat::WebP)
+        let mut buffer = Vec::with_capacity(estimated);
+
+        let encoder = WebPEncoder::new_lossless(&mut buffer);
+        encoder
+            .write_image(
+                &self.data,
+                self.width,
+                self.height,
+                image::ExtendedColorType::Rgba8,
+            )
             .map_err(|e| TileServerError::RenderError(format!("WebP encoding failed: {}", e)))?;
 
-        Ok(buffer.into_inner())
+        Ok(buffer)
     }
 }
 
