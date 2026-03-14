@@ -1,0 +1,24 @@
+fonts = "/data/fonts"
+
+[server]
+host = "0.0.0.0"
+port = 8080
+cors_origins = ["*"]
+
+[telemetry]
+enabled = false
+
+[[sources]]
+id = "protomaps"
+type = "pmtiles"
+path = "/data/tiles/protomaps-sample.pmtiles"
+name = "PMTiles Sample"
+attribution = "© OpenStreetMap contributors"
+
+[render]
+pool_size = 4
+render_timeout_secs = 30
+
+[[styles]]
+id = "protomaps-light"
+path = "/data/styles/protomaps-light/style.json"

@@ -70,3 +70,13 @@ type = "cog"
 path = "/data/raster/benchmark-rgb.cog.tif"
 name = "Benchmark RGB COG"
 attribution = "© tileserver-rs benchmarks"
+
+# Native MapLibre rendering pool for raster tile generation
+[render]
+pool_size = 4
+render_timeout_secs = 30
+
+# Style for raster tile rendering benchmarks
+[[styles]]
+id = "protomaps-light"
+path = "/data/styles/protomaps-light/style.json"

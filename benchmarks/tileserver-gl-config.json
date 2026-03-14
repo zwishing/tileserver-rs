@@ -2,6 +2,7 @@
   "options": {
     "paths": {
       "root": "",
+      "fonts": "/fonts",
       "mbtiles": "/data",
       "pmtiles": "/data"
     }
@@ -12,6 +13,11 @@
     },
     "protomaps-sample": {
       "pmtiles": "protomaps-sample.pmtiles"
+    }
+  },
+  "styles": {
+    "protomaps-light": {
+      "style": "protomaps-light.json"
     }
   }
 }

@@ -32,6 +32,10 @@ const SERVERS = {
       source: 'zurich_switzerland',
       tileUrl: (z, x, y) => `http://127.0.0.1:8900/data/zurich_switzerland/${z}/${x}/${y}.pbf`,
     },
+    raster: {
+      source: 'protomaps-light',
+      tileUrl: (z, x, y) => `http://127.0.0.1:8900/styles/protomaps-light/${z}/${x}/${y}.png`,
+    },
     healthUrl: 'http://127.0.0.1:8900/health',
   },
   'tileserver-rs': {
@@ -45,6 +49,10 @@ const SERVERS = {
     mbtiles: {
       source: 'mbtiles',
       tileUrl: (z, x, y) => `http://127.0.0.1:8901/data/mbtiles/${z}/${x}/${y}.pbf`,
+    },
+    raster: {
+      source: 'protomaps-light',
+      tileUrl: (z, x, y) => `http://127.0.0.1:8901/styles/protomaps-light/${z}/${x}/${y}.png`,
     },
     postgres: {
       source: 'benchmark_table',
@@ -142,6 +150,13 @@ const TEST_TILES = {
     { z: 2, x: 2, y: 1, desc: 'World z2' },
     { z: 3, x: 4, y: 3, desc: 'World z3' },
   ],
+  raster: [
+    { z: 10, x: 544, y: 373, desc: 'Florence z10' },
+    { z: 11, x: 1088, y: 746, desc: 'Florence z11' },
+    { z: 12, x: 2176, y: 1493, desc: 'Florence z12' },
+    { z: 13, x: 4352, y: 2986, desc: 'Florence z13' },
+    { z: 14, x: 8704, y: 5972, desc: 'Florence z14' },
+  ],
 };
 
 // Benchmark configuration
@@ -155,12 +170,13 @@ let BENCHMARK_CONFIG = {
 /**
  * Run autocannon benchmark
  */
-async function runBenchmark(url, name) {
+async function runBenchmark(url, name, overrides = {}) {
   return new Promise((resolve, reject) => {
     const instance = autocannon(
       {
         url,
         ...BENCHMARK_CONFIG,
+        ...overrides,
         title: name,
       },
       (err, result) => {
@@ -222,7 +238,8 @@ async function benchmarkServerFormat(serverKey, format) {
     process.stdout.write(chalk.gray(`    z${tile.z.toString().padStart(2)} (${tile.desc.padEnd(12)})... `));
 
     try {
-      const result = await runBenchmark(url, `${server.name} ${format} z${tile.z}`);
+      const overrides = format === 'raster' ? { connections: 10, timeout: 60 } : {};
+      const result = await runBenchmark(url, `${server.name} ${format} z${tile.z}`, overrides);
 
       const reqPerSec = (result.requests.total / BENCHMARK_CONFIG.duration).toFixed(0);
       const latencyAvg = result.latency.average.toFixed(2);
@@ -400,7 +417,7 @@ function generateMarkdownReport(results) {
 
   md += `\n### Detailed Results\n\n`;
 
-  for (const format of ['pmtiles', 'mbtiles', 'postgres', 'postgres_function', 'cog']) {
+  for (const format of ['pmtiles', 'mbtiles', 'postgres', 'postgres_function', 'cog', 'raster']) {
     const filtered = results.filter((r) => r.format === format);
     if (filtered.length === 0) continue;
 
@@ -434,7 +451,7 @@ function formatBytes(bytes) {
 async function main() {
   program
     .option('-s, --server <server>', 'Server to test: tileserver-rs, martin, tileserver-gl, or all', 'all')
-    .option('-f, --format <format>', 'Format to test: pmtiles, mbtiles, postgres, postgres_function, cog, or all', 'all')
+    .option('-f, --format <format>', 'Format to test: pmtiles, mbtiles, postgres, postgres_function, cog, raster, or all', 'all')
     .option('-d, --duration <seconds>', 'Test duration in seconds', '10')
     .option('-c, --connections <num>', 'Number of connections', '100')
     .option('--markdown', 'Output markdown report')
@@ -450,7 +467,7 @@ async function main() {
   console.log(chalk.gray(`Servers: tileserver-gl (8900), tileserver-rs (8901), martin (8902), titiler (8903)\n`));
 
   const serversToTest = opts.server === 'all' ? Object.keys(SERVERS) : [opts.server];
-  const formatsToTest = opts.format === 'all' ? ['pmtiles', 'mbtiles', 'postgres', 'postgres_function', 'cog'] : [opts.format];
+  const formatsToTest = opts.format === 'all' ? ['pmtiles', 'mbtiles', 'postgres', 'postgres_function', 'cog', 'raster'] : [opts.format];
 
   // Check server availability
   console.log(chalk.bold('Checking server availability...'));

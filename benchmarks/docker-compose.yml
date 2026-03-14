@@ -44,7 +44,9 @@ services:
       - "8900:8080"
     volumes:
       - ../data/tiles:/data:ro
+      - ../data/fonts:/fonts:ro
       - ./tileserver-gl-config.json:/config.json:ro
+      - ./tileserver-gl-style.json:/protomaps-light.json:ro
     command: ["-p", "8080", "-c", "/config.json"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
@@ -62,6 +64,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    profiles:
+      - full
+
+  tileserver-rs-raster:
+    image: tileserver-rs:latest
+    ports:
+      - "8901:8080"
+    volumes:
+      - ../data:/data:ro
+      - ./config.raster.toml:/app/config.toml:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 5s
