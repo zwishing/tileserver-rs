@@ -36,6 +36,11 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
       - name: Cache Bun dependencies
         uses: actions/cache@v5
         with:
@@ -79,20 +84,8 @@ jobs:
       - name: Build client
         run: |
           ulimit -s unlimited 2>/dev/null || true
-          max_attempts=3
-          for attempt in $(seq 1 $max_attempts); do
-            echo "Build attempt $attempt/$max_attempts..."
-            if bun run --filter @tileserver-rs/client generate; then
-              echo "Build succeeded on attempt $attempt"
-              exit 0
-            fi
-            if [ $attempt -lt $max_attempts ]; then
-              echo "Build failed, retrying in 15s..."
-              sleep 15
-            fi
-          done
-          echo "Build failed after $max_attempts attempts"
-          exit 1
+          cd apps/client
+          npx nuxi generate
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
 
