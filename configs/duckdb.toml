@@ -1,0 +1,48 @@
+# DuckDB test configuration
+# Requires: cargo build --features duckdb
+# Usage: cargo run --features duckdb -- --config configs/duckdb.toml
+
+[server]
+host = "127.0.0.1"
+port = 3031
+cors_origins = ["*"]
+
+[telemetry]
+enabled = false
+
+# Query Overture Places directly from GeoParquet via DuckDB SQL
+[[sources]]
+id = "duckdb-places"
+type = "duckdb"
+path = ""
+query = """
+  SELECT
+    names.primary AS name,
+    categories.primary AS category,
+    ST_AsWKB(geometry) AS geometry
+  FROM read_parquet('/Users/vinayak/dev/personal/map/geolith/geolith/data/overture/theme=places/type=place/*.parquet')
+  WHERE bbox.xmin <= {bbox_xmax} AND bbox.xmax >= {bbox_xmin}
+    AND bbox.ymin <= {bbox_ymax} AND bbox.ymax >= {bbox_ymin}
+"""
+name = "Overture Places (DuckDB)"
+layer_name = "places"
+minzoom = 0
+maxzoom = 14
+
+# Query Overture Divisions with spatial functions
+[[sources]]
+id = "duckdb-divisions"
+type = "duckdb"
+path = ""
+query = """
+  SELECT
+    names.primary AS name,
+    subtype,
+    ST_AsWKB(geometry) AS geometry
+  FROM read_parquet('/Users/vinayak/dev/personal/map/geolith/geolith/data/overture/theme=divisions/type=division/*.parquet')
+  WHERE ST_Intersects(geometry, ST_MakeEnvelope({bbox}))
+"""
+name = "Overture Divisions (DuckDB)"
+layer_name = "divisions"
+minzoom = 0
+maxzoom = 14
