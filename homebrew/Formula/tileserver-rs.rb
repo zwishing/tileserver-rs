@@ -4,13 +4,13 @@
 class TileserverRs < Formula
   desc "High-performance vector tile server with native MapLibre rendering"
   homepage "https://github.com/vinayakkulkarni/tileserver-rs"
-  version "2.17.3"
+  version "2.18.0"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/vinayakkulkarni/tileserver-rs/releases/download/v#{version}/tileserver-rs-aarch64-apple-darwin.tar.gz"
-      sha256 "4a662b1279d2b02c144dad6bd6e4ba575554d567d8664bcd21a8a3d4ead42df8"
+      sha256 "97e8059cd98d1e0297cd0b08c7decd393e751b98b8cd7ad86558ca0994e35540"
     elsif Hardware::CPU.intel?
       url "https://github.com/vinayakkulkarni/tileserver-rs/releases/download/v#{version}/tileserver-rs-x86_64-apple-darwin.tar.gz"
       sha256 "TODO"
@@ -20,10 +20,10 @@ class TileserverRs < Formula
   on_linux do
     if Hardware::CPU.arm?
       url "https://github.com/vinayakkulkarni/tileserver-rs/releases/download/v#{version}/tileserver-rs-aarch64-unknown-linux-gnu.tar.gz"
-      sha256 "TODO"
+      sha256 "99c3a3b9f6d2014b0a3b3df25279ef974edbc51326e1ea76d46a466c7effbc37"
     elsif Hardware::CPU.intel?
       url "https://github.com/vinayakkulkarni/tileserver-rs/releases/download/v#{version}/tileserver-rs-x86_64-unknown-linux-gnu.tar.gz"
-      sha256 "d0d67b5107d89e1b57119b4a245b1fd7237ae9b247a35eeb79047b728f7647ad"
+      sha256 "fa78ee029c0423ece2a11091936bcbf45a1825a04311b668792794cc6ca8265e"
     end
   end
 
