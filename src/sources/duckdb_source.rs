@@ -311,50 +311,54 @@ impl TileSource for DuckDbSource {
                 TileServerError::DuckDbError(format!("query preparation failed: {e}"))
             })?;
 
-            let column_count = stmt.column_count();
-            let unknown_col = "?".to_string();
-            let column_names: Vec<String> = (0..column_count)
-                .map(|i| stmt.column_name(i).unwrap_or(&unknown_col).to_string())
-                .collect();
-
             let mut features: Vec<MvtFeature> = Vec::new();
 
-            let rows = stmt
-                .query_map([], |row| {
-                    let mut geometry_wkb: Option<Vec<u8>> = None;
-                    let mut properties: Vec<(String, PropValue)> = Vec::new();
+            let mut rows = stmt.query([]).map_err(|e| {
+                TileServerError::DuckDbError(format!("query execution failed: {e}"))
+            })?;
 
-                    for (i, col_name) in column_names.iter().enumerate() {
-                        let lower = col_name.to_lowercase();
-                        if lower == "geom" || lower == "geometry" || lower == "wkb_geometry" {
-                            if let Ok(blob) = row.get::<_, Vec<u8>>(i) {
-                                geometry_wkb = Some(blob);
-                            }
-                            continue;
-                        }
+            let column_count = rows.as_ref().map(|s| s.column_count()).unwrap_or(0);
+            let column_names: Vec<String> = rows
+                .as_ref()
+                .map(|s| {
+                    (0..column_count)
+                        .map(|i| {
+                            s.column_name(i)
+                                .map(|n| n.to_string())
+                                .unwrap_or_else(|_| format!("col_{i}"))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
 
-                        if let Ok(val) = row.get::<_, String>(i) {
-                            properties.push((col_name.clone(), PropValue::String(val)));
-                        } else if let Ok(val) = row.get::<_, i64>(i) {
-                            properties.push((col_name.clone(), PropValue::Int(val)));
-                        } else if let Ok(val) = row.get::<_, f64>(i) {
-                            properties.push((col_name.clone(), PropValue::Double(val)));
-                        } else if let Ok(val) = row.get::<_, bool>(i) {
-                            properties.push((col_name.clone(), PropValue::Bool(val)));
+            while let Some(row) = rows
+                .next()
+                .map_err(|e| TileServerError::DuckDbError(format!("row read failed: {e}")))?
+            {
+                let mut geometry_wkb: Option<Vec<u8>> = None;
+                let mut properties: Vec<(String, PropValue)> = Vec::new();
+
+                for (i, col_name) in column_names.iter().enumerate() {
+                    let lower = col_name.to_lowercase();
+                    if lower == "geom" || lower == "geometry" || lower == "wkb_geometry" {
+                        if let Ok(blob) = row.get::<_, Vec<u8>>(i) {
+                            geometry_wkb = Some(blob);
                         }
+                        continue;
                     }
 
-                    Ok((geometry_wkb, properties))
-                })
-                .map_err(|e| {
-                    TileServerError::DuckDbError(format!("query execution failed: {e}"))
-                })?;
+                    if let Ok(val) = row.get::<_, String>(i) {
+                        properties.push((col_name.clone(), PropValue::String(val)));
+                    } else if let Ok(val) = row.get::<_, i64>(i) {
+                        properties.push((col_name.clone(), PropValue::Int(val)));
+                    } else if let Ok(val) = row.get::<_, f64>(i) {
+                        properties.push((col_name.clone(), PropValue::Double(val)));
+                    } else if let Ok(val) = row.get::<_, bool>(i) {
+                        properties.push((col_name.clone(), PropValue::Bool(val)));
+                    }
+                }
 
-            for row_result in rows {
-                let (wkb_opt, properties) = row_result
-                    .map_err(|e| TileServerError::DuckDbError(format!("row read failed: {e}")))?;
-
-                let wkb = match wkb_opt {
+                let wkb = match geometry_wkb {
                     Some(ref w) if !w.is_empty() => w,
                     _ => continue,
                 };
