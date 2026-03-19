@@ -12,7 +12,7 @@
       <!-- Left: section header -->
       <div>
         <p
-          class="mb-3 font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground lg:text-xs"
+          class="mb-3 font-mono text-[10px] tracking-[0.3em] text-muted-foreground uppercase lg:text-xs"
         >
           API Reference
         </p>
@@ -22,15 +22,13 @@
         >
           RESTful API
         </h2>
-        <p
-          class="font-sans text-sm leading-relaxed text-muted-foreground lg:text-base"
-        >
+        <p class="font-sans text-sm/relaxed text-muted-foreground lg:text-base">
           Simple, standards-compliant API with a built-in OpenAPI spec —
           something neither tileserver-gl nor martin offer.
           <NuxtLink
             to="https://demo.tileserver.app/_openapi/"
             external
-            class="group ml-1 inline-flex items-center gap-1 font-mono text-xs uppercase tracking-wider text-primary transition-colors hover:text-primary/80"
+            class="group ml-1 inline-flex items-center gap-1 font-mono text-xs tracking-wider text-primary uppercase transition-colors hover:text-primary/80"
           >
             Explore the API
             <ExternalLink
@@ -51,9 +49,7 @@
               >
                 Interactive OpenAPI Spec
               </h3>
-              <p
-                class="font-sans text-sm leading-relaxed text-muted-foreground"
-              >
+              <p class="font-sans text-sm/relaxed text-muted-foreground">
                 Every endpoint fully documented with request/response schemas.
                 Generate client SDKs, import into Postman, or browse the Scalar
                 UI.
@@ -65,14 +61,14 @@
     </div>
 
     <!-- Endpoint groups grid -->
-    <div class="grid gap-px border-t border-b border-border bg-border sm:grid-cols-2">
+    <div class="grid gap-px border-y border-border bg-border sm:grid-cols-2">
       <div
         v-for="group in apiEndpoints"
         :key="group.title"
         class="bg-background p-6 lg:p-8"
       >
         <h3
-          class="mb-4 font-mono text-sm font-semibold uppercase tracking-wider text-foreground"
+          class="mb-4 font-mono text-sm font-semibold tracking-wider text-foreground uppercase"
         >
           {{ group.title }}
         </h3>

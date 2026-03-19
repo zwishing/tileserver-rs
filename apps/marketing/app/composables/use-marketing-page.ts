@@ -19,7 +19,7 @@ import {
   MessageSquare,
   Puzzle,
   FileSpreadsheet,
-Braces,
+  Braces,
 } from 'lucide-vue-next';
 import type {
   Feature,

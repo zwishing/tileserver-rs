@@ -23,7 +23,7 @@
         <NuxtLink
           to="https://docs.tileserver.app/getting-started/quickstart"
           external
-          class="group inline-flex items-center gap-2 border border-foreground bg-foreground px-5 py-2.5 font-mono text-xs uppercase tracking-wider text-background transition-colors hover:bg-transparent hover:text-foreground"
+          class="group inline-flex items-center gap-2 border border-foreground bg-foreground px-5 py-2.5 font-mono text-xs tracking-wider text-background uppercase transition-colors hover:bg-transparent hover:text-foreground"
         >
           Read the Docs
           <ArrowRight
@@ -33,7 +33,7 @@
         <NuxtLink
           to="https://github.com/vinayakkulkarni/tileserver-rs"
           external
-          class="inline-flex items-center gap-2 border border-border px-5 py-2.5 font-mono text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
+          class="inline-flex items-center gap-2 border border-border px-5 py-2.5 font-mono text-xs tracking-wider text-muted-foreground uppercase transition-colors hover:border-foreground/20 hover:text-foreground"
         >
           <Github class="size-3.5" />
           Star on GitHub

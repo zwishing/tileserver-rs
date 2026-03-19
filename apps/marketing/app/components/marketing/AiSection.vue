@@ -13,7 +13,7 @@
   <section data-label="AI Assistant" class="border-b border-border">
     <div class="px-6 pt-16 pb-10 md:px-12 lg:px-20">
       <p
-        class="mb-3 font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground lg:text-xs"
+        class="mb-3 font-mono text-[10px] tracking-[0.3em] text-muted-foreground uppercase lg:text-xs"
       >
         AI Assistant
       </p>
@@ -24,7 +24,7 @@
         AI Without the Landlord
       </h2>
       <p
-        class="mt-4 max-w-2xl font-sans text-sm leading-relaxed text-muted-foreground lg:text-base"
+        class="mt-4 max-w-2xl font-sans text-sm/relaxed text-muted-foreground lg:text-base"
       >
         Your maps, your GPU, your data. The built-in AI assistant runs entirely
         in your browser &mdash; no API keys, no cloud inference, no per-token
@@ -33,9 +33,7 @@
     </div>
 
     <!-- Benefits grid -->
-    <div
-      class="grid gap-px border-t border-b border-border bg-border md:grid-cols-4"
-    >
+    <div class="grid gap-px border-y border-border bg-border md:grid-cols-4">
       <div
         v-for="benefit in aiBenefits"
         :key="benefit.title"
@@ -45,7 +43,7 @@
         <h3 class="mb-2 font-display text-sm font-semibold tracking-tight">
           {{ benefit.title }}
         </h3>
-        <p class="font-sans text-sm leading-relaxed text-muted-foreground">
+        <p class="font-sans text-sm/relaxed text-muted-foreground">
           {{ benefit.description }}
         </p>
       </div>
@@ -77,7 +75,7 @@
             </div>
             <div class="min-w-0 flex-1">
               <p
-                class="mb-0.5 font-mono text-[10px] uppercase tracking-wider"
+                class="mb-0.5 font-mono text-[10px] tracking-wider uppercase"
                 :class="
                   msg.role === 'user' ? 'text-muted-foreground' : 'text-primary'
                 "
@@ -85,7 +83,7 @@
                 {{ msg.role === 'user' ? 'You' : 'AI' }}
               </p>
               <p
-                class="whitespace-pre-line font-mono text-sm"
+                class="font-mono text-sm whitespace-pre-line"
                 :class="
                   msg.role === 'user'
                     ? 'text-foreground'
@@ -107,7 +105,7 @@
           No tokens. No telemetry. No landlords.
         </h3>
         <p
-          class="mb-4 font-sans text-sm leading-relaxed text-muted-foreground lg:text-base"
+          class="mb-4 font-sans text-sm/relaxed text-muted-foreground lg:text-base"
         >
           The AI runs a quantized LLM directly on your GPU via WebGPU &mdash;
           the same technology that powers browser gaming. First load downloads
@@ -143,7 +141,7 @@
           <NuxtLink
             to="https://demo.tileserver.app"
             external
-            class="group inline-flex items-center gap-2 border border-foreground bg-foreground px-5 py-2.5 font-mono text-xs uppercase tracking-wider text-background transition-colors hover:bg-transparent hover:text-foreground"
+            class="group inline-flex items-center gap-2 border border-foreground bg-foreground px-5 py-2.5 font-mono text-xs tracking-wider text-background uppercase transition-colors hover:bg-transparent hover:text-foreground"
           >
             <ExternalLink class="size-3.5" />
             Try It Live
@@ -154,7 +152,7 @@
           <NuxtLink
             to="https://docs.tileserver.app/guides/ai-chat"
             external
-            class="inline-flex items-center gap-2 border border-border px-5 py-2.5 font-mono text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
+            class="inline-flex items-center gap-2 border border-border px-5 py-2.5 font-mono text-xs tracking-wider text-muted-foreground uppercase transition-colors hover:border-foreground/20 hover:text-foreground"
           >
             Learn More
           </NuxtLink>

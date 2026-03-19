@@ -27,7 +27,7 @@
     <div
       class="relative flex h-full min-h-[inherit] flex-col justify-center px-3 py-16 sm:px-6 md:px-12 lg:px-20"
     >
-      <div class="mx-auto min-w-0 w-full max-w-4xl text-center">
+      <div class="mx-auto w-full max-w-4xl min-w-0 text-center">
         <div
           class="mb-8 flex flex-col items-center justify-center gap-2 font-mono text-[10px] tracking-wider uppercase md:flex-row md:gap-4 md:text-xs"
         >
