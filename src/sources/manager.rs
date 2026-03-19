@@ -9,6 +9,8 @@ use crate::config::{SourceConfig, SourceType};
 use crate::error::{Result, TileServerError};
 #[cfg(feature = "raster")]
 use crate::sources::cog::CogSource;
+#[cfg(feature = "duckdb")]
+use crate::sources::duckdb_source::DuckDbSource;
 #[cfg(feature = "geoparquet")]
 use crate::sources::geoparquet::GeoParquetSource;
 use crate::sources::mbtiles::MbTilesSource;
@@ -258,6 +260,8 @@ impl SourceManager {
             SourceType::Cog | SourceType::Vrt => Arc::new(CogSource::from_file(config).await?),
             #[cfg(feature = "geoparquet")]
             SourceType::GeoParquet => Arc::new(GeoParquetSource::from_config(config).await?),
+            #[cfg(feature = "duckdb")]
+            SourceType::DuckDB => Arc::new(DuckDbSource::from_config(config).await?),
         };
 
         self.sources.insert(config.id.clone(), source);

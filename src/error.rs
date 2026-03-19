@@ -75,6 +75,10 @@ pub enum TileServerError {
     #[error("GeoParquet error: {0}")]
     GeoParquetError(String),
 
+    #[cfg(feature = "duckdb")]
+    #[error("DuckDB error: {0}")]
+    DuckDbError(String),
+
     #[error("upload error: {0}")]
     UploadError(String),
 
@@ -141,6 +145,10 @@ impl IntoResponse for TileServerError {
             }
             #[cfg(feature = "geoparquet")]
             TileServerError::GeoParquetError(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
+            }
+            #[cfg(feature = "duckdb")]
+            TileServerError::DuckDbError(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
             }
             TileServerError::UploadError(_) => (StatusCode::BAD_REQUEST, self.to_string()),
