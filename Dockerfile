@@ -204,7 +204,7 @@ COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 
 # Copy example config
-COPY config.example.toml ./config.toml
+COPY configs/example.toml ./config.toml
 
 # Create data directory
 RUN mkdir -p /data

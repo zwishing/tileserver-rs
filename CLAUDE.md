@@ -456,7 +456,12 @@ tileserver-rs/
 │       └── mbtiles.rs                 # MBTiles source
 │
 ├── Cargo.toml                         # Rust dependencies
-├── config.example.toml                # Example configuration
+├── configs/                           # Configuration files
+│   ├── example.toml                   # Example configuration
+│   ├── offline.toml                   # Offline/local development
+│   ├── dev.toml                       # Development config
+│   ├── geoparquet.toml                # GeoParquet source testing
+│   └── benchmark-raster.toml         # Raster benchmark config
 ├── package.json                       # Root workspace (bun workspaces)
 ├── Dockerfile                         # Multi-stage Docker build
 ├── compose.yml                        # Docker Compose v2 base config

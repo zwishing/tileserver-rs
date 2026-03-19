@@ -5,7 +5,7 @@
 #   1. Download a PMTiles file (e.g., from https://protomaps.com/downloads)
 #   2. Place it in ./data/tiles/ directory
 #   3. Update the path below to point to your file
-#   4. Run: ./target/release/tileserver-rs --config config.offline.toml --ui
+#   4. Run: ./target/release/tileserver-rs --config configs/offline.toml --ui
 
 # Root-level configuration (must come before any [section] headers)
 # Fonts directory

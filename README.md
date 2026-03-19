@@ -266,7 +266,7 @@ admin_bind = "127.0.0.1:9099"
 
 This exposes `POST /__admin/reload` on a separate port for reloading configuration without restarting the server. You can also send `SIGHUP` to the process for the same effect. See the [Hot Reload Guide](https://docs.tileserver.app/guides/hot-reload) for details.
 
-See [config.example.toml](./config.example.toml) for a complete example, or [config.offline.toml](./config.offline.toml) for a local development setup.
+See [configs/example.toml](./configs/example.toml) for a complete example, or [configs/offline.toml](./configs/offline.toml) for a local development setup.
 
 ## API Endpoints
 
@@ -428,7 +428,13 @@ tileserver-rs/
 ├── compose.yml              # Docker Compose (development)
 ├── compose.prod.yml         # Docker Compose (production overrides)
 ├── Dockerfile               # Multi-stage Docker build
-└── config.example.toml      # Example configuration
+├── configs/                 # Configuration files
+│   ├── example.toml         # Example configuration
+│   ├── offline.toml         # Offline/local development
+│   ├── dev.toml             # Development config
+│   ├── geoparquet.toml      # GeoParquet source testing
+│   └── benchmark-raster.toml # Raster benchmark config
+└── tests/                   # Integration tests + test configs
 ```
 
 ## Deploy
