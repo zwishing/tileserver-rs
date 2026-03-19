@@ -10,8 +10,6 @@ cors_origins = ["*"]
 [telemetry]
 enabled = false
 
-# Overture Places (~73M features, ~7.2 GB)
-# Single partition file for quick testing
 [[sources]]
 id = "overture-places"
 type = "geoparquet"
@@ -21,12 +19,21 @@ layer_name = "places"
 minzoom = 0
 maxzoom = 14
 
-# Overture Divisions (~936 MB)
 [[sources]]
 id = "overture-divisions"
 type = "geoparquet"
-path = "/Users/vinayak/dev/personal/map/geolith/geolith/data/overture/theme=divisions/type=division/part-00000-0d42f10d-1d86-4580-b978-42489d818272-c000.zstd.parquet"
+path = "/Users/vinayak/dev/personal/map/geolith/geolith/data/overture/theme=divisions/type=division/part-00000-ec2b4cda-aff9-4620-a9a0-159f8a8b0b31-c000.zstd.parquet"
 name = "Overture Divisions"
 layer_name = "divisions"
 minzoom = 0
 maxzoom = 14
+
+[[styles]]
+id = "overture-places"
+path = "./data/styles/overture-places/style.json"
+name = "Overture Places"
+
+[[styles]]
+id = "overture-divisions"
+path = "./data/styles/overture-divisions/style.json"
+name = "Overture Divisions"

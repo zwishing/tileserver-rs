@@ -1,0 +1,25 @@
+{
+  "version": 8,
+  "name": "Overture Places",
+  "sources": {
+    "overture-places": {
+      "type": "vector",
+      "url": "/data/overture-places.json"
+    }
+  },
+  "layers": [
+    {
+      "id": "places-circle",
+      "type": "circle",
+      "source": "overture-places",
+      "source-layer": "places",
+      "paint": {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 1.5, 10, 3, 14, 6],
+        "circle-color": "#e74c3c",
+        "circle-stroke-width": 1,
+        "circle-stroke-color": "#ffffff",
+        "circle-opacity": 0.85
+      }
+    }
+  ]
+}
