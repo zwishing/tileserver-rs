@@ -25,7 +25,7 @@ query = """
     names.primary AS name,
     categories.primary AS category,
     ST_AsWKB(geometry) AS geometry
-  FROM read_parquet('./data/tiles/places.parquet')
+  FROM read_parquet('./data/overture/theme=places/type=place/*.parquet')
   WHERE bbox.xmin <= {bbox_xmax} AND bbox.xmax >= {bbox_xmin}
     AND bbox.ymin <= {bbox_ymax} AND bbox.ymax >= {bbox_ymin}
 """
@@ -44,7 +44,7 @@ query = """
     names.primary AS name,
     subtype,
     ST_AsWKB(geometry) AS geometry
-  FROM read_parquet('./data/tiles/divisions.parquet')
+  FROM read_parquet('./data/overture/theme=divisions/type=division/*.parquet')
   WHERE ST_Intersects(geometry, ST_MakeEnvelope({bbox}))
 """
 name = "Overture Divisions (DuckDB)"

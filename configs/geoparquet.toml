@@ -2,10 +2,13 @@
 # Requires: cargo build --features geoparquet
 # Usage: cargo run --features geoparquet -- --config configs/geoparquet.toml
 #
-# Download sample data:
+# Local testing with symlinked Overture data:
+#   ln -sf /path/to/overture/data ./data/overture
+#
+# Or download sample data:
 #   pip install overturemaps
-#   overturemaps download --bbox=-99.5,19.2,-98.9,19.6 -f geoparquet --type=place -o ./data/tiles/places.parquet
-#   overturemaps download --bbox=-99.5,19.2,-98.9,19.6 -f geoparquet --type=division -o ./data/tiles/divisions.parquet
+#   overturemaps download --bbox=-99.5,19.2,-98.9,19.6 -f geoparquet --type=place -o ./data/overture/places.parquet
+#   overturemaps download --bbox=-99.5,19.2,-98.9,19.6 -f geoparquet --type=division -o ./data/overture/divisions.parquet
 
 [server]
 host = "127.0.0.1"
@@ -18,7 +21,7 @@ enabled = false
 [[sources]]
 id = "overture-places"
 type = "geoparquet"
-path = "./data/tiles/places.parquet"
+path = "./data/overture/theme=places/type=place/"
 name = "Overture Places"
 layer_name = "places"
 minzoom = 0
@@ -27,7 +30,7 @@ maxzoom = 14
 [[sources]]
 id = "overture-divisions"
 type = "geoparquet"
-path = "./data/tiles/divisions.parquet"
+path = "./data/overture/theme=divisions/type=division/"
 name = "Overture Divisions"
 layer_name = "divisions"
 minzoom = 0

@@ -37,6 +37,10 @@ pub fn substitute_template(query: &str, z: u8, x: u32, y: u32, bbox: &[f64; 4]) 
             "{bbox}",
             &format!("{}, {}, {}, {}", bbox[0], bbox[1], bbox[2], bbox[3]),
         )
+        .replace("{bbox_xmin}", &bbox[0].to_string())
+        .replace("{bbox_ymin}", &bbox[1].to_string())
+        .replace("{bbox_xmax}", &bbox[2].to_string())
+        .replace("{bbox_ymax}", &bbox[3].to_string())
 }
 
 #[inline]
@@ -442,6 +446,16 @@ mod tests {
         assert!(result.contains("x=10"));
         assert!(result.contains("y=20"));
         assert!(result.contains("1, 2, 3, 4"));
+    }
+
+    #[test]
+    fn test_substitute_template_bbox_components() {
+        let query = "xmin={bbox_xmin} ymin={bbox_ymin} xmax={bbox_xmax} ymax={bbox_ymax}";
+        let result = substitute_template(query, 0, 0, 0, &[-122.5, 37.7, -122.4, 37.8]);
+        assert!(result.contains("xmin=-122.5"));
+        assert!(result.contains("ymin=37.7"));
+        assert!(result.contains("xmax=-122.4"));
+        assert!(result.contains("ymax=37.8"));
     }
 
     #[test]

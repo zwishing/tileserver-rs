@@ -144,21 +144,60 @@ fn extract_property_fields(
 
 pub struct GeoParquetSource {
     metadata: TileMetadata,
-    file_path: PathBuf,
+    file_paths: Vec<PathBuf>,
     geometry_column: String,
     has_bbox_column: bool,
     property_fields: Vec<(String, String)>,
 }
 
+fn discover_parquet_files(path: &PathBuf) -> Result<Vec<PathBuf>> {
+    if path.is_file() {
+        return Ok(vec![path.clone()]);
+    }
+    if path.is_dir() {
+        let mut files: Vec<PathBuf> = Vec::new();
+        collect_parquet_files(path, &mut files)?;
+        files.sort();
+        if files.is_empty() {
+            return Err(TileServerError::GeoParquetError(format!(
+                "no .parquet files found in {}",
+                path.display()
+            )));
+        }
+        return Ok(files);
+    }
+    Err(TileServerError::GeoParquetError(format!(
+        "path not found: {}",
+        path.display()
+    )))
+}
+
+fn collect_parquet_files(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<()> {
+    let entries = std::fs::read_dir(dir).map_err(|e| {
+        TileServerError::GeoParquetError(format!("failed to read directory {}: {e}", dir.display()))
+    })?;
+    for entry in entries {
+        let entry = entry
+            .map_err(|e| TileServerError::GeoParquetError(format!("directory entry error: {e}")))?;
+        let entry_path = entry.path();
+        if entry_path.is_dir() {
+            collect_parquet_files(&entry_path, files)?;
+        } else if let Some(ext) = entry_path.extension() {
+            let ext = ext.to_string_lossy().to_ascii_lowercase();
+            if ext == "parquet" || ext == "geoparquet" {
+                files.push(entry_path);
+            }
+        }
+    }
+    Ok(())
+}
+
 impl GeoParquetSource {
     pub async fn from_config(config: &SourceConfig) -> Result<Self> {
         let path = PathBuf::from(&config.path);
-        if !path.exists() {
-            return Err(TileServerError::GeoParquetError(format!(
-                "file not found: {}",
-                config.path
-            )));
-        }
+        let file_paths = discover_parquet_files(&path)?;
+        let first_file = file_paths[0].clone();
+        let file_count = file_paths.len();
 
         let config_geom_col = config.geometry_column.clone();
         let config_geom_col2 = config_geom_col.clone();
@@ -169,11 +208,10 @@ impl GeoParquetSource {
         let config_layer_name = config.layer_name.clone();
         let config_minzoom = config.minzoom;
         let config_maxzoom = config.maxzoom;
-        let file_path = path.clone();
 
         let (geo_meta, property_fields, schema_fields) =
             tokio::task::spawn_blocking(move || -> Result<_> {
-                let file = std::fs::File::open(&path).map_err(|e| {
+                let file = std::fs::File::open(&first_file).map_err(|e| {
                     TileServerError::GeoParquetError(format!("failed to open file: {e}"))
                 })?;
                 let builder = ParquetRecordBatchReaderBuilder::try_new(file).map_err(|e| {
@@ -225,14 +263,28 @@ impl GeoParquetSource {
             "maxzoom": maxzoom,
         }]);
 
-        let metadata = TileMetadata {
-            id: config_id,
-            name: config_name.unwrap_or_else(|| {
-                file_path
-                    .file_stem()
+        let display_name = config_name.unwrap_or_else(|| {
+            if path.is_dir() {
+                path.file_name()
                     .map(|s| s.to_string_lossy().to_string())
                     .unwrap_or_else(|| "geoparquet".to_string())
-            }),
+            } else {
+                path.file_stem()
+                    .map(|s| s.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "geoparquet".to_string())
+            }
+        });
+
+        tracing::info!(
+            "GeoParquet source '{}': {} file(s) from {}",
+            config_id,
+            file_count,
+            path.display()
+        );
+
+        let metadata = TileMetadata {
+            id: config_id,
+            name: display_name,
             description: config_description,
             attribution: config_attribution,
             format: TileFormat::Pbf,
@@ -245,7 +297,7 @@ impl GeoParquetSource {
 
         Ok(Self {
             metadata,
-            file_path,
+            file_paths,
             geometry_column,
             has_bbox_column,
             property_fields,
@@ -504,7 +556,7 @@ impl TileSource for GeoParquetSource {
         }
 
         let tile_bbox = tile_to_bbox_with_buffer(z, x, y, 64);
-        let file_path = self.file_path.clone();
+        let file_paths = self.file_paths.clone();
         let geometry_column = self.geometry_column.clone();
         let has_bbox = self.has_bbox_column;
         let property_fields = self.property_fields.clone();
@@ -520,110 +572,115 @@ impl TileSource for GeoParquetSource {
             .to_string();
 
         let result = tokio::task::spawn_blocking(move || -> Result<Option<Vec<u8>>> {
-            let file = std::fs::File::open(&file_path).map_err(|e| {
-                TileServerError::GeoParquetError(format!("failed to open file: {e}"))
-            })?;
-
-            let builder = ParquetRecordBatchReaderBuilder::try_new(file).map_err(|e| {
-                TileServerError::GeoParquetError(format!("failed to read parquet: {e}"))
-            })?;
-
-            let reader = builder.with_batch_size(8192).build().map_err(|e| {
-                TileServerError::GeoParquetError(format!("failed to build reader: {e}"))
-            })?;
-
             let mut mvt_features: Vec<MvtFeature> = Vec::new();
 
-            for batch_result in reader {
-                let batch = batch_result.map_err(|e| {
-                    TileServerError::GeoParquetError(format!("failed to read batch: {e}"))
+            for file_path in &file_paths {
+                let file = std::fs::File::open(file_path).map_err(|e| {
+                    TileServerError::GeoParquetError(format!(
+                        "failed to open {}: {e}",
+                        file_path.display()
+                    ))
                 })?;
 
-                let schema = batch.schema();
-                let geom_idx = match schema
-                    .fields()
-                    .iter()
-                    .position(|f| f.name() == &geometry_column)
-                {
-                    Some(idx) => idx,
-                    None => continue,
-                };
+                let builder = ParquetRecordBatchReaderBuilder::try_new(file).map_err(|e| {
+                    TileServerError::GeoParquetError(format!("failed to read parquet: {e}"))
+                })?;
 
-                for row in 0..batch.num_rows() {
-                    if has_bbox {
-                        if let Some(bbox_idx) =
-                            schema.fields().iter().position(|f| f.name() == "bbox")
-                        {
-                            let bbox_col = batch.column(bbox_idx);
-                            if let Some(struct_arr) =
-                                bbox_col.as_any().downcast_ref::<arrow_array::StructArray>()
+                let reader = builder.with_batch_size(8192).build().map_err(|e| {
+                    TileServerError::GeoParquetError(format!("failed to build reader: {e}"))
+                })?;
+
+                for batch_result in reader {
+                    let batch = batch_result.map_err(|e| {
+                        TileServerError::GeoParquetError(format!("failed to read batch: {e}"))
+                    })?;
+
+                    let schema = batch.schema();
+                    let geom_idx = match schema
+                        .fields()
+                        .iter()
+                        .position(|f| f.name() == &geometry_column)
+                    {
+                        Some(idx) => idx,
+                        None => continue,
+                    };
+
+                    for row in 0..batch.num_rows() {
+                        if has_bbox {
+                            if let Some(bbox_idx) =
+                                schema.fields().iter().position(|f| f.name() == "bbox")
                             {
-                                let xmin = struct_arr.column_by_name("xmin").and_then(|c| {
-                                    c.as_any().downcast_ref::<arrow_array::Float32Array>()
-                                });
-                                let xmax = struct_arr.column_by_name("xmax").and_then(|c| {
-                                    c.as_any().downcast_ref::<arrow_array::Float32Array>()
-                                });
-                                let ymin = struct_arr.column_by_name("ymin").and_then(|c| {
-                                    c.as_any().downcast_ref::<arrow_array::Float32Array>()
-                                });
-                                let ymax = struct_arr.column_by_name("ymax").and_then(|c| {
-                                    c.as_any().downcast_ref::<arrow_array::Float32Array>()
-                                });
-
-                                if let (Some(xmin), Some(xmax), Some(ymin), Some(ymax)) =
-                                    (xmin, xmax, ymin, ymax)
+                                let bbox_col = batch.column(bbox_idx);
+                                if let Some(struct_arr) =
+                                    bbox_col.as_any().downcast_ref::<arrow_array::StructArray>()
                                 {
-                                    let feat_bbox = [
-                                        xmin.value(row),
-                                        ymin.value(row),
-                                        xmax.value(row),
-                                        ymax.value(row),
-                                    ];
-                                    if !bbox_intersects(feat_bbox, &tile_bbox) {
-                                        continue;
+                                    let xmin = struct_arr.column_by_name("xmin").and_then(|c| {
+                                        c.as_any().downcast_ref::<arrow_array::Float32Array>()
+                                    });
+                                    let xmax = struct_arr.column_by_name("xmax").and_then(|c| {
+                                        c.as_any().downcast_ref::<arrow_array::Float32Array>()
+                                    });
+                                    let ymin = struct_arr.column_by_name("ymin").and_then(|c| {
+                                        c.as_any().downcast_ref::<arrow_array::Float32Array>()
+                                    });
+                                    let ymax = struct_arr.column_by_name("ymax").and_then(|c| {
+                                        c.as_any().downcast_ref::<arrow_array::Float32Array>()
+                                    });
+
+                                    if let (Some(xmin), Some(xmax), Some(ymin), Some(ymax)) =
+                                        (xmin, xmax, ymin, ymax)
+                                    {
+                                        let feat_bbox = [
+                                            xmin.value(row),
+                                            ymin.value(row),
+                                            xmax.value(row),
+                                            ymax.value(row),
+                                        ];
+                                        if !bbox_intersects(feat_bbox, &tile_bbox) {
+                                            continue;
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    let geom_col = batch.column(geom_idx);
-                    let wkb: Option<&[u8]> = geom_col
-                        .as_any()
-                        .downcast_ref::<arrow_array::BinaryArray>()
-                        .and_then(|arr| {
-                            if arr.is_null(row) {
-                                None
-                            } else {
-                                Some(arr.value(row))
-                            }
-                        })
-                        .or_else(|| {
-                            geom_col
-                                .as_any()
-                                .downcast_ref::<arrow_array::LargeBinaryArray>()
-                                .and_then(|arr| {
-                                    if arr.is_null(row) {
-                                        None
-                                    } else {
-                                        Some(arr.value(row))
-                                    }
-                                })
-                        });
+                        let geom_col = batch.column(geom_idx);
+                        let wkb: Option<&[u8]> = geom_col
+                            .as_any()
+                            .downcast_ref::<arrow_array::BinaryArray>()
+                            .and_then(|arr| {
+                                if arr.is_null(row) {
+                                    None
+                                } else {
+                                    Some(arr.value(row))
+                                }
+                            })
+                            .or_else(|| {
+                                geom_col
+                                    .as_any()
+                                    .downcast_ref::<arrow_array::LargeBinaryArray>()
+                                    .and_then(|arr| {
+                                        if arr.is_null(row) {
+                                            None
+                                        } else {
+                                            Some(arr.value(row))
+                                        }
+                                    })
+                            });
 
-                    let wkb = match wkb {
-                        Some(d) if !d.is_empty() => d,
-                        _ => continue,
-                    };
+                        let wkb = match wkb {
+                            Some(d) if !d.is_empty() => d,
+                            _ => continue,
+                        };
 
-                    if let Some((geom, geom_type)) = wkb_point_to_mvt(wkb, &tile_bbox) {
-                        let props = extract_row_properties(&batch, row, &property_fields);
-                        mvt_features.push(MvtFeature {
-                            geom_type,
-                            geometry: geom,
-                            properties: props,
-                        });
+                        if let Some((geom, geom_type)) = wkb_point_to_mvt(wkb, &tile_bbox) {
+                            let props = extract_row_properties(&batch, row, &property_fields);
+                            mvt_features.push(MvtFeature {
+                                geom_type,
+                                geometry: geom,
+                                properties: props,
+                            });
+                        }
                     }
                 }
             }
