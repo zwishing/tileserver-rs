@@ -5,10 +5,10 @@ use std::str::FromStr;
 
 #[cfg(feature = "raster")]
 pub mod cog;
-#[cfg(feature = "geoparquet")]
-pub mod geoparquet;
 #[cfg(feature = "duckdb")]
 pub mod duckdb_source;
+#[cfg(feature = "geoparquet")]
+pub mod geoparquet;
 pub mod manager;
 pub mod mbtiles;
 pub mod pmtiles;

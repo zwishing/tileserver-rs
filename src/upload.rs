@@ -57,7 +57,7 @@ fn source_type_label(st: &SourceType) -> &'static str {
         SourceType::Vrt => "vrt",
         #[cfg(feature = "geoparquet")]
         SourceType::GeoParquet => "geoparquet",
-#[cfg(feature = "duckdb")]
+        #[cfg(feature = "duckdb")]
         SourceType::DuckDB => "duckdb",
     }
 }
