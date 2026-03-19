@@ -1,6 +1,11 @@
 # DuckDB test configuration
 # Requires: cargo build --features duckdb
 # Usage: cargo run --features duckdb -- --config configs/duckdb.toml
+#
+# Download sample data:
+#   pip install overturemaps
+#   overturemaps download --bbox=-99.5,19.2,-98.9,19.6 -f geoparquet --type=place -o ./data/tiles/places.parquet
+#   overturemaps download --bbox=-99.5,19.2,-98.9,19.6 -f geoparquet --type=division -o ./data/tiles/divisions.parquet
 
 [server]
 host = "127.0.0.1"
@@ -20,7 +25,7 @@ query = """
     names.primary AS name,
     categories.primary AS category,
     ST_AsWKB(geometry) AS geometry
-  FROM read_parquet('/Users/vinayak/dev/personal/map/geolith/geolith/data/overture/theme=places/type=place/*.parquet')
+  FROM read_parquet('./data/tiles/places.parquet')
   WHERE bbox.xmin <= {bbox_xmax} AND bbox.xmax >= {bbox_xmin}
     AND bbox.ymin <= {bbox_ymax} AND bbox.ymax >= {bbox_ymin}
 """
@@ -39,7 +44,7 @@ query = """
     names.primary AS name,
     subtype,
     ST_AsWKB(geometry) AS geometry
-  FROM read_parquet('/Users/vinayak/dev/personal/map/geolith/geolith/data/overture/theme=divisions/type=division/*.parquet')
+  FROM read_parquet('./data/tiles/divisions.parquet')
   WHERE ST_Intersects(geometry, ST_MakeEnvelope({bbox}))
 """
 name = "Overture Divisions (DuckDB)"

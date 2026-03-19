@@ -1,6 +1,11 @@
 # GeoParquet test configuration
 # Requires: cargo build --features geoparquet
 # Usage: cargo run --features geoparquet -- --config configs/geoparquet.toml
+#
+# Download sample data:
+#   pip install overturemaps
+#   overturemaps download --bbox=-99.5,19.2,-98.9,19.6 -f geoparquet --type=place -o ./data/tiles/places.parquet
+#   overturemaps download --bbox=-99.5,19.2,-98.9,19.6 -f geoparquet --type=division -o ./data/tiles/divisions.parquet
 
 [server]
 host = "127.0.0.1"
@@ -13,7 +18,7 @@ enabled = false
 [[sources]]
 id = "overture-places"
 type = "geoparquet"
-path = "/Users/vinayak/dev/personal/map/geolith/geolith/data/overture/theme=places/type=place/part-00000-308cb36d-c529-4dc2-83bb-fe6b282a2b1a-c000.zstd.parquet"
+path = "./data/tiles/places.parquet"
 name = "Overture Places"
 layer_name = "places"
 minzoom = 0
@@ -22,7 +27,7 @@ maxzoom = 14
 [[sources]]
 id = "overture-divisions"
 type = "geoparquet"
-path = "/Users/vinayak/dev/personal/map/geolith/geolith/data/overture/theme=divisions/type=division/part-00000-ec2b4cda-aff9-4620-a9a0-159f8a8b0b31-c000.zstd.parquet"
+path = "./data/tiles/divisions.parquet"
 name = "Overture Divisions"
 layer_name = "divisions"
 minzoom = 0
