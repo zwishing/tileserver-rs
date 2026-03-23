@@ -8,6 +8,7 @@ pub const MAX_IMAGE_DIMENSION: u32 = 4096;
 pub const MAX_SCALE_FACTOR: u8 = 4;
 
 /// Image format for rendered output
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImageFormat {
     Png,
@@ -39,6 +40,7 @@ impl FromStr for ImageFormat {
 }
 
 /// Static image type (center, bbox, or auto)
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub enum StaticType {
     /// Center-based: lon,lat,zoom[@bearing[,pitch]]

@@ -26,6 +26,7 @@ use crate::sources::{TileCompression, TileData, TileFormat};
 #[allow(non_snake_case)]
 pub mod MvtProto {
     /// MVT geometry type.
+    #[non_exhaustive]
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, prost::Enumeration)]
     #[repr(i32)]
     pub enum GeomType {
@@ -227,12 +228,12 @@ fn build_mlt_layer(
     layer_name: &str,
     features: &[&mlt_core::geojson::Feature],
 ) -> Result<mlt_core::OwnedLayer> {
+    use mlt_core::Encodable as _;
     use mlt_core::v01::{
         DecodedGeometry, DecodedId, GeometryEncoder, IdEncoder, IdWidth, IntEncoder,
         LogicalEncoder, OwnedGeometry, OwnedId, OwnedLayer01, OwnedProperty, PresenceStream,
         ScalarEncoder,
     };
-    use mlt_core::Encodable as _;
 
     // Extract extent from first feature (injected by mvt_to_feature_collection as _extent)
     let extent = features
@@ -465,10 +466,10 @@ fn mlt_to_mvt(mlt_bytes: &[u8]) -> Result<Bytes> {
 fn feature_collection_to_mvt(fc: &mlt_core::geojson::FeatureCollection) -> Result<MvtProto::Tile> {
     use std::collections::HashMap;
 
-    let mut mvt_layers: Vec<MvtProto::Layer> = Vec::new();
+    let mut mvt_layers: Vec<MvtProto::Layer> = Vec::with_capacity(8);
 
     // Group features by layer name (stored in _layer property by from_layers)
-    let mut layer_map: HashMap<&str, Vec<&mlt_core::geojson::Feature>> = HashMap::new();
+    let mut layer_map: HashMap<&str, Vec<&mlt_core::geojson::Feature>> = HashMap::with_capacity(8);
     for feature in &fc.features {
         let layer_name = feature
             .properties
@@ -487,11 +488,11 @@ fn feature_collection_to_mvt(fc: &mlt_core::geojson::FeatureCollection) -> Resul
             .map(|v| v as u32)
             .unwrap_or(4096);
 
-        let mut keys: Vec<String> = Vec::new();
-        let mut values: Vec<MvtProto::Value> = Vec::new();
-        let mut key_index: HashMap<String, u32> = HashMap::new();
-        let mut value_index: HashMap<String, u32> = HashMap::new();
-        let mut mvt_features: Vec<MvtProto::Feature> = Vec::new();
+        let mut keys: Vec<String> = Vec::with_capacity(32);
+        let mut values: Vec<MvtProto::Value> = Vec::with_capacity(features.len() * 4);
+        let mut key_index: HashMap<String, u32> = HashMap::with_capacity(32);
+        let mut value_index: HashMap<String, u32> = HashMap::with_capacity(features.len() * 4);
+        let mut mvt_features: Vec<MvtProto::Feature> = Vec::with_capacity(features.len());
 
         for feature in features {
             // Encode geometry to MVT command sequence
@@ -1445,8 +1446,8 @@ mod tests {
 
     #[test]
     fn test_mvt_to_mlt_gzip_compressed_input() {
-        use flate2::write::GzEncoder;
         use flate2::Compression;
+        use flate2::write::GzEncoder;
         use std::io::Write;
 
         let mvt_bytes = make_mvt_point_tile("compressed", 50, 50);
@@ -1624,8 +1625,8 @@ mod tests {
 
     #[test]
     fn test_decompress_tile_data_gzip() {
-        use flate2::write::GzEncoder;
         use flate2::Compression;
+        use flate2::write::GzEncoder;
         use std::io::Write;
 
         let original = b"hello world";
@@ -1765,10 +1766,10 @@ mod tests {
         // MoveTo = 1
         assert_eq!(command_integer(1, 1), 0b0000_1001); // 9
         assert_eq!(command_integer(1, 2), 0b0001_0001); // 17
-                                                        // LineTo = 2
+        // LineTo = 2
         assert_eq!(command_integer(2, 1), 0b0000_1010); // 10
         assert_eq!(command_integer(2, 5), 0b0010_1010); // 42
-                                                        // ClosePath = 7
+        // ClosePath = 7
         assert_eq!(command_integer(7, 1), 0b0000_1111); // 15
     }
 
