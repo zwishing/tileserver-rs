@@ -1,3 +1,5 @@
+//! GeoParquet vector tile source with spatial filtering and MVT encoding.
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -356,10 +358,10 @@ fn wkb_point_to_mvt(wkb: &[u8], tile_bbox: &[f64; 4]) -> Option<(Vec<u32>, u32)>
 }
 
 fn encode_mvt_tile(features: &[MvtFeature], layer_name: &str) -> Vec<u8> {
-    let mut keys: Vec<String> = Vec::new();
-    let mut key_map: HashMap<String, u32> = HashMap::new();
-    let mut values: Vec<Vec<u8>> = Vec::new();
-    let mut encoded_features: Vec<Vec<u8>> = Vec::new();
+    let mut keys: Vec<String> = Vec::with_capacity(32);
+    let mut key_map: HashMap<String, u32> = HashMap::with_capacity(32);
+    let mut values: Vec<Vec<u8>> = Vec::with_capacity(features.len() * 4);
+    let mut encoded_features: Vec<Vec<u8>> = Vec::with_capacity(features.len());
 
     for feat in features {
         let mut tags: Vec<u32> = Vec::new();
@@ -572,7 +574,7 @@ impl TileSource for GeoParquetSource {
             .to_string();
 
         let result = tokio::task::spawn_blocking(move || -> Result<Option<Vec<u8>>> {
-            let mut mvt_features: Vec<MvtFeature> = Vec::new();
+            let mut mvt_features: Vec<MvtFeature> = Vec::with_capacity(256);
 
             for file_path in &file_paths {
                 let file = std::fs::File::open(file_path).map_err(|e| {
