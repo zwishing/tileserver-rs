@@ -10,6 +10,7 @@ pub mod error;
 pub mod openapi;
 pub mod reload;
 pub mod render;
+pub mod routes;
 pub mod sources;
 pub mod startup;
 pub mod styles;
@@ -22,11 +23,11 @@ pub use config::Config;
 pub use error::{Result, TileServerError};
 pub use reload::AppState;
 pub use sources::{
-    detect_mlt_format, SourceManager, TileCompression, TileData, TileFormat, TileJson, TileSource,
+    SourceManager, TileCompression, TileData, TileFormat, TileJson, TileSource, detect_mlt_format,
 };
-pub use styles::{rewrite_style_for_api, Style, StyleInfo, StyleManager, UrlQueryParams};
+pub use styles::{Style, StyleInfo, StyleManager, UrlQueryParams, rewrite_style_for_api};
 #[cfg(feature = "mlt")]
-pub use transcode::{transcode_tile, MvtProto};
+pub use transcode::{MvtProto, transcode_tile};
 
 #[cfg(feature = "postgres")]
 pub use config::{PostgresConfig, PostgresFunctionConfig};
