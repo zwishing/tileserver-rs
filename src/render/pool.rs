@@ -198,6 +198,7 @@ impl RendererPool {
         }
     }
 
+    #[must_use]
     pub fn stats(&self) -> PoolStats {
         PoolStats {
             max_scale: self.max_scale,
@@ -263,7 +264,10 @@ impl WorkerMaps {
             )?;
             self.tile_maps.insert(key, map);
         }
-        Ok(self.tile_maps.get_mut(&key).unwrap())
+        Ok(self
+            .tile_maps
+            .get_mut(&key)
+            .expect("key was just inserted into tile_maps"))
     }
 
     fn render_tile(
@@ -298,7 +302,10 @@ impl WorkerMaps {
             self.static_map = Some((ratio_key, map));
         }
 
-        let (_, map) = self.static_map.as_mut().unwrap();
+        let (_, map) = self
+            .static_map
+            .as_mut()
+            .expect("static_map was initialized above");
         map.set_size(options.size);
         map.load_style(style_json)?;
         map.render(Some(RenderOptions {
