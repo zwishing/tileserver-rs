@@ -10,11 +10,11 @@
 
 use axum::{
     body::Body,
-    http::{header, Request, Response},
+    http::{Request, Response, header},
     middleware::Next,
 };
-use opentelemetry::metrics::{Counter, Histogram};
 use opentelemetry::KeyValue;
+use opentelemetry::metrics::{Counter, Histogram};
 use std::{net::SocketAddr, sync::OnceLock, time::Instant};
 
 struct HttpMetrics {

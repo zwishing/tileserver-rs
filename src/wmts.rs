@@ -278,7 +278,9 @@ mod tests {
         assert!(xml.contains("?key=my_api_key_123"));
 
         // WMTS URL should include key
-        assert!(xml.contains("http://localhost:8080/styles/osm-bright/wmts.xml?key=my_api_key_123"));
+        assert!(
+            xml.contains("http://localhost:8080/styles/osm-bright/wmts.xml?key=my_api_key_123")
+        );
 
         // Tile URLs should include key
         assert!(xml.contains("{TileRow}.png?key=my_api_key_123"));

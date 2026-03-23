@@ -1,8 +1,10 @@
+//! Admin server for hot-reload and runtime diagnostics (`/ping`, `/__admin/reload`).
+
 use axum::{
+    Json, Router,
     extract::{Query, State},
     http::StatusCode,
     routing::post,
-    Json, Router,
 };
 
 use crate::reload::SharedState;
@@ -92,10 +94,10 @@ mod tests {
     use super::*;
     use crate::config::Config;
     use crate::reload::{
-        build_app_state, now_unix_seconds, ReloadController, ReloadMeta, RuntimeSettings,
-        SharedState,
+        ReloadController, ReloadMeta, RuntimeSettings, SharedState, build_app_state,
+        now_unix_seconds,
     };
-    use axum::body::{to_bytes, Body};
+    use axum::body::{Body, to_bytes};
     use axum::http::Request;
     use axum::routing::get;
     use std::fs;
@@ -192,18 +194,22 @@ path = "{}"
         let payload = ping_payload(shared).await;
 
         assert_eq!(payload["status"], "ok");
-        assert!(payload["config_hash"]
-            .as_str()
-            .map(|s| !s.is_empty())
-            .unwrap_or(false));
+        assert!(
+            payload["config_hash"]
+                .as_str()
+                .map(|s| !s.is_empty())
+                .unwrap_or(false)
+        );
         assert!(payload["loaded_at_unix"].as_u64().is_some());
         assert!(payload["loaded_sources"].as_u64().is_some());
         assert!(payload["loaded_styles"].as_u64().is_some());
         assert!(payload["renderer_enabled"].as_bool().is_some());
-        assert!(payload["version"]
-            .as_str()
-            .map(|s| !s.is_empty())
-            .unwrap_or(false));
+        assert!(
+            payload["version"]
+                .as_str()
+                .map(|s| !s.is_empty())
+                .unwrap_or(false)
+        );
     }
 
     #[tokio::test]

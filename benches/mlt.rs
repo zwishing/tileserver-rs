@@ -33,10 +33,10 @@
 //!   MLT→MVT reverse transcoding pipeline that Martin does not provide.
 
 use bytes::Bytes;
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use prost::Message;
 use tileserver_rs::sources::{TileCompression, TileData, TileFormat};
-use tileserver_rs::transcode::{transcode_tile, MvtProto};
+use tileserver_rs::transcode::{MvtProto, transcode_tile};
 
 // ---------------------------------------------------------------------------
 // Fixture loading

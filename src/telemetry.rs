@@ -1,14 +1,16 @@
+//! OpenTelemetry tracing and metrics integration for request instrumentation.
+
 use std::time::Duration;
 
-use opentelemetry::trace::TracerProvider;
 use opentelemetry::KeyValue;
+use opentelemetry::trace::TracerProvider;
 use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};
-use opentelemetry_sdk::Resource;
 use tracing::Subscriber;
 use tracing_opentelemetry::OpenTelemetryLayer;
-use tracing_subscriber::{registry::LookupSpan, Layer};
+use tracing_subscriber::{Layer, registry::LookupSpan};
 
 use crate::config::TelemetryConfig;
 
