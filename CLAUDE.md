@@ -32,7 +32,7 @@
 - **Serde** - Serialization
 - **Tracing** - Structured logging
 - **Clap** - CLI argument parsing
-- **maplibre-native-sys** - FFI bindings to MapLibre Native C++ for server-side rendering
+- **mbgl-sys** - FFI bindings to MapLibre Native C++ for server-side rendering
 - **mlt-core** - MLT tile parsing and decoding (optional, `mlt` feature)
 - **prost** - Protobuf encoding for MVT tile generation (optional, `mlt` feature)
 - **geo-types** - Geometry types used by mlt-core (optional, `mlt` feature)
@@ -425,14 +425,15 @@ tileserver-rs/
 │       ├── nuxt.config.ts             # Nuxt configuration
 │       └── package.json               # @tileserver-rs/marketing (excluded from workspace)
 │
-├── maplibre-native-sys/               # FFI bindings to MapLibre Native
-│   ├── cpp/                           # C/C++ wrapper code
-│   │   ├── maplibre_c.h               # C API header
-│   │   ├── maplibre_c.cpp             # C++ implementation wrapping mbgl::*
-│   │   └── maplibre_c_stub.c          # Stub for development without native libs
-│   ├── src/lib.rs                     # Rust FFI bindings
-│   ├── build.rs                       # Build script (links MapLibre Native)
-│   └── vendor/maplibre-native/        # MapLibre Native C++ source (git submodule)
+├── crates/
+│   └── mbgl-sys/           # FFI bindings to MapLibre Native
+│       ├── cpp/                       # C/C++ wrapper code
+│       │   ├── maplibre_c.h           # C API header
+│       │   ├── maplibre_c.cpp         # C++ implementation wrapping mbgl::*
+│       │   └── maplibre_c_stub.c      # Stub for development without native libs
+│       ├── src/lib.rs                 # Rust FFI bindings
+│       ├── build.rs                   # Build script (links MapLibre Native)
+│       └── vendor/maplibre-native/    # MapLibre Native C++ source (git submodule)
 │
 ├── src/                               # Rust backend
 │   ├── main.rs                        # Server entry point, routes
@@ -680,7 +681,7 @@ tileserver-rs (main binary)
         ├── native.rs    (safe Rust wrappers)
         └── types.rs     (RenderOptions, ImageFormat, etc.)
     
-maplibre-native-sys (FFI crate)
+mbgl-sys (FFI crate)
     ├── src/lib.rs       (unsafe FFI declarations)
     ├── cpp/maplibre_c.h (C API header)
     ├── cpp/maplibre_c.cpp (C++ implementation using mbgl::*)
@@ -690,7 +691,7 @@ maplibre-native-sys (FFI crate)
 
 ### Key Components
 
-1. **maplibre-native-sys** - Rust crate providing FFI bindings to MapLibre Native
+1. **mbgl-sys** - Rust crate providing FFI bindings to MapLibre Native
 2. **Renderer Pool** - Maintains pools of native renderers per scale factor (1x, 2x, 3x)
 3. **Style Rewriter** - Converts relative source URLs to absolute tile URLs for native rendering
 
@@ -719,7 +720,7 @@ The native renderer cannot fetch TileJSON from our server (same process), so sty
 ### Building MapLibre Native (macOS)
 
 ```bash
-cd maplibre-native-sys/vendor/maplibre-native
+cd crates/mbgl-sys/vendor/maplibre-native
 git submodule update --init --recursive
 brew install ninja ccache libuv glfw bazelisk
 cmake --preset macos-metal

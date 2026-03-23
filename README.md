@@ -66,7 +66,7 @@ Native raster tile rendering requires building MapLibre Native. If you don't nee
 brew install ninja ccache libuv glfw bazelisk cmake
 
 # Build MapLibre Native
-cd maplibre-native-sys/vendor/maplibre-native
+cd crates/mbgl-sys/vendor/maplibre-native
 git submodule update --init --recursive
 cmake --preset macos-metal
 cmake --build build-macos-metal --target mbgl-core mlt-cpp -j8
@@ -78,7 +78,7 @@ cmake --build build-macos-metal --target mbgl-core mlt-cpp -j8
 apt-get install ninja-build ccache libuv1-dev libglfw3-dev cmake
 
 # Build MapLibre Native
-cd maplibre-native-sys/vendor/maplibre-native
+cd crates/mbgl-sys/vendor/maplibre-native
 git submodule update --init --recursive
 cmake --preset linux
 cmake --build build-linux --target mbgl-core mlt-cpp -j8
@@ -88,7 +88,7 @@ cmake --build build-linux --target mbgl-core mlt-cpp -j8
 ```bash
 # Clear Cargo's cached build to detect the new libraries
 cd /path/to/tileserver-rs
-rm -rf target/release/build/maplibre-native-sys-*
+rm -rf target/release/build/mbgl-sys-*
 cargo build --release
 ```
 
@@ -402,13 +402,14 @@ tileserver-rs/
 │   └── client/              # Nuxt 4 frontend (embedded in binary)
 ├── docs/                    # Documentation site (docs.tileserver.app)
 ├── marketing/               # Landing page (tileserver.app)
-├── maplibre-native-sys/     # FFI bindings to MapLibre Native (C++)
-│   ├── cpp/                 # C/C++ wrapper code
-│   │   ├── maplibre_c.h     # C API header
-│   │   └── maplibre_c.cpp   # C++ implementation
-│   ├── src/lib.rs           # Rust FFI bindings
-│   ├── build.rs             # Build script
-│   └── vendor/maplibre-native/  # MapLibre Native source (submodule)
+├── crates/
+│   └── mbgl-sys/            # FFI bindings to MapLibre Native (C++)
+│       ├── cpp/             # C/C++ wrapper code
+│       │   ├── maplibre_c.h # C API header
+│       │   └── maplibre_c.cpp # C++ implementation
+│       ├── src/lib.rs       # Rust FFI bindings
+│       ├── build.rs         # Build script
+│       └── vendor/maplibre-native/  # MapLibre Native source (submodule)
 ├── src/                     # Rust backend
 │   ├── main.rs              # Entry point, routes
 │   ├── admin.rs             # Admin server + /ping endpoint

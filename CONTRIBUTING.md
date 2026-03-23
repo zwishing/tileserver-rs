@@ -63,7 +63,7 @@ git submodule update --init --recursive
 
 ### Setting Up MapLibre Native
 
-The `maplibre-native-sys/vendor/maplibre-native` directory contains the MapLibre Native C++ library as a Git submodule. This is required for native raster tile rendering.
+The `crates/mbgl-sys/vendor/maplibre-native` directory contains the MapLibre Native C++ library as a Git submodule. This is required for native raster tile rendering.
 
 **macOS (Apple Silicon/Intel):**
 ```bash
@@ -71,7 +71,7 @@ The `maplibre-native-sys/vendor/maplibre-native` directory contains the MapLibre
 brew install ninja ccache libuv glfw bazelisk cmake
 
 # Initialize submodule and build
-cd maplibre-native-sys/vendor/maplibre-native
+cd crates/mbgl-sys/vendor/maplibre-native
 git submodule update --init --recursive
 cmake --preset macos-metal
 cmake --build build-macos-metal --target mbgl-core mlt-cpp -j$(sysctl -n hw.ncpu)
@@ -84,7 +84,7 @@ sudo apt-get install -y ninja-build ccache libuv1-dev libglfw3-dev cmake \
   libcurl4-openssl-dev libicu-dev libjpeg-dev libpng-dev libsqlite3-dev
 
 # Initialize submodule and build
-cd maplibre-native-sys/vendor/maplibre-native
+cd crates/mbgl-sys/vendor/maplibre-native
 git submodule update --init --recursive
 cmake --preset linux
 cmake --build build-linux --target mbgl-core mlt-cpp -j$(nproc)
@@ -96,7 +96,7 @@ cmake --build build-linux --target mbgl-core mlt-cpp -j$(nproc)
 
 ```bash
 # Clear the cached build script output
-rm -rf target/release/build/maplibre-native-sys-*
+rm -rf target/release/build/mbgl-sys-*
 
 # Rebuild
 cargo build --release
@@ -138,15 +138,15 @@ git submodule update --init --recursive
 
 ```bash
 # Navigate to submodule directory
-cd maplibre-native-sys/vendor/maplibre-native
+cd crates/mbgl-sys/vendor/maplibre-native
 
 # Fetch and checkout the desired version
 git fetch origin
 git checkout <tag-or-commit>
 
 # Go back to root and commit the submodule update
-cd ../../..
-git add maplibre-native-sys/vendor/maplibre-native
+cd ../../../..
+git add crates/mbgl-sys/vendor/maplibre-native
 git commit -m "chore: update maplibre-native to <version>"
 ```
 
@@ -158,7 +158,7 @@ This is normal. Submodules are always checked out at a specific commit.
 **Submodule has local changes:**
 ```bash
 # Discard local changes in submodule
-cd maplibre-native-sys/vendor/maplibre-native
+cd crates/mbgl-sys/vendor/maplibre-native
 git checkout .
 git clean -fd
 ```
@@ -179,7 +179,7 @@ git submodule update --init --depth 1
 The submodule is configured to use SSH (`git@github.com:...`). If you need HTTPS:
 ```bash
 # Temporarily override submodule URL
-git config submodule.maplibre-native-sys/vendor/maplibre-native.url https://github.com/maplibre/maplibre-native.git
+git config submodule.crates/mbgl-sys/vendor/maplibre-native.url https://github.com/maplibre/maplibre-native.git
 git submodule update --init --recursive
 ```
 
@@ -325,11 +325,12 @@ tileserver-rs/
 │   │   └── nuxt.config.ts
 │   └── docs/                    # Documentation site
 │
-├── maplibre-native-sys/         # FFI bindings crate
-│   ├── cpp/                     # C/C++ wrapper code
-│   ├── src/lib.rs               # Rust FFI declarations
-│   ├── build.rs                 # Build script
-│   └── vendor/maplibre-native/  # MapLibre Native (submodule)
+├── crates/
+│   └── mbgl-sys/     # FFI bindings crate
+│       ├── cpp/                 # C/C++ wrapper code
+│       ├── src/lib.rs           # Rust FFI declarations
+│       ├── build.rs             # Build script
+│       └── vendor/maplibre-native/  # MapLibre Native (submodule)
 │
 ├── src/                         # Main Rust application
 │   ├── main.rs                  # Entry point, HTTP routes

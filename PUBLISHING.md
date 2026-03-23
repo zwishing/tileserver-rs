@@ -15,7 +15,7 @@ tileserver-rs/
 │   ├── openapi.rs
 │   ├── wmts.rs
 │   ├── cache_control.rs
-│   └── render/                   # Native rendering (uses maplibre-native-sys)
+│   └── render/                   # Native rendering (uses mbgl-sys)
 │
 ├── tileserver-core/              # Library crate (publishable)
 │   ├── Cargo.toml
@@ -27,13 +27,14 @@ tileserver-rs/
 │       ├── sources/              # PMTiles, MBTiles
 │       └── styles/               # Style management
 │
-├── maplibre-native-sys/          # FFI crate (publishable)
-│   ├── Cargo.toml
-│   ├── README.md
-│   ├── build.rs                  # Downloads pre-built OR builds from source
-│   ├── src/lib.rs
-│   ├── cpp/                      # C wrapper code
-│   └── vendor/maplibre-native/   # Git submodule (optional, for bundled builds)
+├── crates/
+│   └── mbgl-sys/      # FFI crate (publishable)
+│       ├── Cargo.toml
+│       ├── README.md
+│       ├── build.rs              # Downloads pre-built OR builds from source
+│       ├── src/lib.rs
+│       ├── cpp/                  # C wrapper code
+│       └── vendor/maplibre-native/   # Git submodule (optional, for bundled builds)
 │
 └── .github/workflows/
     ├── ci-rust.yml               # Lint, test, build
@@ -68,7 +69,7 @@ http = ["reqwest", "pmtiles/http-async"]  # Remote PMTiles support
 - `StyleManager`
 - `Config`
 
-### 2. `maplibre-native-sys` (EXISTING, ENHANCED)
+### 2. `mbgl-sys` (EXISTING, ENHANCED)
 
 Low-level FFI bindings to MapLibre GL Native.
 
@@ -77,7 +78,7 @@ Low-level FFI bindings to MapLibre GL Native.
 
 ```toml
 [package]
-name = "maplibre-native-sys"
+name = "mbgl-sys"
 version = "0.3.0"
 links = "maplibre-native"
 
@@ -108,11 +109,11 @@ version = "0.3.0"
 
 [dependencies]
 tileserver-core = "0.1"
-maplibre-native-sys = { version = "0.3", features = ["prebuilt"] }
+mbgl-sys = { version = "0.3", features = ["prebuilt"] }
 
 [features]
 default = ["native-render"]
-native-render = ["maplibre-native-sys"]
+native-render = ["mbgl-sys"]
 ```
 
 ## Implementation Plan
@@ -125,7 +126,7 @@ native-render = ["maplibre-native-sys"]
 4. Update imports in main crate to use `tileserver_core::`
 5. Test: `cargo check -p tileserver-core`
 
-### Phase 2: Enhance maplibre-native-sys
+### Phase 2: Enhance mbgl-sys
 
 1. Add `prebuilt` feature to Cargo.toml
 2. Update `build.rs`:
@@ -138,14 +139,14 @@ native-render = ["maplibre-native-sys"]
 
 #### `build-maplibre-native.yml`
 Builds MapLibre Native for all platforms:
-- Triggers: manual, or when maplibre-native-sys changes
+- Triggers: manual, or when mbgl-sys changes
 - Matrix: macOS (arm64, x86_64), Linux (x86_64, arm64)
 - Outputs: `libmbgl-core.a`, `libmlt-cpp.a`, etc.
 - Caches: Using GitHub Actions cache
 
 #### `release-native-libs.yml`
 Publishes pre-built libraries:
-- Triggers: tag `maplibre-native-sys-v*`
+- Triggers: tag `mbgl-sys-v*`
 - Creates GitHub Release with tarballs:
   - `maplibre-native-libs-0.3.0-aarch64-apple-darwin.tar.gz`
   - `maplibre-native-libs-0.3.0-x86_64-unknown-linux-gnu.tar.gz`
@@ -159,7 +160,7 @@ fn download_prebuilt() -> Result<PathBuf, Error> {
     let target = env::var("TARGET")?;
     let url = format!(
         "https://github.com/vinayakkulkarni/tileserver-rs/releases/download/\
-         maplibre-native-sys-v{version}/maplibre-native-libs-{version}-{target}.tar.gz"
+         mbgl-sys-v{version}/maplibre-native-libs-{version}-{target}.tar.gz"
     );
     // Download and extract...
 }
@@ -170,8 +171,8 @@ fn download_prebuilt() -> Result<PathBuf, Error> {
 Order matters due to dependencies:
 
 1. `cargo publish -p tileserver-core`
-2. Build and release native libs (tag `maplibre-native-sys-v0.3.0`)
-3. `cargo publish -p maplibre-native-sys`
+2. Build and release native libs (tag `mbgl-sys-v0.3.0`)
+3. `cargo publish -p mbgl-sys`
 4. `cargo publish -p tileserver-rs`
 
 ## CI/CD Changes Summary
@@ -179,15 +180,15 @@ Order matters due to dependencies:
 | Workflow | Purpose | Trigger |
 |----------|---------|---------|
 | `ci-rust.yml` | Lint, test, build all crates | PR, push to main |
-| `build-maplibre-native.yml` | Build native libs for all platforms | Manual, changes to maplibre-native-sys |
-| `release-native-libs.yml` | Publish pre-built libs to GitHub Releases | Tag `maplibre-native-sys-v*` |
+| `build-maplibre-native.yml` | Build native libs for all platforms | Manual, changes to mbgl-sys |
+| `release-native-libs.yml` | Publish pre-built libs to GitHub Releases | Tag `mbgl-sys-v*` |
 | `release-crates.yml` (NEW) | Publish crates to crates.io | Tag `v*` |
 | `release-*.yml` | Build binary releases | Tag `tileserver-rs-v*` |
 
 ## Version Strategy
 
 - `tileserver-core`: Starts at 0.1.0, follows semver
-- `maplibre-native-sys`: Bumps to 0.3.0 (adds prebuilt feature)
+- `mbgl-sys`: Bumps to 0.3.0 (adds prebuilt feature)
 - `tileserver-rs`: Bumps to 0.3.0 (new architecture)
 
 ## User Experience
@@ -203,5 +204,5 @@ cargo add tileserver-core
 
 # Use with native rendering
 cargo add tileserver-core
-cargo add maplibre-native-sys --features prebuilt
+cargo add mbgl-sys --features prebuilt
 ```
