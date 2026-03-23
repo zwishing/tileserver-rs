@@ -30,8 +30,13 @@ libc = { workspace = true }
 cc = { workspace = true }
 cmake = { workspace = true }
 pkg-config = { workspace = true }
+ureq = { workspace = true, optional = true }
+tar = { workspace = true, optional = true }
+flate2 = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
 
 [features]
 default = ["bundled"]
 bundled = []
 system = []
+prebuilt = ["dep:ureq", "dep:tar", "dep:flate2", "dep:sha2"]

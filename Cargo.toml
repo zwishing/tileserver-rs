@@ -109,6 +109,10 @@ cc               = "1.2"
 cmake            = "0.1"
 pkg-config       = "0.3"
 
+# Prebuilt download (build-dependencies for mbgl-sys prebuilt feature)
+ureq             = { version = "2", default-features = false, features = ["tls"] }
+tar              = "0.4"
+
 # Dev / test dependencies
 tower            = { version = "0.5.3", features = ["util"] }
 axum-test        = "19.1.1"

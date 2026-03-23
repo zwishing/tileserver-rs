@@ -1,0 +1,205 @@
+name: "Build MapLibre Native"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "mbgl-sys version (e.g., 0.1.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  TAG_NAME: mbgl-sys-v${{ github.event.inputs.version }}
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
+
+jobs:
+  create-release:
+    name: Create Draft Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Create draft release
+        run: |
+          gh release create "$TAG_NAME" \
+            --repo "${{ github.repository }}" \
+            --title "mbgl-sys $TAG_NAME" \
+            --notes "Pre-built MapLibre Native static libraries for mbgl-sys v${{ github.event.inputs.version }}" \
+            --draft
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-macos:
+    name: Build macOS (aarch64-apple-darwin)
+    runs-on: macos-14
+    needs: create-release
+    timeout-minutes: 120
+    env:
+      TARGET: aarch64-apple-darwin
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: brew install cmake ninja ccache glfw libuv pkg-config
+
+      - name: Cache ccache
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Caches/ccache
+          key: ccache-macos-arm64-${{ hashFiles('crates/mbgl-sys/vendor/maplibre-native/CMakeLists.txt') }}
+          restore-keys: ccache-macos-arm64-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=2G
+          ccache --zero-stats
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build MapLibre Native
+        run: |
+          cd crates/mbgl-sys/vendor/maplibre-native
+          cmake --preset macos-metal \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake --build build-macos-metal --target mbgl-core mlt-cpp -j$(sysctl -n hw.ncpu)
+
+      - name: Build C++ wrapper
+        run: cargo build -p mbgl-sys
+
+      - name: Show ccache stats
+        run: ccache --show-stats
+
+      - name: Collect static libraries
+        run: |
+          mkdir -p lib
+          find crates/mbgl-sys/vendor/maplibre-native/build-macos-metal -name "*.a" -exec cp {} lib/ \;
+          WRAPPER=$(find target -name "libmaplibre_c.a" -path "*/mbgl-sys-*/out/*" | head -1)
+          cp "$WRAPPER" lib/
+          echo "--- Collected libraries ---"
+          ls -lh lib/
+
+      - name: Create tarball and compute checksum
+        run: |
+          tar -czf "mbgl-native-${TARGET}.tar.gz" lib/
+          echo "--- SHA-256 ---"
+          shasum -a 256 "mbgl-native-${TARGET}.tar.gz"
+
+      - name: Upload to release
+        run: |
+          gh release upload "$TAG_NAME" \
+            --repo "${{ github.repository }}" \
+            "mbgl-native-${TARGET}.tar.gz"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-linux:
+    name: Build Linux (x86_64-unknown-linux-gnu)
+    runs-on: ubuntu-latest
+    needs: create-release
+    timeout-minutes: 120
+    env:
+      TARGET: x86_64-unknown-linux-gnu
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            clang \
+            libclang-dev \
+            cmake \
+            ninja-build \
+            ccache \
+            pkg-config \
+            libcurl4-openssl-dev \
+            libglfw3-dev \
+            libuv1-dev \
+            libpng-dev \
+            libicu-dev \
+            libjpeg-turbo8-dev \
+            libwebp-dev \
+            libsqlite3-dev \
+            libopengl-dev \
+            libgl-dev
+
+      - name: Cache ccache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ccache
+          key: ccache-linux-x64-${{ hashFiles('crates/mbgl-sys/vendor/maplibre-native/CMakeLists.txt') }}
+          restore-keys: ccache-linux-x64-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=2G
+          ccache --zero-stats
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build MapLibre Native
+        run: |
+          cd crates/mbgl-sys/vendor/maplibre-native
+          cmake --preset linux-opengl \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DMLN_WITH_WERROR=OFF \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake --build build-linux-opengl --target mbgl-core mlt-cpp -j$(nproc)
+
+      - name: Build C++ wrapper
+        run: cargo build -p mbgl-sys
+
+      - name: Show ccache stats
+        run: ccache --show-stats
+
+      - name: Collect static libraries
+        run: |
+          mkdir -p lib
+          find crates/mbgl-sys/vendor/maplibre-native/build-linux-opengl -name "*.a" -exec cp {} lib/ \;
+          WRAPPER=$(find target -name "libmaplibre_c.a" -path "*/mbgl-sys-*/out/*" | head -1)
+          cp "$WRAPPER" lib/
+          echo "--- Collected libraries ---"
+          ls -lh lib/
+
+      - name: Create tarball and compute checksum
+        run: |
+          tar -czf "mbgl-native-${TARGET}.tar.gz" lib/
+          echo "--- SHA-256 ---"
+          sha256sum "mbgl-native-${TARGET}.tar.gz"
+
+      - name: Upload to release
+        run: |
+          gh release upload "$TAG_NAME" \
+            --repo "${{ github.repository }}" \
+            "mbgl-native-${TARGET}.tar.gz"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-release:
+    name: Publish Release
+    runs-on: ubuntu-latest
+    needs: [build-macos, build-linux]
+    timeout-minutes: 5
+    steps:
+      - name: Remove draft flag
+        run: |
+          gh release edit "$TAG_NAME" \
+            --repo "${{ github.repository }}" \
+            --draft=false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
