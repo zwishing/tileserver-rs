@@ -1,3 +1,5 @@
+//! HTTP remote PMTiles source with in-memory header caching.
+
 use async_trait::async_trait;
 use pmtiles::{
     AsyncPmTilesReader, Compression as PmCompression, HashMapCache, HttpBackend, TileCoord,

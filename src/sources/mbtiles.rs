@@ -1,3 +1,5 @@
+//! MBTiles tile source backed by SQLite via `rusqlite`.
+
 use async_trait::async_trait;
 use rusqlite::{Connection, OpenFlags};
 use std::path::Path;

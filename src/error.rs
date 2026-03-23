@@ -1,3 +1,5 @@
+//! Error types and HTTP status code mapping for the tile server.
+
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},

@@ -1,3 +1,5 @@
+//! Local file PMTiles source using memory-mapped I/O.
+
 use async_trait::async_trait;
 use pmtiles::{AsyncPmTilesReader, Compression as PmCompression, MmapBackend, TileCoord, TileType};
 use std::path::Path;
