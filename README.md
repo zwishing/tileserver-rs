@@ -2,6 +2,8 @@
 
 [![CI Pipeline](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/pipeline.yml/badge.svg)](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/pipeline.yml)
 [![Docker](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/release-docker.yml/badge.svg)](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/release-docker.yml)
+[![mbgl-sys on crates.io](https://img.shields.io/crates/v/mbgl-sys.svg)](https://crates.io/crates/mbgl-sys)
+[![mbgl-sys on docs.rs](https://docs.rs/mbgl-sys/badge.svg)](https://docs.rs/mbgl-sys)
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/1u-LMi)
 [![Deploy on Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/vinayakkulkarni/tileserver-rs)
