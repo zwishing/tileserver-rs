@@ -47,7 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends --no-install-su
 WORKDIR /build
 
 # Copy MapLibre Native source
-COPY maplibre-native-sys/vendor/maplibre-native ./maplibre-native
+COPY crates/mbgl-sys/vendor/maplibre-native ./maplibre-native
 
 # Build MapLibre Native for Linux using the official preset
 # Build all static libraries required for linking
@@ -129,10 +129,10 @@ WORKDIR /app
 
 # Copy MapLibre Native build artifacts (from linux-opengl preset)
 # build.rs expects 'build-linux' directory, so copy to that name
-COPY --from=maplibre-builder /build/maplibre-native/build-linux-opengl /app/maplibre-native-sys/vendor/maplibre-native/build-linux
+COPY --from=maplibre-builder /build/maplibre-native/build-linux-opengl /app/crates/mbgl-sys/vendor/maplibre-native/build-linux
 
 # Copy MapLibre Native headers (needed for build.rs)
-COPY maplibre-native-sys ./maplibre-native-sys
+COPY crates/mbgl-sys ./crates/mbgl-sys
 
 # Copy Cargo files and build script for dependency caching
 COPY Cargo.toml Cargo.lock ./
@@ -200,7 +200,7 @@ WORKDIR /app
 COPY --from=rust-builder /app/target/release/tileserver-rs ./tileserver-rs
 
 # Copy entrypoint script
-COPY docker-entrypoint.sh ./docker-entrypoint.sh
+COPY deploy/docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 
 # Copy example config

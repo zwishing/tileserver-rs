@@ -7,7 +7,7 @@ on:
     paths:
       - 'src/**'
       - 'apps/client/**'
-      - 'maplibre-native-sys/**'
+      - 'crates/mbgl-sys/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'Dockerfile'

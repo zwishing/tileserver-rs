@@ -1,4 +1,4 @@
-//! Build script for maplibre-native-sys
+//! Build script for mbgl-sys
 //!
 //! This build script compiles the C++ wrapper and links to MapLibre GL Native.
 
@@ -50,7 +50,7 @@ fn main() {
         println!("cargo:warning=To build MapLibre Native, run:");
         #[cfg(target_os = "macos")]
         {
-            println!("cargo:warning=  cd maplibre-native-sys/vendor/maplibre-native");
+            println!("cargo:warning=  cd mbgl-sys/vendor/maplibre-native");
             println!("cargo:warning=  cmake --preset macos-metal");
             println!(
                 "cargo:warning=  cmake --build build-macos-metal --target mbgl-core mlt-cpp -j8"
@@ -58,7 +58,7 @@ fn main() {
         }
         #[cfg(target_os = "linux")]
         {
-            println!("cargo:warning=  cd maplibre-native-sys/vendor/maplibre-native");
+            println!("cargo:warning=  cd mbgl-sys/vendor/maplibre-native");
             println!("cargo:warning=  cmake --preset linux-opengl");
             println!(
                 "cargo:warning=  cmake --build build-linux-opengl --target mbgl-core mlt-cpp -j$(nproc)"
@@ -159,12 +159,12 @@ fn build_with_maplibre_native(manifest_dir: &Path, out_dir: &Path, maplibre_buil
         println!("cargo:rustc-link-lib=sqlite3");
 
         // libuv (installed via homebrew)
-        if let Ok(output) = Command::new("brew").args(["--prefix", "libuv"]).output() {
-            if output.status.success() {
-                let prefix = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                println!("cargo:rustc-link-search=native={}/lib", prefix);
-                println!("cargo:rustc-link-lib=uv");
-            }
+        if let Ok(output) = Command::new("brew").args(["--prefix", "libuv"]).output()
+            && output.status.success()
+        {
+            let prefix = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            println!("cargo:rustc-link-search=native={}/lib", prefix);
+            println!("cargo:rustc-link-lib=uv");
         }
     }
 

@@ -1,0 +1,37 @@
+[package]
+name = "mbgl-sys"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+license = "MIT OR Apache-2.0"
+description = "Low-level FFI bindings to MapLibre GL Native for server-side map rendering"
+readme = "README.md"
+build = "build.rs"
+links = "mbgl"
+keywords = ["maplibre", "mapbox", "opengl", "ffi", "rendering"]
+categories = ["external-ffi-bindings", "graphics", "rendering"]
+include = [
+    "src/**/*.rs",
+    "cpp/**",
+    "build.rs",
+    "Cargo.toml",
+    "LICENSE",
+    "README.md",
+]
+
+[lints]
+workspace = true
+
+[dependencies]
+libc = { workspace = true }
+
+[build-dependencies]
+cc = { workspace = true }
+cmake = { workspace = true }
+pkg-config = { workspace = true }
+
+[features]
+default = ["bundled"]
+bundled = []
+system = []

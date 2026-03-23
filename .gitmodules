@@ -1,5 +1,5 @@
-[submodule "maplibre-native-sys/vendor/maplibre-native"]
-	path = maplibre-native-sys/vendor/maplibre-native
+[submodule "crates/mbgl-sys/vendor/maplibre-native"]
+	path = crates/mbgl-sys/vendor/maplibre-native
 	url = https://github.com/maplibre/maplibre-native.git
 	ignore = dirty
 [submodule ".claude/skills/rust-skills"]

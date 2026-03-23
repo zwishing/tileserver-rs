@@ -238,6 +238,7 @@ pub struct SourceConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[non_exhaustive]
 #[serde(rename_all = "lowercase")]
 pub enum SourceType {
     PMTiles,
@@ -254,6 +255,7 @@ pub enum SourceType {
     DuckDB,
 }
 
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ResamplingMethod {
@@ -314,6 +316,7 @@ impl From<ResamplingMethod> for ResampleAlg {
 }
 
 #[cfg(feature = "raster")]
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ColorMapType {
@@ -323,6 +326,7 @@ pub enum ColorMapType {
 }
 
 #[cfg(feature = "raster")]
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum RescaleMode {
@@ -407,9 +411,9 @@ impl ColorMapConfig {
                         .unwrap_or([0, 0, 0, 0]);
                 }
 
-                for i in 0..sorted.len() - 1 {
-                    let low = &sorted[i];
-                    let high = &sorted[i + 1];
+                for pair in sorted.windows(2) {
+                    let low = &pair[0];
+                    let high = &pair[1];
                     if value >= low.value && value <= high.value {
                         let t = (value - low.value) / (high.value - low.value);
                         let c1 = Self::parse_color(&low.color).unwrap_or([0, 0, 0, 0]);
@@ -748,48 +752,60 @@ mod tests {
 
     #[test]
     fn test_env_var_substitution_basic() {
-        std::env::set_var("TEST_VAR_1", "hello");
+        // SAFETY: test-only; no concurrent threads access env vars in this test
+        unsafe { std::env::set_var("TEST_VAR_1", "hello") };
         let result = Config::substitute_env_vars("value is ${TEST_VAR_1}");
         assert_eq!(result, "value is hello");
-        std::env::remove_var("TEST_VAR_1");
+        // SAFETY: test-only; no concurrent threads access env vars in this test
+        unsafe { std::env::remove_var("TEST_VAR_1") };
     }
 
     #[test]
     fn test_env_var_substitution_with_default() {
-        std::env::remove_var("NONEXISTENT_VAR");
+        // SAFETY: test-only; no concurrent threads access env vars in this test
+        unsafe { std::env::remove_var("NONEXISTENT_VAR") };
         let result = Config::substitute_env_vars("value is ${NONEXISTENT_VAR:-fallback}");
         assert_eq!(result, "value is fallback");
     }
 
     #[test]
     fn test_env_var_substitution_set_var_ignores_default() {
-        std::env::set_var("TEST_VAR_2", "actual");
+        // SAFETY: test-only; no concurrent threads access env vars in this test
+        unsafe { std::env::set_var("TEST_VAR_2", "actual") };
         let result = Config::substitute_env_vars("value is ${TEST_VAR_2:-default}");
         assert_eq!(result, "value is actual");
-        std::env::remove_var("TEST_VAR_2");
+        // SAFETY: test-only; no concurrent threads access env vars in this test
+        unsafe { std::env::remove_var("TEST_VAR_2") };
     }
 
     #[test]
     fn test_env_var_substitution_empty_string_keeps_empty() {
-        std::env::set_var("TEST_VAR_3", "");
+        // SAFETY: test-only; no concurrent threads access env vars in this test
+        unsafe { std::env::set_var("TEST_VAR_3", "") };
         let result = Config::substitute_env_vars("value is ${TEST_VAR_3:-default}");
         assert_eq!(result, "value is ");
-        std::env::remove_var("TEST_VAR_3");
+        // SAFETY: test-only; no concurrent threads access env vars in this test
+        unsafe { std::env::remove_var("TEST_VAR_3") };
     }
 
     #[test]
     fn test_env_var_substitution_multiple() {
-        std::env::set_var("TEST_HOST", "localhost");
-        std::env::set_var("TEST_PORT", "5432");
+        // SAFETY: test-only; no concurrent threads access env vars in this test
+        unsafe { std::env::set_var("TEST_HOST", "localhost") };
+        // SAFETY: test-only; no concurrent threads access env vars in this test
+        unsafe { std::env::set_var("TEST_PORT", "5432") };
         let result = Config::substitute_env_vars("postgresql://${TEST_HOST}:${TEST_PORT}/db");
         assert_eq!(result, "postgresql://localhost:5432/db");
-        std::env::remove_var("TEST_HOST");
-        std::env::remove_var("TEST_PORT");
+        // SAFETY: test-only; no concurrent threads access env vars in this test
+        unsafe { std::env::remove_var("TEST_HOST") };
+        // SAFETY: test-only; no concurrent threads access env vars in this test
+        unsafe { std::env::remove_var("TEST_PORT") };
     }
 
     #[test]
     fn test_env_var_substitution_postgres_config() {
-        std::env::set_var("DATABASE_URL", "postgresql://user:pass@db:5432/mydb");
+        // SAFETY: test-only; no concurrent threads access env vars in this test
+        unsafe { std::env::set_var("DATABASE_URL", "postgresql://user:pass@db:5432/mydb") };
 
         let toml = r#"
             [server]
@@ -807,7 +823,8 @@ mod tests {
             r#"connection_string = "postgresql://user:pass@db:5432/mydb""#
         );
 
-        std::env::remove_var("DATABASE_URL");
+        // SAFETY: test-only; no concurrent threads access env vars in this test
+        unsafe { std::env::remove_var("DATABASE_URL") };
     }
 
     #[cfg(feature = "postgres")]

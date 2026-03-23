@@ -68,7 +68,7 @@ services:
       - full
 
   tileserver-rs-raster:
-    image: tileserver-rs:latest
+    image: ghcr.io/vinayakkulkarni/tileserver-rs:2.19.0
     ports:
       - "8901:8080"
     volumes:

@@ -207,7 +207,7 @@ pub type MLNResourceCallback = Option<
 // External C functions - these are stubbed for now
 // In a real implementation, these would link to libmaplibre-native
 
-extern "C" {
+unsafe extern "C" {
     /// Initialize the MapLibre Native library.
     pub fn mln_init() -> MLNErrorCode;
 

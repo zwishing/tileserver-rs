@@ -9,13 +9,13 @@ use std::sync::Once;
 
 use image::ImageEncoder;
 
-use maplibre_native_sys::{
-    mln_cleanup, mln_get_last_error, mln_headless_frontend_create, mln_headless_frontend_destroy,
-    mln_headless_frontend_set_size, mln_image_free, mln_init, mln_map_create,
-    mln_map_create_with_loader, mln_map_destroy, mln_map_is_fully_loaded, mln_map_load_style,
-    mln_map_render_still, mln_map_set_camera, mln_map_set_size, MLNCameraOptions, MLNErrorCode,
-    MLNHeadlessFrontend, MLNImageData, MLNMap, MLNMapMode, MLNRenderOptions, MLNResourceCallback,
-    MLNSize,
+use mbgl_sys::{
+    MLNCameraOptions, MLNErrorCode, MLNHeadlessFrontend, MLNImageData, MLNMap, MLNMapMode,
+    MLNRenderOptions, MLNResourceCallback, MLNSize, mln_cleanup, mln_get_last_error,
+    mln_headless_frontend_create, mln_headless_frontend_destroy, mln_headless_frontend_set_size,
+    mln_image_free, mln_init, mln_map_create, mln_map_create_with_loader, mln_map_destroy,
+    mln_map_is_fully_loaded, mln_map_load_style, mln_map_render_still, mln_map_set_camera,
+    mln_map_set_size,
 };
 
 use crate::error::{Result, TileServerError};
@@ -29,6 +29,7 @@ pub fn init() -> Result<()> {
     let mut result = Ok(());
 
     INIT.call_once(|| {
+        // SAFETY: mln_init() is a one-time initialization function safe to call once
         let code = unsafe { mln_init() };
         if code != MLNErrorCode::MLN_OK {
             result = Err(TileServerError::RenderError(format!(
@@ -36,6 +37,7 @@ pub fn init() -> Result<()> {
                 get_last_error()
             )));
         } else {
+            // SAFETY: INITIALIZED is only written once in this call_once block, no data races
             unsafe { INITIALIZED = true };
         }
     });
@@ -47,9 +49,11 @@ pub fn init() -> Result<()> {
 /// Should be called when shutting down the application.
 #[allow(dead_code)]
 pub fn cleanup() {
+    // SAFETY: INITIALIZED is only read here after being set in init(), and cleanup is called once at shutdown
     unsafe {
         if INITIALIZED {
             mln_cleanup();
+            // SAFETY: INITIALIZED is only written once at shutdown, no concurrent access
             INITIALIZED = false;
         }
     }
@@ -57,6 +61,7 @@ pub fn cleanup() {
 
 /// Get the last error message from MapLibre Native.
 fn get_last_error() -> Option<String> {
+    // SAFETY: mln_get_last_error() returns a valid C string pointer or null, safe to check and convert
     unsafe {
         let ptr = mln_get_last_error();
         if ptr.is_null() {
@@ -155,6 +160,7 @@ impl From<MLNCameraOptions> for CameraOptions {
 }
 
 /// Map rendering mode
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum MapMode {
     /// Static mode for rendering complete images
@@ -315,6 +321,7 @@ impl HeadlessFrontend {
     pub fn new(size: Size, pixel_ratio: f32) -> Result<Self> {
         init()?;
 
+        // SAFETY: mln_headless_frontend_create() is a valid FFI function that returns a pointer or null
         let ptr = unsafe { mln_headless_frontend_create(size.into(), pixel_ratio) };
 
         if ptr.is_null() {
@@ -329,6 +336,7 @@ impl HeadlessFrontend {
     /// Set the size of the render target
     #[allow(dead_code)]
     pub fn set_size(&mut self, size: Size) {
+        // SAFETY: self.ptr is a valid non-null pointer created in HeadlessFrontend::new()
         unsafe {
             mln_headless_frontend_set_size(self.ptr, size.into());
         }
@@ -343,6 +351,7 @@ impl HeadlessFrontend {
 impl Drop for HeadlessFrontend {
     fn drop(&mut self) {
         if !self.ptr.is_null() {
+            // SAFETY: self.ptr is a valid non-null pointer created in HeadlessFrontend::new()
             unsafe {
                 mln_headless_frontend_destroy(self.ptr);
             }
@@ -364,6 +373,7 @@ impl NativeMap {
     pub fn new(size: Size, pixel_ratio: f32, mode: MapMode) -> Result<Self> {
         let frontend = HeadlessFrontend::new(size, pixel_ratio)?;
 
+        // SAFETY: frontend.as_ptr() is a valid non-null pointer from HeadlessFrontend::new()
         let ptr = unsafe { mln_map_create(frontend.as_ptr(), pixel_ratio, mode.into()) };
 
         if ptr.is_null() {
@@ -389,6 +399,7 @@ impl NativeMap {
     ) -> Result<Self> {
         let frontend = HeadlessFrontend::new(size, pixel_ratio)?;
 
+        // SAFETY: frontend.as_ptr() is a valid non-null pointer, callback and user_data are valid FFI parameters
         let ptr = unsafe {
             mln_map_create_with_loader(
                 frontend.as_ptr(),
@@ -417,6 +428,7 @@ impl NativeMap {
             TileServerError::RenderError("Style JSON contains null bytes".to_string())
         })?;
 
+        // SAFETY: self.ptr is a valid non-null map pointer, c_style.as_ptr() is a valid C string
         let code = unsafe { mln_map_load_style(self.ptr, c_style.as_ptr()) };
 
         if code != MLNErrorCode::MLN_OK {
@@ -431,18 +443,21 @@ impl NativeMap {
     /// Check if the map is fully loaded
     #[allow(dead_code)]
     pub fn is_fully_loaded(&self) -> bool {
+        // SAFETY: self.ptr is a valid non-null map pointer created in NativeMap::new()
         unsafe { mln_map_is_fully_loaded(self.ptr) }
     }
 
     #[allow(dead_code)]
     pub fn set_camera(&mut self, camera: CameraOptions) {
         let c_camera: MLNCameraOptions = camera.into();
+        // SAFETY: self.ptr is a valid non-null map pointer, c_camera is a valid stack reference
         unsafe {
             mln_map_set_camera(self.ptr, &c_camera);
         }
     }
 
     pub fn set_size(&mut self, size: Size) {
+        // SAFETY: self.ptr is a valid non-null map pointer created in NativeMap::new()
         unsafe {
             mln_map_set_size(self.ptr, size.into());
         }
@@ -454,6 +469,7 @@ impl NativeMap {
 
         let c_options = options.map(|o| o.into_native());
 
+        // SAFETY: self.ptr is a valid non-null map pointer, c_options is a valid reference or null, image_data is a valid mutable reference
         let code = unsafe {
             mln_map_render_still(
                 self.ptr,
@@ -477,9 +493,11 @@ impl NativeMap {
 
         // Copy the data and free the native buffer
         let data = if !image_data.data.is_null() && image_data.data_len > 0 {
+            // SAFETY: image_data.data is a valid pointer from mln_map_render_still(), image_data.data_len is the correct size
             let slice = unsafe { std::slice::from_raw_parts(image_data.data, image_data.data_len) };
             let data = slice.to_vec();
 
+            // SAFETY: image_data is a valid mutable reference to data returned from mln_map_render_still()
             unsafe {
                 mln_image_free(&mut image_data);
             }
@@ -527,6 +545,7 @@ impl NativeMap {
 impl Drop for NativeMap {
     fn drop(&mut self) {
         if !self.ptr.is_null() {
+            // SAFETY: self.ptr is a valid non-null map pointer created in NativeMap::new()
             unsafe {
                 mln_map_destroy(self.ptr);
             }
@@ -561,7 +580,7 @@ impl RenderOptions {
             pixel_ratio: self.pixel_ratio,
             camera: self.camera.into(),
             mode: self.mode.into(),
-            debug: maplibre_native_sys::MLNDebugOptions::MLN_DEBUG_NONE,
+            debug: mbgl_sys::MLNDebugOptions::MLN_DEBUG_NONE,
         }
     }
 }

@@ -5,10 +5,13 @@
  * Tests PMTiles and MBTiles performance across all three servers
  *
  * Usage:
- *   node run-benchmarks.js                     # Run all benchmarks
- *   node run-benchmarks.js --server tileserver-rs  # Single server
- *   node run-benchmarks.js --format mbtiles    # MBTiles only
- *   node run-benchmarks.js --duration 30       # 30 second tests
+ *   node run-benchmarks.js                          # Run all benchmarks (single tile mode)
+ *   node run-benchmarks.js --server tileserver-rs   # Single server
+ *   node run-benchmarks.js --format mbtiles         # MBTiles only
+ *   node run-benchmarks.js --duration 30            # 30 second tests
+ *   node run-benchmarks.js --mode grid              # Grid tile viewport simulation
+ *   node run-benchmarks.js --mode grid --grid-size 5x4  # Custom grid dimensions
+ *   node run-benchmarks.js --mode grid --iterations 100  # More iterations for accuracy
  */
 
 import autocannon from 'autocannon';
@@ -34,7 +37,7 @@ const SERVERS = {
     },
     raster: {
       source: 'protomaps-light',
-      tileUrl: (z, x, y) => `http://127.0.0.1:8900/styles/protomaps-light/${z}/${x}/${y}.png`,
+      tileUrl: (z, x, y) => `http://127.0.0.1:8900/styles/protomaps-light/${z}/${x}/${y}@2x.png`,
     },
     healthUrl: 'http://127.0.0.1:8900/health',
   },
@@ -159,6 +162,96 @@ const TEST_TILES = {
   ],
 };
 
+// ─── Grid Viewport Simulation ──────────────────────────────────────────────────
+// Real MapLibre GL JS viewports load a grid of tiles simultaneously.
+// For 1920×1080 at 512px tiles: ceil(1920/512)+1=5 wide, ceil(1080/512)+1=4 tall
+// Default: 4×4 = 16 tiles per viewport load
+
+function generateTileGrid(centerZ, centerX, centerY, width = 4, height = 4) {
+  const tiles = [];
+  const startX = centerX - Math.floor(width / 2);
+  const startY = centerY - Math.floor(height / 2);
+
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      tiles.push({
+        z: centerZ,
+        x: startX + col,
+        y: startY + row,
+      });
+    }
+  }
+  return tiles;
+}
+
+// Measures time until the LAST tile completes (= viewport fill time)
+async function loadGrid(urls) {
+  const start = performance.now();
+
+  const results = await Promise.all(
+    urls.map(async (url) => {
+      try {
+        const tileStart = performance.now();
+        const response = await fetch(url);
+        const buffer = await response.arrayBuffer();
+        return {
+          ok: response.ok,
+          size: buffer.byteLength,
+          latency: performance.now() - tileStart,
+        };
+      } catch {
+        return { ok: false, size: 0, latency: performance.now() - start };
+      }
+    })
+  );
+
+  return {
+    gridLatency: performance.now() - start,
+    totalSize: results.reduce((sum, r) => sum + r.size, 0),
+    errors: results.filter((r) => !r.ok).length,
+    tileCount: urls.length,
+    maxTileLatency: Math.max(...results.map((r) => r.latency)),
+  };
+}
+
+async function benchmarkGridIterations(urls, iterations, warmup = 3) {
+  // Warmup runs — prime caches, JIT, connection pools
+  for (let i = 0; i < warmup; i++) {
+    await loadGrid(urls);
+  }
+
+  const gridResults = [];
+  for (let i = 0; i < iterations; i++) {
+    const result = await loadGrid(urls);
+    gridResults.push(result);
+  }
+
+  const latencies = gridResults.map((r) => r.gridLatency).sort((a, b) => a - b);
+  const avgSize = gridResults.reduce((sum, r) => sum + r.totalSize, 0) / iterations;
+  const totalErrors = gridResults.reduce((sum, r) => sum + r.errors, 0);
+  const avgLatency = latencies.reduce((s, l) => s + l, 0) / latencies.length;
+
+  return {
+    iterations,
+    tileCount: urls.length,
+    min: latencies[0],
+    avg: avgLatency,
+    p50: percentile(latencies, 50),
+    p99: percentile(latencies, 99),
+    max: latencies[latencies.length - 1],
+    gridsPerSec: 1000 / avgLatency,
+    avgThroughput: avgSize,
+    errors: totalErrors,
+  };
+}
+
+function percentile(sorted, p) {
+  const idx = Math.ceil((p / 100) * sorted.length) - 1;
+  return sorted[Math.max(0, idx)];
+}
+
+// ─── Single-Tile Benchmarks (existing) ─────────────────────────────────────────
+
 // Benchmark configuration
 let BENCHMARK_CONFIG = {
   duration: 10, // seconds
@@ -212,7 +305,7 @@ async function checkServer(healthUrl) {
 }
 
 /**
- * Run benchmarks for a server and format
+ * Run single-tile benchmarks for a server and format
  */
 async function benchmarkServerFormat(serverKey, format) {
   const server = SERVERS[serverKey];
@@ -277,8 +370,70 @@ async function benchmarkServerFormat(serverKey, format) {
   return results;
 }
 
+async function benchmarkServerGrid(serverKey, format, gridConfig) {
+  const server = SERVERS[serverKey];
+  if (!server) {
+    console.log(chalk.red(`Unknown server: ${serverKey}`));
+    return [];
+  }
+
+  const formatConfig = server[format];
+  if (!formatConfig) {
+    console.log(chalk.gray(`  ${server.name}: ${format.toUpperCase()} not supported, skipping`));
+    return [];
+  }
+
+  const tiles = TEST_TILES[format];
+  if (!tiles) return [];
+
+  const results = [];
+  const { width, height, iterations } = gridConfig;
+
+  console.log(server.color(`\n  Testing ${server.name} (${format.toUpperCase()}, ${width}×${height} grid, ${iterations} iterations)...`));
+
+  for (const centerTile of tiles) {
+    const grid = generateTileGrid(centerTile.z, centerTile.x, centerTile.y, width, height);
+    const urls = grid.map((t) => formatConfig.tileUrl(t.z, t.x, t.y));
+
+    process.stdout.write(chalk.gray(`    z${centerTile.z.toString().padStart(2)} (${centerTile.desc.padEnd(12)}) ${width}×${height}... `));
+
+    try {
+      // Raster tiles are much slower — use fewer iterations
+      const effectiveIterations = format === 'raster' ? Math.max(10, Math.floor(iterations / 3)) : iterations;
+      const stats = await benchmarkGridIterations(urls, effectiveIterations);
+
+      let perfColor = chalk.green;
+      if (stats.avg > 500) perfColor = chalk.yellow;
+      if (stats.avg > 2000 || stats.errors > 0) perfColor = chalk.red;
+
+      if (stats.errors > 0) {
+        console.log(perfColor(`${stats.gridsPerSec.toFixed(1)} grids/s, ${stats.avg.toFixed(0)}ms avg, ${stats.p99.toFixed(0)}ms p99 (${stats.errors} errors)`));
+      } else {
+        console.log(perfColor(`${stats.gridsPerSec.toFixed(1)} grids/s, ${stats.avg.toFixed(0)}ms avg, ${stats.p99.toFixed(0)}ms p99`));
+      }
+
+      results.push({
+        server: server.name,
+        serverId: serverKey,
+        format,
+        zoom: centerTile.z,
+        desc: centerTile.desc,
+        grid: `${width}×${height}`,
+        tileCount: width * height,
+        ...stats,
+      });
+    } catch (err) {
+      console.log(chalk.red(`Error: ${err.message}`));
+    }
+  }
+
+  return results;
+}
+
+// ─── Results Display ───────────────────────────────────────────────────────────
+
 /**
- * Print results table
+ * Print single-tile results table
  */
 function printResults(results, format) {
   const filtered = results.filter((r) => r.format === format);
@@ -334,7 +489,7 @@ function printResults(results, format) {
 }
 
 /**
- * Print summary comparison
+ * Print single-tile summary comparison
  */
 function printSummary(results) {
   console.log(chalk.bold.cyan('\n📊 Summary by Server\n'));
@@ -377,8 +532,114 @@ function printSummary(results) {
   console.log(summaryTable.toString());
 }
 
+function printGridResults(results, format) {
+  const filtered = results.filter((r) => r.format === format);
+  if (filtered.length === 0) return;
+
+  const table = new Table({
+    head: [
+      chalk.bold('Server'),
+      chalk.bold('Zoom'),
+      chalk.bold('Grid'),
+      chalk.bold('Grids/s'),
+      chalk.bold('Avg (ms)'),
+      chalk.bold('P50 (ms)'),
+      chalk.bold('P99 (ms)'),
+      chalk.bold('Throughput'),
+      chalk.bold('Errors'),
+    ],
+    colAligns: ['left', 'right', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
+  });
+
+  const byZoom = {};
+  for (const r of filtered) {
+    if (!byZoom[r.zoom]) byZoom[r.zoom] = [];
+    byZoom[r.zoom].push(r);
+  }
+
+  for (const zoom of Object.keys(byZoom).sort((a, b) => a - b)) {
+    const zoomResults = byZoom[zoom];
+    // Sort by grids/sec (fastest first)
+    zoomResults.sort((a, b) => b.gridsPerSec - a.gridsPerSec);
+
+    for (const r of zoomResults) {
+      const server = SERVERS[r.serverId];
+      const colorFn = server?.color || chalk.white;
+
+      table.push([
+        colorFn(r.server),
+        `z${r.zoom}`,
+        r.grid,
+        r.gridsPerSec.toFixed(1),
+        r.avg.toFixed(0),
+        r.p50.toFixed(0),
+        r.p99.toFixed(0),
+        formatBytes(r.avgThroughput) + '/grid',
+        r.errors > 0 ? chalk.red(r.errors) : '0',
+      ]);
+    }
+  }
+
+  console.log(`\n${chalk.bold(format.toUpperCase() + ' Grid Results:')}`);
+  console.log(table.toString());
+}
+
+function printGridSummary(results) {
+  console.log(chalk.bold.cyan('\n📊 Grid Viewport Summary\n'));
+
+  const summary = {};
+  for (const r of results) {
+    const key = `${r.serverId}-${r.format}`;
+    if (!summary[key]) {
+      summary[key] = {
+        server: r.server,
+        serverId: r.serverId,
+        format: r.format,
+        gridsPerSec: 0,
+        avgLatency: 0,
+        avgThroughput: 0,
+        count: 0,
+        errors: 0,
+      };
+    }
+    summary[key].gridsPerSec += r.gridsPerSec;
+    summary[key].avgLatency += r.avg;
+    summary[key].avgThroughput += r.avgThroughput;
+    summary[key].errors += r.errors;
+    summary[key].count++;
+  }
+
+  const summaryTable = new Table({
+    head: [
+      chalk.bold('Server'),
+      chalk.bold('Format'),
+      chalk.bold('Avg Grids/s'),
+      chalk.bold('Avg Grid Latency'),
+      chalk.bold('Avg Throughput'),
+      chalk.bold('Errors'),
+    ],
+    colAligns: ['left', 'left', 'right', 'right', 'right', 'right'],
+  });
+
+  for (const data of Object.values(summary)) {
+    const server = SERVERS[data.serverId];
+    summaryTable.push([
+      server.color(data.server),
+      data.format.toUpperCase(),
+      (data.gridsPerSec / data.count).toFixed(1),
+      (data.avgLatency / data.count).toFixed(0) + 'ms',
+      formatBytes(data.avgThroughput / data.count) + '/grid',
+      data.errors > 0 ? chalk.red(data.errors) : '0',
+    ]);
+  }
+
+  console.log(summaryTable.toString());
+}
+
+// ─── Markdown Reports ──────────────────────────────────────────────────────────
+
 /**
- * Generate markdown report
+ * Generate markdown report for single-tile benchmarks
  */
 function generateMarkdownReport(results) {
   const summary = {};
@@ -397,6 +658,7 @@ function generateMarkdownReport(results) {
   let md = `## Benchmark Results
 
 **Test Configuration:**
+- Mode: Single tile (throughput)
 - Duration: ${BENCHMARK_CONFIG.duration} seconds per endpoint
 - Connections: ${BENCHMARK_CONFIG.connections} concurrent
 - Date: ${new Date().toISOString().split('T')[0]}
@@ -434,6 +696,74 @@ function generateMarkdownReport(results) {
   return md;
 }
 
+function generateGridMarkdownReport(results, gridConfig) {
+  const summary = {};
+  for (const r of results) {
+    const key = `${r.serverId}-${r.format}`;
+    if (!summary[key]) {
+      summary[key] = {
+        server: r.server,
+        format: r.format,
+        gridsPerSec: 0,
+        avgLatency: 0,
+        avgThroughput: 0,
+        count: 0,
+        errors: 0,
+      };
+    }
+    summary[key].gridsPerSec += r.gridsPerSec;
+    summary[key].avgLatency += r.avg;
+    summary[key].avgThroughput += r.avgThroughput;
+    summary[key].errors += r.errors;
+    summary[key].count++;
+  }
+
+  let md = `## Grid Viewport Benchmark Results
+
+**Test Configuration:**
+- Mode: Grid viewport (simulates real MapLibre map loads)
+- Grid Size: ${gridConfig.width}×${gridConfig.height} (${gridConfig.width * gridConfig.height} tiles per viewport)
+- Iterations: ${gridConfig.iterations} per zoom level (+ 3 warmup)
+- Date: ${new Date().toISOString().split('T')[0]}
+
+### What This Measures
+
+Unlike single-tile throughput benchmarks, grid mode simulates how a real MapLibre GL JS
+map loads tiles. When a user pans or zooms, the browser requests a **grid of tiles**
+simultaneously to fill the viewport. This benchmark measures **time to fill one viewport**
+— the metric users actually experience.
+
+### Summary
+
+| Server | Format | Avg Grids/s | Avg Grid Latency | Avg Throughput | Errors |
+|--------|--------|-------------|------------------|----------------|--------|
+`;
+
+  for (const data of Object.values(summary)) {
+    md += `| ${data.server} | ${data.format.toUpperCase()} | ${(data.gridsPerSec / data.count).toFixed(1)} | ${(data.avgLatency / data.count).toFixed(0)}ms | ${formatBytes(data.avgThroughput / data.count)}/grid | ${data.errors} |\n`;
+  }
+
+  md += `\n### Detailed Results\n\n`;
+
+  for (const format of ['pmtiles', 'mbtiles', 'postgres', 'postgres_function', 'cog', 'raster']) {
+    const filtered = results.filter((r) => r.format === format);
+    if (filtered.length === 0) continue;
+
+    md += `#### ${format.toUpperCase()}\n\n`;
+    md += `| Server | Zoom | Grid | Grids/s | Avg Latency | P50 | P99 | Throughput |\n`;
+    md += `|--------|------|------|---------|-------------|-----|-----|------------|\n`;
+
+    for (const r of filtered) {
+      md += `| ${r.server} | z${r.zoom} | ${r.grid} | ${r.gridsPerSec.toFixed(1)} | ${r.avg.toFixed(0)}ms | ${r.p50.toFixed(0)}ms | ${r.p99.toFixed(0)}ms | ${formatBytes(r.avgThroughput)}/grid |\n`;
+    }
+    md += '\n';
+  }
+
+  return md;
+}
+
+// ─── Utilities ─────────────────────────────────────────────────────────────────
+
 /**
  * Format bytes to human readable
  */
@@ -445,15 +775,26 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-/**
- * Main
- */
+function parseGridSize(sizeStr) {
+  const match = sizeStr.match(/^(\d+)x(\d+)$/);
+  if (!match) {
+    console.error(chalk.red(`Invalid grid size: "${sizeStr}". Use format WxH (e.g., 4x4, 5x4)`));
+    process.exit(1);
+  }
+  return { width: parseInt(match[1]), height: parseInt(match[2]) };
+}
+
+// ─── Main ──────────────────────────────────────────────────────────────────────
+
 async function main() {
   program
     .option('-s, --server <server>', 'Server to test: tileserver-rs, martin, tileserver-gl, or all', 'all')
     .option('-f, --format <format>', 'Format to test: pmtiles, mbtiles, postgres, postgres_function, cog, raster, or all', 'all')
-    .option('-d, --duration <seconds>', 'Test duration in seconds', '10')
-    .option('-c, --connections <num>', 'Number of connections', '100')
+    .option('-d, --duration <seconds>', 'Test duration in seconds (single mode)', '10')
+    .option('-c, --connections <num>', 'Number of connections (single mode)', '100')
+    .option('-m, --mode <mode>', 'Benchmark mode: single (throughput) or grid (viewport simulation)', 'single')
+    .option('-g, --grid-size <WxH>', 'Grid dimensions for viewport simulation', '4x4')
+    .option('-i, --iterations <num>', 'Number of grid load iterations per zoom level', '50')
     .option('--markdown', 'Output markdown report')
     .parse();
 
@@ -462,8 +803,22 @@ async function main() {
   BENCHMARK_CONFIG.duration = parseInt(opts.duration);
   BENCHMARK_CONFIG.connections = parseInt(opts.connections);
 
-  console.log(chalk.bold.cyan('\n🚀 Tile Server Benchmark Suite\n'));
-  console.log(chalk.gray(`Duration: ${BENCHMARK_CONFIG.duration}s | Connections: ${BENCHMARK_CONFIG.connections}`));
+  const mode = opts.mode;
+  const gridConfig = {
+    ...parseGridSize(opts.gridSize),
+    iterations: parseInt(opts.iterations),
+  };
+
+  if (mode === 'grid') {
+    console.log(chalk.bold.cyan('\n🗺️  Tile Server Grid Viewport Benchmark\n'));
+    console.log(chalk.gray(`Mode: Grid viewport simulation`));
+    console.log(chalk.gray(`Grid: ${gridConfig.width}×${gridConfig.height} (${gridConfig.width * gridConfig.height} tiles/viewport)`));
+    console.log(chalk.gray(`Iterations: ${gridConfig.iterations} per zoom (+ 3 warmup)`));
+  } else {
+    console.log(chalk.bold.cyan('\n🚀 Tile Server Benchmark Suite\n'));
+    console.log(chalk.gray(`Mode: Single tile throughput`));
+    console.log(chalk.gray(`Duration: ${BENCHMARK_CONFIG.duration}s | Connections: ${BENCHMARK_CONFIG.connections}`));
+  }
   console.log(chalk.gray(`Servers: tileserver-gl (8900), tileserver-rs (8901), martin (8902), titiler (8903)\n`));
 
   const serversToTest = opts.server === 'all' ? Object.keys(SERVERS) : [opts.server];
@@ -499,23 +854,40 @@ async function main() {
 
   // Run benchmarks
   for (const format of formatsToTest) {
-    console.log(chalk.bold.cyan(`\n📦 ${format.toUpperCase()} Benchmarks`));
+    if (mode === 'grid') {
+      console.log(chalk.bold.cyan(`\n🗺️  ${format.toUpperCase()} Grid Benchmarks`));
+    } else {
+      console.log(chalk.bold.cyan(`\n📦 ${format.toUpperCase()} Benchmarks`));
+    }
 
     for (const serverId of availableServers) {
-      const results = await benchmarkServerFormat(serverId, format);
+      const results =
+        mode === 'grid' ? await benchmarkServerGrid(serverId, format, gridConfig) : await benchmarkServerFormat(serverId, format);
       allResults = allResults.concat(results);
     }
 
     if (!opts.markdown) {
-      printResults(allResults, format);
+      if (mode === 'grid') {
+        printGridResults(allResults, format);
+      } else {
+        printResults(allResults, format);
+      }
     }
   }
 
-  // Print summary
+  // Print summary / report
   if (opts.markdown) {
-    console.log('\n' + generateMarkdownReport(allResults));
+    if (mode === 'grid') {
+      console.log('\n' + generateGridMarkdownReport(allResults, gridConfig));
+    } else {
+      console.log('\n' + generateMarkdownReport(allResults));
+    }
   } else {
-    printSummary(allResults);
+    if (mode === 'grid') {
+      printGridSummary(allResults);
+    } else {
+      printSummary(allResults);
+    }
   }
 
   console.log(chalk.gray('\nDone!\n'));

@@ -1,91 +1,221 @@
-[package]
-name = "tileserver-rs"
-version = "2.19.0"
-edition = "2021"
-rust-version = "1.75"
-authors = ["Vinayak Kulkarni <inbox.vinayak@gmail.com>"]
-description = "Tileserver for serving vector maps from data source(s)"
-license-file = "LICENSE"
-readme = "README.md"
-repository = "https://github.com/vinayakkulkarni/tileserver-rs"
-keywords = ["pmtiles", "mbtiles", "gis", "vector-tiles", "tileserver"]
-
 [workspace]
-members = [".", "maplibre-native-sys"]
+members = [".", "crates/mbgl-sys"]
 
-[dependencies]
-# MapLibre Native bindings for server-side rendering
-maplibre-native-sys = { path = "maplibre-native-sys" }
-anyhow = "1.0.102"
-arc-swap = "1.8.2"
-async-trait = "0.1.89"
-axum = { version = "0.8.8", features = ["multipart"] }
-bytes = "1.11.1"
-clap = { version = "4.5.61", features = ["derive", "env"] }
-dotenvy = "0.15.7"
-futures = "0.3.32"
-image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "webp"] }
-mime_guess = "2.0.5"
-pmtiles = { version = "0.20.0", default-features = false, features = ["http-async", "mmap-async-tokio", "tilejson"] }
-reqwest = { version = "0.13.2", default-features = false, features = ["rustls"] }
-shellexpand = { version = "3.1.2", default-features = false, features = ["base-0"] }
-rust-embed = { version = "8.11.0", features = ["axum"], optional = true }
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-sha2 = "0.10.9"
-thiserror = "2.0.18"
-geozero = { version = "0.15.1", features = ["with-mvt", "with-geojson"] }
-flate2 = "1.1.9"
-# MLT (MapLibre Tiles) transcoding support (optional)
-mlt-core = { version = "0.4.0", optional = true }
-prost = { version = "0.14.3", optional = true }
-geo-types = { version = "0.7.18", optional = true }
-tokio = { version = "1.50.0", features = ["full"] }
-crossbeam-channel = "0.5"
-toml = "1.0.6"
-tower-http = { version = "0.6.8", features = ["fs", "cors", "compression-gzip", "compression-br", "trace", "set-header"] }
-urlencoding = "2.1.3"
-uuid = { version = "1.22.0", features = ["v4"] }
-tracing = "0.1.44"
+[workspace.package]
+edition = "2024"
+rust-version = "1.85"
+repository = "https://github.com/vinayakkulkarni/tileserver-rs"
+
+[workspace.dependencies]
+# Internal crates
+mbgl-sys = { path = "crates/mbgl-sys" }
+
+# Web framework
+axum             = { version = "0.8.8", features = ["multipart"] }
+tower-http       = { version = "0.6.8", features = ["fs", "cors", "compression-gzip", "compression-br", "trace", "set-header"] }
+
+# Async runtime
+tokio            = { version = "1.50.0", features = ["full"] }
+futures          = "0.3.32"
+
+# Serialization
+serde            = { version = "1.0.228", features = ["derive"] }
+serde_json       = "1.0.149"
+toml             = "1.0.6"
+
+# Error handling
+thiserror        = "2.0.18"
+anyhow           = "1.0.102"
+
+# CLI
+clap             = { version = "4.5.61", features = ["derive", "env"] }
+
+# Logging / tracing
+tracing          = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 
-# OpenAPI / Swagger UI (bundled, no external dependencies)
-utoipa = { version = "5.4.0", features = ["axum_extras"] }
+# Tile formats
+pmtiles          = { version = "0.20.0", default-features = false, features = ["http-async", "mmap-async-tokio", "tilejson"] }
+geozero          = { version = "0.15.1", features = ["with-mvt", "with-geojson"] }
+flate2           = "1.1.9"
+prost            = "0.14.3"
+geo-types        = "0.7.18"
+
+# MLT support
+mlt-core         = { version = "0.4.0" }
+
+# MBTiles / SQLite
+rusqlite         = { version = "0.38.0", features = ["bundled"] }
+
+# HTTP client
+reqwest          = { version = "0.13.2", default-features = false, features = ["rustls"] }
+
+# Cryptography / hashing
+sha2             = "0.10.9"
+uuid             = { version = "1.22.0", features = ["v4"] }
+
+# Binary formats / data
+bytes            = "1.11.1"
+image            = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "webp"] }
+
+# Concurrency
+arc-swap         = "1.8.2"
+crossbeam-channel = "0.5"
+async-trait      = "0.1.89"
+
+# Utilities
+dotenvy          = "0.15.7"
+mime_guess       = "2.0.5"
+shellexpand      = { version = "3.1.2", default-features = false, features = ["base-0"] }
+urlencoding      = "2.1.3"
+
+# Embedded frontend (optional)
+rust-embed       = { version = "8.11.0", features = ["axum"] }
+
+# OpenAPI / Swagger UI
+utoipa           = { version = "5.4.0", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 
 # OpenTelemetry
-opentelemetry = "0.31.0"
+opentelemetry    = "0.31.0"
 opentelemetry_sdk = { version = "0.31.0", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.31.0", features = ["grpc-tonic", "metrics", "logs"] }
 opentelemetry-semantic-conventions = "0.31.0"
 tracing-opentelemetry = "0.32.1"
 
+# Raster / GDAL (optional)
+gdal             = { version = "0.19.0", features = ["bindgen"] }
+
+# PostgreSQL (optional)
+deadpool-postgres = "0.14.1"
+tokio-postgres   = { version = "0.7.16", features = ["with-serde_json-1"] }
+postgres-types   = { version = "0.2.12", features = ["derive"] }
+semver           = "1.0.27"
+moka             = { version = "0.12.14", features = ["future"] }
+
+# GeoParquet (optional)
+parquet          = { version = "58", default-features = false, features = ["arrow", "zstd", "snap", "lz4", "async"] }
+arrow-array      = "58"
+arrow-schema     = "58"
+arrow-cast       = "58"
+geo              = "0.29"
+
+# DuckDB (optional)
+duckdb           = { version = "1.3", features = ["bundled"] }
+
+# FFI
+libc             = "0.2"
+cc               = "1.2"
+cmake            = "0.1"
+pkg-config       = "0.3"
+
+# Dev / test dependencies
+tower            = { version = "0.5.3", features = ["util"] }
+axum-test        = "19.1.1"
+tempfile         = "3.27.0"
+insta            = { version = "1.46.3", features = ["json"] }
+criterion        = { version = "0.8.2", features = ["html_reports"] }
+
+[workspace.lints.clippy]
+correctness = { level = "deny", priority = -1 }
+suspicious  = "warn"
+style       = "warn"
+complexity  = "warn"
+perf        = "warn"
+undocumented_unsafe_blocks = "warn"
+
+[workspace.lints.rust]
+
+# =============================================================================
+
+[package]
+name = "tileserver-rs"
+version = "2.19.0"
+edition.workspace = true
+rust-version.workspace = true
+authors = ["Vinayak Kulkarni <inbox.vinayak@gmail.com>"]
+description = "Tileserver for serving vector maps from data source(s)"
+license-file = "LICENSE"
+readme = "README.md"
+repository.workspace = true
+keywords = ["pmtiles", "mbtiles", "gis", "vector-tiles", "tileserver"]
+
+[lints]
+workspace = true
+
+[dependencies]
+# MapLibre Native bindings for server-side rendering
+mbgl-sys = { workspace = true }
+anyhow           = { workspace = true }
+arc-swap         = { workspace = true }
+async-trait      = { workspace = true }
+axum             = { workspace = true }
+bytes            = { workspace = true }
+clap             = { workspace = true }
+dotenvy          = { workspace = true }
+futures          = { workspace = true }
+image            = { workspace = true }
+mime_guess       = { workspace = true }
+pmtiles          = { workspace = true }
+reqwest          = { workspace = true }
+shellexpand      = { workspace = true }
+rust-embed       = { workspace = true, optional = true }
+serde            = { workspace = true }
+serde_json       = { workspace = true }
+sha2             = { workspace = true }
+thiserror        = { workspace = true }
+geozero          = { workspace = true }
+flate2           = { workspace = true }
+# MLT (MapLibre Tiles) transcoding support (optional)
+mlt-core         = { workspace = true, optional = true }
+prost            = { workspace = true, optional = true }
+geo-types        = { workspace = true, optional = true }
+tokio            = { workspace = true }
+crossbeam-channel = { workspace = true }
+toml             = { workspace = true }
+tower-http       = { workspace = true }
+urlencoding      = { workspace = true }
+uuid             = { workspace = true }
+tracing          = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# OpenAPI / Swagger UI (bundled, no external dependencies)
+utoipa           = { workspace = true }
+utoipa-swagger-ui = { workspace = true }
+
+# OpenTelemetry
+opentelemetry    = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+opentelemetry-otlp = { workspace = true }
+opentelemetry-semantic-conventions = { workspace = true }
+tracing-opentelemetry = { workspace = true }
+
 # MBTiles support (SQLite)
-rusqlite = { version = "0.38.0", features = ["bundled"] }
+rusqlite         = { workspace = true }
 
 # Raster/COG support (optional, requires GDAL system library)
-gdal = { version = "0.19.0", features = ["bindgen"], optional = true }
+gdal             = { workspace = true, optional = true }
 
 # PostgreSQL support (optional)
-deadpool-postgres = { version = "0.14.1", optional = true }
-tokio-postgres = { version = "0.7.16", optional = true, features = ["with-serde_json-1"] }
-postgres-types = { version = "0.2.12", optional = true, features = ["derive"] }
-semver = { version = "1.0.27", optional = true }
-moka = { version = "0.12.14", features = ["future"], optional = true }
+deadpool-postgres = { workspace = true, optional = true }
+tokio-postgres   = { workspace = true, optional = true }
+postgres-types   = { workspace = true, optional = true }
+semver           = { workspace = true, optional = true }
+moka             = { workspace = true, optional = true }
 
 # Optional S3 support
 # aws-config = { version = "1.5", optional = true }
 # aws-sdk-s3 = { version = "1.65", optional = true }
 
 # GeoParquet support (optional)
-parquet = { version = "58", default-features = false, features = ["arrow", "zstd", "snap", "lz4", "async"], optional = true }
-arrow-array = { version = "58", optional = true }
-arrow-schema = { version = "58", optional = true }
-arrow-cast = { version = "58", optional = true }
-geo = { version = "0.29", optional = true }
+parquet          = { workspace = true, optional = true }
+arrow-array      = { workspace = true, optional = true }
+arrow-schema     = { workspace = true, optional = true }
+arrow-cast       = { workspace = true, optional = true }
+geo              = { workspace = true, optional = true }
 
 # DuckDB support (optional)
-duckdb = { version = "1.3", features = ["bundled"], optional = true }
+duckdb           = { workspace = true, optional = true }
 
 [features]
 default = ["postgres", "raster", "mlt"]
@@ -99,23 +229,26 @@ geoparquet = ["dep:parquet", "dep:arrow-array", "dep:arrow-schema", "dep:arrow-c
 duckdb = ["dep:duckdb", "dep:prost"]
 
 [dev-dependencies]
-tower = { version = "0.5.3", features = ["util"] }
-axum-test = "19.1.1"
-tempfile = "3.27.0"
-insta = { version = "1.46.3", features = ["json"] }
-criterion = { version = "0.8.2", features = ["html_reports"] }
+tower            = { workspace = true }
+axum-test        = { workspace = true }
+tempfile         = { workspace = true }
+insta            = { workspace = true }
+criterion        = { workspace = true }
 
 [profile.release]
-lto = true
-codegen-units = 1
 opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
 strip = true
-
 
 [profile.bench]
 inherits = "release"
 debug = true
 strip = false
+
+[profile.dev.package."*"]
+opt-level = 3
 
 [[bench]]
 name = "mlt"

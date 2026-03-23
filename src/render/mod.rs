@@ -1,3 +1,5 @@
+//! Server-side raster tile rendering via MapLibre Native FFI.
+
 mod native;
 pub mod overlay;
 pub mod pool;

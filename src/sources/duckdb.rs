@@ -1,3 +1,5 @@
+//! DuckDB spatial query tile source with SQL template expansion.
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -28,6 +30,7 @@ pub fn tile_to_bbox(z: u8, x: u32, y: u32) -> [f64; 4] {
     [lon_min, lat_min, lon_max, lat_max]
 }
 
+#[must_use]
 pub fn substitute_template(query: &str, z: u8, x: u32, y: u32, bbox: &[f64; 4]) -> String {
     query
         .replace("{z}", &z.to_string())
@@ -88,10 +91,10 @@ fn encode_mvt_value(val: &PropValue) -> Vec<u8> {
 }
 
 fn encode_mvt_tile(features: &[MvtFeature], layer_name: &str) -> Vec<u8> {
-    let mut keys: Vec<String> = Vec::new();
-    let mut key_map: HashMap<String, u32> = HashMap::new();
-    let mut values: Vec<Vec<u8>> = Vec::new();
-    let mut encoded_features: Vec<Vec<u8>> = Vec::new();
+    let mut keys: Vec<String> = Vec::with_capacity(32);
+    let mut key_map: HashMap<String, u32> = HashMap::with_capacity(32);
+    let mut values: Vec<Vec<u8>> = Vec::with_capacity(features.len() * 4);
+    let mut encoded_features: Vec<Vec<u8>> = Vec::with_capacity(features.len());
 
     for feat in features {
         let mut tags: Vec<u32> = Vec::new();
