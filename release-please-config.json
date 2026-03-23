@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "include-component-in-tag": false,
+  "include-component-in-tag": true,
   "packages": {
     ".": {
       "release-type": "rust",
@@ -14,6 +14,15 @@
         "apps/client/package.json",
         "homebrew/Formula/tileserver-rs.rb"
       ]
+    },
+    "crates/mbgl-sys": {
+      "release-type": "rust",
+      "component": "mbgl-sys",
+      "changelog-path": "CHANGELOG.md",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "draft": false,
+      "prerelease": false
     }
   },
   "changelog-sections": [
