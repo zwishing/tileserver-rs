@@ -1,3 +1,5 @@
+//! Source manager for loading, querying, and hot-reloading tile sources.
+
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -10,7 +12,7 @@ use crate::error::{Result, TileServerError};
 #[cfg(feature = "raster")]
 use crate::sources::cog::CogSource;
 #[cfg(feature = "duckdb")]
-use crate::sources::duckdb_source::DuckDbSource;
+use crate::sources::duckdb::DuckDbSource;
 #[cfg(feature = "geoparquet")]
 use crate::sources::geoparquet::GeoParquetSource;
 use crate::sources::mbtiles::MbTilesSource;
@@ -35,6 +37,7 @@ pub struct SourceManager {
 }
 
 impl SourceManager {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             sources: HashMap::new(),
@@ -269,41 +272,49 @@ impl SourceManager {
     }
 
     /// Get a source by ID
+    #[must_use]
     pub fn get(&self, id: &str) -> Option<&Arc<dyn TileSource>> {
         self.sources.get(id)
     }
 
     /// Get all source IDs
+    #[must_use]
     pub fn ids(&self) -> Vec<&str> {
         self.sources.keys().map(|s| s.as_str()).collect()
     }
 
     /// Get metadata for all sources
+    #[must_use]
     pub fn all_metadata(&self) -> Vec<&TileMetadata> {
         self.sources.values().map(|s| s.metadata()).collect()
     }
 
     /// Check if a source exists
+    #[must_use]
     pub fn exists(&self, id: &str) -> bool {
         self.sources.contains_key(id)
     }
 
     /// Get the number of sources
+    #[must_use]
     pub fn len(&self) -> usize {
         self.sources.len()
     }
 
     /// Check if there are no sources
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.sources.is_empty()
     }
 
     /// Clone the internal sources map (values are `Arc`, cheap to clone)
+    #[must_use]
     pub fn clone_sources(&self) -> HashMap<String, Arc<dyn TileSource>> {
         self.sources.clone()
     }
 
     /// Create a SourceManager from an existing sources map
+    #[must_use]
     pub fn from_sources(sources: HashMap<String, Arc<dyn TileSource>>) -> Self {
         Self {
             sources,
