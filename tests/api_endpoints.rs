@@ -269,10 +269,12 @@ mod style_tests {
         // Verify StyleInfo structure
         assert!(!style_info.id.is_empty());
         assert!(!style_info.name.is_empty());
-        assert!(style_info
-            .url
-            .as_ref()
-            .is_some_and(|u| u.contains("style.json")));
+        assert!(
+            style_info
+                .url
+                .as_ref()
+                .is_some_and(|u| u.contains("style.json"))
+        );
     }
 
     #[test]
@@ -871,9 +873,11 @@ mod overlay_params_tests {
 
         // This should be detected as a polyline (no commas, valid chars)
         assert!(!encoded.contains(','));
-        assert!(encoded
-            .chars()
-            .all(|c| (c as u32) >= 63 && (c as u32) <= 126));
+        assert!(
+            encoded
+                .chars()
+                .all(|c| (c as u32) >= 63 && (c as u32) <= 126)
+        );
     }
 }
 
@@ -1232,7 +1236,7 @@ mod key_param_tests {
 
     #[test]
     fn test_rewrite_style_for_api_with_key() {
-        use tileserver_rs::styles::{rewrite_style_for_api, UrlQueryParams};
+        use tileserver_rs::styles::{UrlQueryParams, rewrite_style_for_api};
 
         let style = serde_json::json!({
             "version": 8,
@@ -1267,7 +1271,7 @@ mod key_param_tests {
 
     #[test]
     fn test_rewrite_style_for_api_preserves_external_urls() {
-        use tileserver_rs::styles::{rewrite_style_for_api, UrlQueryParams};
+        use tileserver_rs::styles::{UrlQueryParams, rewrite_style_for_api};
 
         let style = serde_json::json!({
             "version": 8,

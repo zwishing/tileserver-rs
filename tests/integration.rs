@@ -865,11 +865,13 @@ mod async_style_tests {
         let infos = styles.all_infos(base_url);
 
         assert!(!infos.is_empty());
-        assert!(infos[0]
-            .url
-            .as_ref()
-            .map(|u| u.contains("/styles/"))
-            .unwrap_or(false));
+        assert!(
+            infos[0]
+                .url
+                .as_ref()
+                .map(|u| u.contains("/styles/"))
+                .unwrap_or(false)
+        );
     }
 }
 
@@ -919,7 +921,7 @@ mod async_config_tests {
 // ============================================================
 
 mod mlt_format_tests {
-    use tileserver_rs::{detect_mlt_format, TileFormat};
+    use tileserver_rs::{TileFormat, detect_mlt_format};
 
     #[test]
     fn test_mlt_format_properties() {
