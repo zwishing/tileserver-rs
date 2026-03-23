@@ -452,13 +452,13 @@ fn draw_path(
 
     // Draw line segments
     let stroke_width = path.stroke_width * scale;
-    for i in 0..pixels.len() - 1 {
+    for pair in pixels.windows(2) {
         draw_line(
             image,
-            pixels[i].0,
-            pixels[i].1,
-            pixels[i + 1].0,
-            pixels[i + 1].1,
+            pair[0].0,
+            pair[0].1,
+            pair[1].0,
+            pair[1].1,
             path.stroke_color,
             stroke_width,
         );
