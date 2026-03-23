@@ -208,6 +208,7 @@ impl Renderer {
     }
 
     /// Get the underlying pool (for advanced usage)
+    #[must_use]
     pub fn pool(&self) -> Arc<RendererPool> {
         self.pool.clone()
     }

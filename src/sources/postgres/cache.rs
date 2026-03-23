@@ -30,6 +30,7 @@ pub struct TileCache {
 }
 
 impl TileCache {
+    #[must_use]
     pub fn new(max_size_mb: u64, ttl_seconds: u64) -> Self {
         let max_size_bytes = max_size_mb * 1024 * 1024;
 
@@ -53,11 +54,13 @@ impl TileCache {
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn entry_count(&self) -> u64 {
         self.cache.entry_count()
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn weighted_size(&self) -> u64 {
         self.cache.weighted_size()
     }

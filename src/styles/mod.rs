@@ -1,3 +1,5 @@
+//! Style management, URL rewriting for native rendering, and style JSON processing.
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -59,11 +61,13 @@ impl Style {
     }
 
     /// Convert to StyleInfo for API response
+    #[must_use]
     pub fn to_info(&self, base_url: &str) -> StyleInfo {
         self.to_info_with_key(base_url, None)
     }
 
     /// Convert to StyleInfo for API response with optional API key
+    #[must_use]
     pub fn to_info_with_key(&self, base_url: &str, key: Option<&str>) -> StyleInfo {
         let key_query = key
             .map(|k| format!("?key={}", urlencoding::encode(k)))
@@ -87,6 +91,7 @@ pub struct StyleManager {
 
 impl StyleManager {
     /// Create a new empty style manager
+    #[must_use]
     pub fn new() -> Self {
         Self {
             styles: HashMap::new(),
@@ -114,16 +119,19 @@ impl StyleManager {
     }
 
     /// Get a style by ID
+    #[must_use]
     pub fn get(&self, id: &str) -> Option<&Style> {
         self.styles.get(id)
     }
 
     /// Get all style infos for API response
+    #[must_use]
     pub fn all_infos(&self, base_url: &str) -> Vec<StyleInfo> {
         self.all_infos_with_key(base_url, None)
     }
 
     /// Get all style infos for API response with optional API key
+    #[must_use]
     pub fn all_infos_with_key(&self, base_url: &str, key: Option<&str>) -> Vec<StyleInfo> {
         self.styles
             .values()
@@ -132,16 +140,19 @@ impl StyleManager {
     }
 
     /// Get all styles
+    #[must_use]
     pub fn all(&self) -> Vec<&Style> {
         self.styles.values().collect()
     }
 
     /// Get the number of styles
+    #[must_use]
     pub fn len(&self) -> usize {
         self.styles.len()
     }
 
     /// Check if there are no styles
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.styles.is_empty()
     }
@@ -164,6 +175,7 @@ pub struct UrlQueryParams {
 
 impl UrlQueryParams {
     /// Create new query params with just a key
+    #[must_use]
     pub fn with_key(key: Option<String>) -> Self {
         Self {
             key,
@@ -173,6 +185,7 @@ impl UrlQueryParams {
 
     /// Build query string to append to URLs
     /// Returns empty string if no params, otherwise "?key=value&..."
+    #[must_use]
     pub fn to_query_string(&self) -> String {
         let mut params = Vec::new();
 

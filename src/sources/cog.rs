@@ -1,3 +1,5 @@
+//! Cloud-Optimized GeoTIFF (COG) raster tile source via GDAL.
+
 use async_trait::async_trait;
 use bytes::Bytes;
 use gdal::raster::{Buffer, ResampleAlg};
@@ -77,6 +79,7 @@ impl CogSource {
         })
     }
 
+    #[must_use]
     pub fn resampling(&self) -> ResamplingMethod {
         self.default_resampling
     }

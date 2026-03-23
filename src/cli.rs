@@ -1,3 +1,5 @@
+//! CLI argument parsing via `clap` for server configuration and startup options.
+
 use clap::Parser;
 use std::path::PathBuf;
 
@@ -39,11 +41,13 @@ pub struct Cli {
 }
 
 impl Cli {
+    #[must_use]
     pub fn parse_args() -> Self {
         Self::parse()
     }
 
     /// Returns whether the UI should be enabled
+    #[must_use]
     pub fn ui_enabled(&self) -> bool {
         !self.no_ui && self.ui
     }

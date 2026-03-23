@@ -1,3 +1,5 @@
+//! Hot-reload controller using `ArcSwap` for lock-free shared state updates.
+
 use arc_swap::ArcSwap;
 use std::{
     collections::HashMap,
@@ -9,7 +11,7 @@ use tokio::sync::{Mutex, RwLock};
 
 use crate::{
     config::Config,
-    render::{pool::PoolConfig, Renderer},
+    render::{Renderer, pool::PoolConfig},
     sources::SourceManager,
     styles::StyleManager,
 };
@@ -48,6 +50,7 @@ pub struct SharedState {
 }
 
 impl SharedState {
+    #[must_use]
     pub fn new(controller: Arc<ReloadController>) -> Self {
         Self {
             controller,
@@ -55,10 +58,12 @@ impl SharedState {
         }
     }
 
+    #[must_use]
     pub fn load(&self) -> Arc<AppState> {
         self.controller.app.load_full()
     }
 
+    #[must_use]
     pub fn meta(&self) -> Arc<ReloadMeta> {
         self.controller.meta.load_full()
     }
@@ -116,6 +121,7 @@ pub struct ReloadController {
 }
 
 impl ReloadController {
+    #[must_use]
     pub fn new(
         state: AppState,
         meta: ReloadMeta,
@@ -175,6 +181,7 @@ impl ReloadController {
     }
 }
 
+#[must_use]
 pub fn now_unix_seconds() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)

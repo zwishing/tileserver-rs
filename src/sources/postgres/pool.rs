@@ -4,8 +4,8 @@ use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, RecyclingMethod, T
 use semver::Version;
 use std::path::PathBuf;
 use std::time::Duration;
-use tokio_postgres::types::Type;
 use tokio_postgres::NoTls;
+use tokio_postgres::types::Type;
 
 use crate::error::{Result, TileServerError};
 
@@ -170,6 +170,7 @@ impl PostgresPool {
     }
 
     /// Returns whether ST_TileEnvelope supports the margin parameter.
+    #[must_use]
     pub fn supports_tile_margin(&self) -> bool {
         self.supports_tile_margin
     }
