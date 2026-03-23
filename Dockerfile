@@ -1,61 +1,21 @@
 # =============================================================================
-# Stage 1: Build MapLibre Native (C++ library)
+# Stage 1: Download pre-built MapLibre Native static libraries
 # =============================================================================
-FROM ubuntu:24.04 AS maplibre-builder
+FROM ubuntu:24.04 AS maplibre-downloader
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Install build dependencies for MapLibre Native
-# Using clang as required by MapLibre Native CMake presets
-RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests --fix-missing \
-    build-essential \
-    clang \
-    cmake \
-    ninja-build \
-    ccache \
-    pkg-config \
-    git \
-    curl \
-    ca-certificates \
-    # Core libraries
-    libcurl4-openssl-dev \
-    libglfw3-dev \
-    libuv1-dev \
-    libpng-dev \
-    libicu-dev \
-    libjpeg-turbo8-dev \
-    libwebp-dev \
-    libsqlite3-dev \
-    # OpenGL/EGL
-    xvfb \
-    libopengl-dev \
-    libgl-dev \
-    libegl-dev \
-    # X11 (required for linux-opengl preset)
-    libx11-dev \
-    libxrandr-dev \
-    libxinerama-dev \
-    libxcursor-dev \
-    libxi-dev \
-    # Wayland (optional but included)
-    libwayland-dev \
-    libxkbcommon-dev \
-    wayland-protocols \
-    && apt-get clean \
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+ARG MBGL_VERSION=0.1.0
+ARG TARGETARCH
+
 WORKDIR /build
-
-# Copy MapLibre Native source
-COPY crates/mbgl-sys/vendor/maplibre-native ./maplibre-native
-
-# Build MapLibre Native for Linux using the official preset
-# Build all static libraries required for linking
-WORKDIR /build/maplibre-native
-RUN cmake --preset linux-opengl \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DMLN_WITH_WERROR=OFF \
-    && cmake --build build-linux-opengl -j$(nproc)
+RUN case "$TARGETARCH" in \
+      amd64) MBGL_TARGET="x86_64-unknown-linux-gnu" ;; \
+      arm64) MBGL_TARGET="aarch64-unknown-linux-gnu" ;; \
+      *) echo "Unsupported arch: $TARGETARCH" && exit 1 ;; \
+    esac && \
+    curl -fSL "https://github.com/vinayakkulkarni/tileserver-rs/releases/download/mbgl-sys-v${MBGL_VERSION}/mbgl-native-${MBGL_TARGET}.tar.gz" | tar xz
 
 # =============================================================================
 # Stage 2: Build Nuxt frontend (SPA) - skipped for headless builds
@@ -98,9 +58,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     curl \
     git \
     build-essential \
-    cmake \
     pkg-config \
-    # Core libraries
     libcurl4-openssl-dev \
     libpng-dev \
     libicu-dev \
@@ -109,29 +67,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     libsqlite3-dev \
     libuv1-dev \
     libglfw3-dev \
-    # GDAL for raster/COG support (libclang-dev needed by bindgen for gdal-sys)
     libgdal-dev \
     libclang-dev \
-    # OpenGL/EGL
     libopengl-dev \
     libgl-dev \
     libegl-dev \
-    # X11 (required for linking)
     libx11-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
-    # Install Rust via rustup
     && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
 
 ENV PATH="/root/.cargo/bin:${PATH}"
+ENV MBGL_SYS_LIB_DIR=/app/lib
 
 WORKDIR /app
 
-# Copy MapLibre Native build artifacts (from linux-opengl preset)
-# build.rs expects 'build-linux' directory, so copy to that name
-COPY --from=maplibre-builder /build/maplibre-native/build-linux-opengl /app/crates/mbgl-sys/vendor/maplibre-native/build-linux
-
-# Copy MapLibre Native headers (needed for build.rs)
+COPY --from=maplibre-downloader /build/lib ./lib
 COPY crates/mbgl-sys ./crates/mbgl-sys
 
 # Copy Cargo files and build script for dependency caching

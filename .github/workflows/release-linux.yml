@@ -79,12 +79,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential \
-            clang \
-            libclang-dev \
-            cmake \
-            ninja-build \
-            ccache \
             pkg-config \
+            libclang-dev \
             libcurl4-openssl-dev \
             libglfw3-dev \
             libuv1-dev \
@@ -97,25 +93,12 @@ jobs:
             libgl-dev \
             libgdal-dev
 
-      - name: Cache MapLibre Native build
-        uses: actions/cache@v5
-        with:
-          path: crates/mbgl-sys/vendor/maplibre-native/build-linux-opengl
-          key: maplibre-linux-${{ matrix.arch }}-${{ hashFiles('crates/mbgl-sys/vendor/maplibre-native/CMakeLists.txt') }}
-          restore-keys: maplibre-linux-${{ matrix.arch }}-
-
-      - name: Build MapLibre Native
+      - name: Download pre-built MapLibre Native
         run: |
-          cd crates/mbgl-sys/vendor/maplibre-native
-          if [ ! -f "build-linux-opengl/libmbgl-core.a" ]; then
-            echo "Building MapLibre Native..."
-            cmake --preset linux-opengl \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DMLN_WITH_WERROR=OFF
-            cmake --build build-linux-opengl --target mbgl-core mlt-cpp -j$(nproc)
-          else
-            echo "Using cached MapLibre Native build"
-          fi
+          MBGL_VERSION=$(grep '^version' crates/mbgl-sys/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          echo "Downloading mbgl-sys v${MBGL_VERSION} for ${{ matrix.target }}..."
+          curl -fSL "https://github.com/${{ github.repository }}/releases/download/mbgl-sys-v${MBGL_VERSION}/mbgl-native-${{ matrix.target }}.tar.gz" | tar xz
+          ls -lh lib/
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -142,6 +125,8 @@ jobs:
           else
             cargo build --release
           fi
+        env:
+          MBGL_SYS_LIB_DIR: ${{ github.workspace }}/lib
 
       - name: Prepare release
         run: |

@@ -102,12 +102,22 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-linux:
-    name: Build Linux (x86_64-unknown-linux-gnu)
-    runs-on: ubuntu-latest
+    name: Build Linux (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
     needs: create-release
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            arch: arm64
     env:
-      TARGET: x86_64-unknown-linux-gnu
+      TARGET: ${{ matrix.target }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -140,8 +150,8 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-linux-x64-${{ hashFiles('crates/mbgl-sys/vendor/maplibre-native/CMakeLists.txt') }}
-          restore-keys: ccache-linux-x64-
+          key: ccache-linux-${{ matrix.arch }}-${{ hashFiles('crates/mbgl-sys/vendor/maplibre-native/CMakeLists.txt') }}
+          restore-keys: ccache-linux-${{ matrix.arch }}-
 
       - name: Configure ccache
         run: |
