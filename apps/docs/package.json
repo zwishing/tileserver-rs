@@ -24,8 +24,8 @@
     "better-sqlite3": "^12.8.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-vue-next": "^0.577.0",
-    "motion-v": "^2.0.1",
+    "lucide-vue-next": "^1.0.0",
+    "motion-v": "^2.2.0",
     "nuxt": "^4.4.2",
     "ogl": "^1.0.11",
     "radix-vue": "^1.9.17",
@@ -40,14 +40,14 @@
     "@nuxtjs/plausible": "^3.0.2",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^25.5.0",
-    "eslint": "^10.0.3",
-    "eslint-plugin-oxlint": "^1.56.0",
-    "oxlint": "^1.56.0",
+    "eslint": "^10.1.0",
+    "eslint-plugin-oxlint": "^1.57.0",
+    "oxlint": "^1.57.0",
     "shadcn-nuxt": "^2.4.3",
     "tailwindcss": "^4.2.2",
-    "typescript": "^5.9.3",
-    "vite": "^8.0.1",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.2",
     "vue-tsc": "^3.2.6",
-    "wrangler": "^4.75.0"
+    "wrangler": "^4.77.0"
   }
 }
