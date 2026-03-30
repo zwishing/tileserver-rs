@@ -59,8 +59,8 @@ export function getTextContent(parts: readonly MessagePart[]): string {
     .filter((part) => part.type === 'text')
     .map((part) => (part as { type: 'text'; content: string }).content)
     .join('');
-  // Strip [MAP_ACTION] blocks from non-tool model output (Qwen fallback)
-  // For tool-capable models (Hermes), these blocks won't exist
+  // Strip [MAP_ACTION] blocks from non-tool model output
+  // For models with native tool calling, these blocks won't exist
   return raw
     .replace(/\[MAP_ACTION\]\{[\s\S]*?\}\[\/MAP_ACTION\]/g, '')
     .replace(/\[MAP_ACTION\][\s\S]*$/g, '')

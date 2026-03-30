@@ -16,30 +16,37 @@ import type {
   LlmModelConfig,
 } from '~/types/llm';
 
-/** Available models for the chat — Hermes models support native tool calling */
+/**
+ * Available models for the chat.
+ *
+ * WebLLM's native tool-calling API (`tools` param) is restricted to Hermes
+ * models only via an internal allowlist. All Qwen3 models use our text-based
+ * [MAP_ACTION] parser + parseToolIntentsFromText() fallback instead —
+ * which works well because Qwen3 is a strong instruction follower.
+ */
 const AVAILABLE_MODELS: LlmModelConfig[] = [
   {
-    id: 'Hermes-3-Llama-3.1-8B-q4f16_1-MLC',
-    name: 'Hermes 3 8B (recommended, tools)',
-    sizeGb: 4.9,
-    supportsTools: true,
+    id: 'Qwen3-4B-q4f16_1-MLC',
+    name: 'Qwen3 4B (recommended)',
+    sizeGb: 3.4,
+    supportsTools: false,
   },
   {
-    id: 'Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC',
-    name: 'Hermes 2 Pro 8B (tools)',
-    sizeGb: 5.0,
-    supportsTools: true,
+    id: 'Qwen3-8B-q4f16_1-MLC',
+    name: 'Qwen3 8B (best quality)',
+    sizeGb: 5.7,
+    supportsTools: false,
   },
   {
-    id: 'Qwen2.5-3B-Instruct-q4f16_1-MLC',
-    name: 'Qwen 2.5 3B (lightweight, no tools)',
+    id: 'Qwen3-1.7B-q4f16_1-MLC',
+    name: 'Qwen3 1.7B (lightweight)',
     sizeGb: 2.0,
     supportsTools: false,
   },
   {
-    id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
-    name: 'Qwen 2.5 1.5B (minimal, no tools)',
-    sizeGb: 1.0,
+    id: 'Qwen3-0.6B-q4f16_1-MLC',
+    name: 'Qwen3 0.6B (minimal)',
+    sizeGb: 1.4,
     supportsTools: false,
   },
 ];

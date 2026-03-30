@@ -5,8 +5,8 @@
  * Uses the `stream()` adapter to convert WebLLM's OpenAI-compatible
  * streaming output to AG-UI protocol events.
  *
- * Tool-capable models (Hermes) use native tool calling via `toolDefinition().client()`.
- * Non-tool models (Qwen) use text-based [MAP_ACTION] blocks as fallback.
+ * WebLLM restricts native tool calling to Hermes models only. All Qwen3
+ * models use text-based [MAP_ACTION] blocks + parseToolIntentsFromText().
  *
  * @see https://tanstack.com/ai/latest/docs/guides/client-tools
  * @see https://webllm.mlc.ai/
@@ -26,10 +26,7 @@ import {
 import { chatCollection } from '~/lib/chat-db';
 import type { UseChatReturn, StoredToolCall } from '~/types/llm';
 
-/**
- * System prompt for tool-capable models (Hermes).
- * These models use native OpenAI-format tool calling.
- */
+/** System prompt for models with WebLLM native tool calling enabled. */
 const SYSTEM_PROMPT_WITH_TOOLS = `You are a helpful map assistant embedded in tileserver-rs, a vector tile server.
 You can help users explore the map by flying to locations, adjusting the view, querying features, and modifying styles.
 
@@ -60,10 +57,7 @@ Use spatial_query when users want to find specific features in the data.
 Use get_overlays when users ask about overlays, dropped files, or uploaded data on the map.
 Keep responses concise and helpful. You're a map expert.`;
 
-/**
- * System prompt for non-tool models (Qwen) — uses structured JSON action blocks.
- * The model emits [MAP_ACTION]{...}[/MAP_ACTION] which we parse and execute client-side.
- */
+/** System prompt for non-tool models — uses [MAP_ACTION] JSON blocks parsed client-side. */
 const SYSTEM_PROMPT_NO_TOOLS = `You are a helpful map assistant embedded in tileserver-rs, a vector tile server.
 You can help users explore the map by flying to locations, adjusting the view, and answering questions about geography.
 
@@ -222,7 +216,7 @@ function parseToolIntentsFromText(
 ): Array<{ action: string } & Record<string, unknown>> {
   const intents: Array<{ action: string } & Record<string, unknown>> = [];
 
-  // 1. Try Hermes-style <tool_call> JSON blocks
+    // 1. Try <tool_call> JSON blocks (Hermes/Qwen3 format)
   const toolCallRegex = /<tool_call>\s*(\{[\s\S]*?\})\s*<\/tool_call>/g;
   let tcMatch: RegExpExecArray | null;
   while ((tcMatch = toolCallRegex.exec(text)) !== null) {
@@ -388,15 +382,9 @@ function executeFallbackAction(
 /**
  * Composable for LLM chat with map tool integration.
  *
- * For tool-capable models (Hermes):
- *   - Creates client tools via `toolDefinition().client()` from map-tools.ts
- *   - Passes tools to `useChat({ tools })` for auto-execution
- *   - WebLLM receives WEBLLM_TOOLS in OpenAI format
- *   - useChat auto-executes matching client tools and re-invokes adapter with results
- *
- * For non-tool models (Qwen):
- *   - Uses text-based [MAP_ACTION] blocks
- *   - Parses and executes actions after streaming completes
+ * Two code paths based on `supportsTools`:
+ *   - true: native WebLLM tool calls → useChat auto-executes client tools
+ *   - false: text-based [MAP_ACTION] blocks → parsed after streaming
  *
  * @param mapRef - Ref to the MapLibre GL map instance
  * @param overlaysRef - Ref to the overlay layers from file drops
@@ -510,7 +498,7 @@ export function useLlmChat(
         }
       }
 
-      // --- Native tool calls (Hermes models) ---
+      // --- Native tool calls (models with supportsTools: true) ---
       if (pendingToolCalls.length > 0) {
         // End text message, then emit tool call events
         yield {
@@ -571,9 +559,7 @@ export function useLlmChat(
         errorMessage.includes('parsing outputMessage for function calling') ||
         errorMessage.includes('Got outputMessage:');
       if (isToolParseError) {
-        // WebLLM tool-calling parse error — the model described what it wanted
-        // to do in plain text but couldn't format a proper tool call.
-        // Parse the intended action from the text and execute it ourselves.
+        // WebLLM tool-call parse failed — extract intents from accumulated text
         console.warn(
           '[LLM] Tool-calling parse failed, parsing intents from text',
         );

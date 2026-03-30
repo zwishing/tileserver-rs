@@ -42,13 +42,13 @@ export type { TanStackUIMessage as UIMessage };
  * WebLLM model configuration
  */
 export interface LlmModelConfig {
-  /** Model identifier for WebLLM (e.g., 'Hermes-3-Llama-3.1-8B-q4f16_1-MLC') */
+  /** Model identifier for WebLLM (e.g., 'Qwen3-4B-q4f16_1-MLC') */
   id: string;
   /** Human-readable display name */
   name: string;
   /** Approximate download size in GB */
   sizeGb: number;
-  /** Whether this model supports native tool calling (Hermes models do) */
+  /** Whether this model supports WebLLM's native tool calling API */
   supportsTools: boolean;
 }
 
