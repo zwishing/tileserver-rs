@@ -7,7 +7,7 @@
     SheetDescription as UiSheetDescription,
   } from '~/components/ui/sheet';
   import { ScrollArea as UiScrollArea } from '~/components/ui/scroll-area';
-  import { Bot, Map, Layers, Search, Globe } from 'lucide-vue-next';
+  import { Bot } from 'lucide-vue-next';
   import type { Map as MaplibreMap } from 'maplibre-gl';
 
   const props = defineProps<{
@@ -36,14 +36,8 @@
     handleSubmit,
     handlePromptSelect,
     selectModel,
+    getIconComponent,
   } = useLlmPanel(computed(() => props.mapRef));
-
-  const ICON_COMPONENTS = { Map, Layers, Search, Globe } as const;
-
-  function getIconComponent(icon: string) {
-    const key = icon.charAt(0).toUpperCase() + icon.slice(1);
-    return ICON_COMPONENTS[key as keyof typeof ICON_COMPONENTS] ?? Map;
-  }
 
   function updateOpen(value: boolean) {
     emit('update:open', value);

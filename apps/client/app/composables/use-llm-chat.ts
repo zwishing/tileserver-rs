@@ -24,7 +24,7 @@ import {
   WEBLLM_SERVER_TOOLS,
 } from '~/lib/map-tools';
 import { chatCollection } from '~/lib/chat-db';
-import type { UseChatReturn, StoredToolCall } from '~/types/llm';
+import type { ChatWithEngineStatus, StoredToolCall } from '~/types/llm';
 
 /** System prompt for models with WebLLM native tool calling enabled. */
 const SYSTEM_PROMPT_WITH_TOOLS = `You are a helpful map assistant embedded in tileserver-rs, a vector tile server.
@@ -392,7 +392,7 @@ function executeFallbackAction(
 export function useLlmChat(
   mapRef: Ref<MaplibreMap | null>,
   overlaysRef: Ref<readonly OverlayLayer[]>,
-): UseChatReturn {
+): ChatWithEngineStatus {
   const { engine, status, selectedModel } = useLlmEngine();
 
   // Create client tools bound to the map ref and overlays
@@ -673,10 +673,8 @@ export function useLlmChat(
     },
   });
 
-  // Also expose engine status for the UI
   return {
     ...chat,
-    // @ts-expect-error - extending UseChatReturn with engine status
     engineStatus: status,
-  };
+  } as ChatWithEngineStatus;
 }

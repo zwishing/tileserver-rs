@@ -5,7 +5,7 @@
  * search filtering, collapsible sections, XYZ URL expansion, clipboard copy.
  */
 
-import { useClipboard } from '@vueuse/core';
+import { useClipboard, useTimeoutFn } from '@vueuse/core';
 
 import type { Data } from '~/types/data';
 import type { Style } from '~/types/style';
@@ -72,12 +72,14 @@ export function useHomePage() {
 
   // Copy with feedback
   const copiedUrl = ref<string | null>(null);
+  const { start: startCopyTimer } = useTimeoutFn(() => {
+    copiedUrl.value = null;
+  }, 2000, { immediate: false });
+
   function copyUrl(url: string) {
     copy(url);
     copiedUrl.value = url;
-    setTimeout(() => {
-      copiedUrl.value = null;
-    }, 2000);
+    startCopyTimer();
   }
 
   // Collapsible sections

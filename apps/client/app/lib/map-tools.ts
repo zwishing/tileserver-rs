@@ -232,6 +232,8 @@ export const ALL_TOOL_DEFINITIONS = [
 // CLIENT TOOL FACTORY
 // =============================================================================
 
+const _highlightTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
 /**
  * Create client tool implementations bound to a MapLibre map instance.
  * Returns an array of ClientTool objects to pass to `useChat({ tools })`.
@@ -417,13 +419,15 @@ export function createMapClientTools(
       });
 
       // Auto-remove after 8 seconds
-      setTimeout(() => {
+      const timerId = setTimeout(() => {
+        _highlightTimers.delete(highlightId);
         try {
           if (map.getLayer(highlightId)) map.removeLayer(highlightId);
         } catch {
           // Layer may already be removed
         }
       }, 8000);
+      _highlightTimers.set(highlightId, timerId);
 
       return {
         success: true,

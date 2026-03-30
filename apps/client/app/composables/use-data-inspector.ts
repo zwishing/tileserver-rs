@@ -7,7 +7,8 @@
 
 import type { Map, MapOptions } from 'maplibre-gl';
 
-import type { Data, LayerColor } from '~/types/data';
+import type { LayerColor } from '~/types/data';
+import { fetchDataSource } from '~/utils/api/data';
 
 export function useDataInspector(dataId: Ref<string>) {
   const layerColors = ref<LayerColor[]>([]);
@@ -68,8 +69,8 @@ export function useDataInspector(dataId: Ref<string>) {
       import('maplibre-gl-inspect'),
     ]);
 
-    const tileJson = await $fetch<Data>(`/data/${dataId.value}.json`);
-    const vectorLayerIds = tileJson.vector_layers?.map((l) => l.id) || [];
+    const tileJson = await fetchDataSource(dataId.value);
+    const vectorLayerIds = tileJson?.vector_layers?.map((l) => l.id) ?? [];
 
     const sources: Record<string, string[]> = {
       vector_layer_: vectorLayerIds,

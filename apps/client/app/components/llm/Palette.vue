@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { Bot, X, Map, Layers, Search, Globe } from 'lucide-vue-next';
+  import { Bot, X } from 'lucide-vue-next';
   import type { Map as MaplibreMap } from 'maplibre-gl';
   import type { OverlayLayer } from '~/types/file-upload';
 
@@ -30,36 +30,17 @@
     handlePromptSelect,
     selectModel,
     suggestions,
-  } = useLlmPanel(
+    getIconComponent,
+    panelRef,
+  } = useLlmPalette(
+    computed(() => props.open),
     computed(() => props.mapRef),
     computed(() => props.overlays),
   );
 
-  const panelRef = ref<HTMLElement | null>(null);
-  const ICON_COMPONENTS = { Map, Layers, Search, Globe } as const;
-
-  function getIconComponent(icon: string) {
-    const key = icon.charAt(0).toUpperCase() + icon.slice(1);
-    return ICON_COMPONENTS[key as keyof typeof ICON_COMPONENTS] ?? Map;
-  }
-
   function close() {
     emit('update:open', false);
   }
-
-  // Auto-focus input and restore scroll position when palette opens
-  watch(
-    () => props.open,
-    (isOpen) => {
-      if (isOpen) {
-        nextTick(() => {
-          panelRef.value?.querySelector<HTMLInputElement>('input')?.focus();
-          // ScrollArea resets on v-if remount — scroll to bottom after it initializes
-          nextTick(() => scrollAnchor.value?.scrollIntoView({ block: 'end' }));
-        });
-      }
-    },
-  );
 </script>
 
 <template>

@@ -5,7 +5,7 @@
  * Used by composables and TanStack DB collections.
  */
 
-import type { Data, TileJSON } from '~/types';
+import type { Data } from '~/types';
 import { DATA_SOURCES_QUERY_KEYS } from '~/utils/query-keys';
 
 // ============================================================================
@@ -17,8 +17,8 @@ export async function fetchDataSources(): Promise<Data[]> {
   return result ?? [];
 }
 
-export async function fetchDataSource(id: string): Promise<TileJSON | null> {
-  const result = await $fetch<TileJSON>(`/data/${id}.json`);
+export async function fetchDataSource(id: string): Promise<Data | null> {
+  const result = await $fetch<Data>(`/data/${id}.json`);
   return result ?? null;
 }
 
@@ -37,7 +37,7 @@ export function dataSourcesQueryOptions() {
 export function dataSourceQueryOptions(id: string) {
   return {
     queryKey: DATA_SOURCES_QUERY_KEYS.detail(id),
-    queryFn: (): Promise<TileJSON | null> => fetchDataSource(id),
+    queryFn: (): Promise<Data | null> => fetchDataSource(id),
     staleTime: 60 * 1000,
   };
 }

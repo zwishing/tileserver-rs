@@ -7,6 +7,7 @@
  * @see https://tanstack.com/ai/latest
  */
 
+import { Map, Layers, Search, Globe } from 'lucide-vue-next';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import type { OverlayLayer } from '~/types/file-upload';
 import type { MessagePart } from '@tanstack/ai';
@@ -19,6 +20,13 @@ const ICON_MAP: Record<LlmIconName, string> = {
   palette: 'Palette',
   globe: 'Globe',
 };
+
+const ICON_COMPONENTS = { Map, Layers, Search, Globe } as const;
+
+function getIconComponent(icon: string) {
+  const key = icon.charAt(0).toUpperCase() + icon.slice(1);
+  return ICON_COMPONENTS[key as keyof typeof ICON_COMPONENTS] ?? Map;
+}
 
 /**
  * Suggested prompts for new users
@@ -95,7 +103,7 @@ export function formatMessageTime(date: Date | undefined): string {
  */
 export function useLlmPanel(
   mapRef: Ref<MaplibreMap | null>,
-  overlaysRef: Ref<readonly OverlayLayer[]>,
+  overlaysRef: Ref<readonly OverlayLayer[]> = ref<readonly OverlayLayer[]>([]),
 ) {
   const {
     status: engineStatus,
@@ -261,5 +269,6 @@ export function useLlmPanel(
     // Helpers
     getTextContent,
     formatMessageTime,
+    getIconComponent,
   };
 }
