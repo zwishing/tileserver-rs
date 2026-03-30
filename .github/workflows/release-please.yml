@@ -41,7 +41,14 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Publish mbgl-sys to crates.io
-        run: cargo publish -p mbgl-sys
-        env:
-          CARGO_REGISTRY_TOKEN: ""
+        run: |
+          # Exchange GitHub OIDC token for crates.io publish token
+          OIDC_TOKEN=$(curl -sLS "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=https://crates.io" \
+            -H "User-Agent: actions/oidc-client" \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}")
+          OIDC_TOKEN=$(echo "${OIDC_TOKEN}" | jq -r '.value')
+          CARGO_REGISTRY_TOKEN=$(curl -sLS 'https://crates.io/api/v1/tokens/trusted-publishing' \
+            -H "Authorization: Bearer ${OIDC_TOKEN}" | jq -r '.token')
+          export CARGO_REGISTRY_TOKEN
+          cargo publish -p mbgl-sys
 
