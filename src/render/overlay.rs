@@ -225,10 +225,10 @@ pub fn parse_path(path_str: &str) -> Option<PathOverlay> {
                 // Parse coordinates: lon,lat|lon,lat|...
                 for coord in coords_part.split('|') {
                     let xy: Vec<&str> = coord.split(',').collect();
-                    if xy.len() >= 2 {
-                        if let (Ok(lon), Ok(lat)) = (xy[0].parse(), xy[1].parse()) {
-                            points.push(GeoPoint { lon, lat });
-                        }
+                    if xy.len() >= 2
+                        && let (Ok(lon), Ok(lat)) = (xy[0].parse(), xy[1].parse())
+                    {
+                        points.push(GeoPoint { lon, lat });
                     }
                 }
             }
@@ -240,10 +240,10 @@ pub fn parse_path(path_str: &str) -> Option<PathOverlay> {
         } else {
             for coord in path_str.split('|') {
                 let xy: Vec<&str> = coord.split(',').collect();
-                if xy.len() >= 2 {
-                    if let (Ok(lon), Ok(lat)) = (xy[0].parse(), xy[1].parse()) {
-                        points.push(GeoPoint { lon, lat });
-                    }
+                if xy.len() >= 2
+                    && let (Ok(lon), Ok(lat)) = (xy[0].parse(), xy[1].parse())
+                {
+                    points.push(GeoPoint { lon, lat });
                 }
             }
         }
@@ -300,29 +300,29 @@ pub fn parse_marker(marker_str: &str) -> Option<MarkerOverlay> {
 
             // Parse coordinates
             let xy: Vec<&str> = coords_part.split(',').collect();
-            if xy.len() >= 2 {
-                if let (Ok(lon), Ok(lat)) = (xy[0].parse(), xy[1].parse()) {
-                    return Some(MarkerOverlay {
-                        position: GeoPoint { lon, lat },
-                        color,
-                        label,
-                        size,
-                    });
-                }
+            if xy.len() >= 2
+                && let (Ok(lon), Ok(lat)) = (xy[0].parse(), xy[1].parse())
+            {
+                return Some(MarkerOverlay {
+                    position: GeoPoint { lon, lat },
+                    color,
+                    label,
+                    size,
+                });
             }
         }
     } else {
         // Simple format: lon,lat
         let xy: Vec<&str> = marker_str.split(',').collect();
-        if xy.len() >= 2 {
-            if let (Ok(lon), Ok(lat)) = (xy[0].parse(), xy[1].parse()) {
-                return Some(MarkerOverlay {
-                    position: GeoPoint { lon, lat },
-                    color,
-                    label: None,
-                    size,
-                });
-            }
+        if xy.len() >= 2
+            && let (Ok(lon), Ok(lat)) = (xy[0].parse(), xy[1].parse())
+        {
+            return Some(MarkerOverlay {
+                position: GeoPoint { lon, lat },
+                color,
+                label: None,
+                size,
+            });
         }
     }
 

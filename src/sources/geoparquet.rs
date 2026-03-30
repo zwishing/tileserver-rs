@@ -52,46 +52,45 @@ fn extract_geo_metadata(
 ) -> Option<GeoMeta> {
     let kv = file_metadata.file_metadata().key_value_metadata()?;
     for entry in kv {
-        if entry.key == "geo" {
-            if let Some(ref value) = entry.value {
-                if let Ok(geo_json) = serde_json::from_str::<serde_json::Value>(value) {
-                    let primary_column = geo_json
-                        .get("primary_column")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("geometry")
-                        .to_string();
+        if entry.key == "geo"
+            && let Some(ref value) = entry.value
+            && let Ok(geo_json) = serde_json::from_str::<serde_json::Value>(value)
+        {
+            let primary_column = geo_json
+                .get("primary_column")
+                .and_then(|v| v.as_str())
+                .unwrap_or("geometry")
+                .to_string();
 
-                    let columns = geo_json.get("columns");
-                    let col_info = columns.and_then(|c| c.get(&primary_column));
+            let columns = geo_json.get("columns");
+            let col_info = columns.and_then(|c| c.get(&primary_column));
 
-                    let has_bbox_covering = col_info
-                        .and_then(|c| c.get("covering"))
-                        .and_then(|c| c.get("bbox"))
-                        .is_some();
+            let has_bbox_covering = col_info
+                .and_then(|c| c.get("covering"))
+                .and_then(|c| c.get("bbox"))
+                .is_some();
 
-                    let bounds = col_info
-                        .and_then(|c| c.get("bbox"))
-                        .and_then(|b| b.as_array())
-                        .and_then(|arr| {
-                            if arr.len() >= 4 {
-                                Some([
-                                    arr[0].as_f64()?,
-                                    arr[1].as_f64()?,
-                                    arr[2].as_f64()?,
-                                    arr[3].as_f64()?,
-                                ])
-                            } else {
-                                None
-                            }
-                        });
+            let bounds = col_info
+                .and_then(|c| c.get("bbox"))
+                .and_then(|b| b.as_array())
+                .and_then(|arr| {
+                    if arr.len() >= 4 {
+                        Some([
+                            arr[0].as_f64()?,
+                            arr[1].as_f64()?,
+                            arr[2].as_f64()?,
+                            arr[3].as_f64()?,
+                        ])
+                    } else {
+                        None
+                    }
+                });
 
-                    return Some(GeoMeta {
-                        geometry_column: primary_column,
-                        has_bbox_covering,
-                        bounds,
-                    });
-                }
-            }
+            return Some(GeoMeta {
+                geometry_column: primary_column,
+                has_bbox_covering,
+                bounds,
+            });
         }
     }
     None
@@ -608,40 +607,38 @@ impl TileSource for GeoParquetSource {
                     };
 
                     for row in 0..batch.num_rows() {
-                        if has_bbox {
-                            if let Some(bbox_idx) =
+                        if has_bbox
+                            && let Some(bbox_idx) =
                                 schema.fields().iter().position(|f| f.name() == "bbox")
-                            {
-                                let bbox_col = batch.column(bbox_idx);
-                                if let Some(struct_arr) =
-                                    bbox_col.as_any().downcast_ref::<arrow_array::StructArray>()
-                                {
-                                    let xmin = struct_arr.column_by_name("xmin").and_then(|c| {
-                                        c.as_any().downcast_ref::<arrow_array::Float32Array>()
-                                    });
-                                    let xmax = struct_arr.column_by_name("xmax").and_then(|c| {
-                                        c.as_any().downcast_ref::<arrow_array::Float32Array>()
-                                    });
-                                    let ymin = struct_arr.column_by_name("ymin").and_then(|c| {
-                                        c.as_any().downcast_ref::<arrow_array::Float32Array>()
-                                    });
-                                    let ymax = struct_arr.column_by_name("ymax").and_then(|c| {
-                                        c.as_any().downcast_ref::<arrow_array::Float32Array>()
-                                    });
+                            && let Some(struct_arr) = batch
+                                .column(bbox_idx)
+                                .as_any()
+                                .downcast_ref::<arrow_array::StructArray>()
+                        {
+                            let xmin = struct_arr.column_by_name("xmin").and_then(|c| {
+                                c.as_any().downcast_ref::<arrow_array::Float32Array>()
+                            });
+                            let xmax = struct_arr.column_by_name("xmax").and_then(|c| {
+                                c.as_any().downcast_ref::<arrow_array::Float32Array>()
+                            });
+                            let ymin = struct_arr.column_by_name("ymin").and_then(|c| {
+                                c.as_any().downcast_ref::<arrow_array::Float32Array>()
+                            });
+                            let ymax = struct_arr.column_by_name("ymax").and_then(|c| {
+                                c.as_any().downcast_ref::<arrow_array::Float32Array>()
+                            });
 
-                                    if let (Some(xmin), Some(xmax), Some(ymin), Some(ymax)) =
-                                        (xmin, xmax, ymin, ymax)
-                                    {
-                                        let feat_bbox = [
-                                            xmin.value(row),
-                                            ymin.value(row),
-                                            xmax.value(row),
-                                            ymax.value(row),
-                                        ];
-                                        if !bbox_intersects(feat_bbox, &tile_bbox) {
-                                            continue;
-                                        }
-                                    }
+                            if let (Some(xmin), Some(xmax), Some(ymin), Some(ymax)) =
+                                (xmin, xmax, ymin, ymax)
+                            {
+                                let feat_bbox = [
+                                    xmin.value(row),
+                                    ymin.value(row),
+                                    xmax.value(row),
+                                    ymax.value(row),
+                                ];
+                                if !bbox_intersects(feat_bbox, &tile_bbox) {
+                                    continue;
                                 }
                             }
                         }

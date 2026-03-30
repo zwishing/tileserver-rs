@@ -67,18 +67,16 @@ impl LocalPmTilesSource {
         };
 
         // For Unknown tile type, probe a tile to detect MLT format
-        if format == TileFormat::Unknown {
-            if let Ok(coord) = TileCoord::new(header.min_zoom, 0, 0) {
-                if let Ok(Some(sample)) = reader.get_tile(coord).await {
-                    if crate::sources::detect_mlt_format(&sample) {
-                        format = TileFormat::Mlt;
-                        tracing::info!(
-                            "Auto-detected MLT format for source '{}' via tile probe",
-                            config.id
-                        );
-                    }
-                }
-            }
+        if format == TileFormat::Unknown
+            && let Ok(coord) = TileCoord::new(header.min_zoom, 0, 0)
+            && let Ok(Some(sample)) = reader.get_tile(coord).await
+            && crate::sources::detect_mlt_format(&sample)
+        {
+            format = TileFormat::Mlt;
+            tracing::info!(
+                "Auto-detected MLT format for source '{}' via tile probe",
+                config.id
+            );
         }
 
         // Apply `serve_as` override: the metadata format controls TileJSON URLs

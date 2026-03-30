@@ -349,24 +349,22 @@ async fn get_tile_as_geojson(
 
     for mut layer in mvt_tile.layers {
         // Each layer implements GeozeroDatasource which can convert to JSON
-        if let Ok(layer_json) = layer.to_json() {
-            // Parse the layer GeoJSON (it's a FeatureCollection)
-            if let Ok(fc) = serde_json::from_str::<serde_json::Value>(&layer_json) {
-                if let Some(features) = fc.get("features").and_then(|f| f.as_array()) {
-                    // Add layer name to each feature's properties
-                    for feature in features {
-                        let mut feature = feature.clone();
-                        if let Some(props) = feature.get_mut("properties") {
-                            if let Some(props_obj) = props.as_object_mut() {
-                                props_obj.insert(
-                                    "_layer".to_string(),
-                                    serde_json::Value::String(layer.name.clone()),
-                                );
-                            }
-                        }
-                        all_features.push(feature);
-                    }
+        if let Ok(layer_json) = layer.to_json()
+            && let Ok(fc) = serde_json::from_str::<serde_json::Value>(&layer_json)
+            && let Some(features) = fc.get("features").and_then(|f| f.as_array())
+        {
+            // Add layer name to each feature's properties
+            for feature in features {
+                let mut feature = feature.clone();
+                if let Some(props) = feature.get_mut("properties")
+                    && let Some(props_obj) = props.as_object_mut()
+                {
+                    props_obj.insert(
+                        "_layer".to_string(),
+                        serde_json::Value::String(layer.name.clone()),
+                    );
                 }
+                all_features.push(feature);
             }
         }
     }

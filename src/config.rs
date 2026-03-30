@@ -671,10 +671,10 @@ impl Config {
 
     /// Load configuration and return metadata including the content hash.
     pub fn load_with_metadata(config_path: Option<PathBuf>) -> anyhow::Result<ConfigLoadMetadata> {
-        if let Some(path) = config_path {
-            if path.exists() {
-                return Self::from_file_with_metadata(&path);
-            }
+        if let Some(path) = config_path
+            && path.exists()
+        {
+            return Self::from_file_with_metadata(&path);
         }
 
         let default_paths = vec![

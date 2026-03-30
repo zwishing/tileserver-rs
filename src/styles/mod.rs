@@ -240,47 +240,47 @@ pub fn rewrite_style_for_api(
     };
 
     // Rewrite sources - convert relative URLs to absolute
-    if let Some(style_sources) = style.get_mut("sources") {
-        if let Some(sources_obj) = style_sources.as_object_mut() {
-            for (_source_id, source_config) in sources_obj.iter_mut() {
-                if let Some(source_obj) = source_config.as_object_mut() {
-                    // Rewrite "url" field if relative
-                    if let Some(url) = source_obj.get_mut("url") {
-                        if let Some(url_str) = url.as_str() {
-                            *url = serde_json::Value::String(rewrite_url(url_str));
+    if let Some(style_sources) = style.get_mut("sources")
+        && let Some(sources_obj) = style_sources.as_object_mut()
+    {
+        for (_source_id, source_config) in sources_obj.iter_mut() {
+            if let Some(source_obj) = source_config.as_object_mut() {
+                // Rewrite "url" field if relative
+                if let Some(url) = source_obj.get_mut("url")
+                    && let Some(url_str) = url.as_str()
+                {
+                    *url = serde_json::Value::String(rewrite_url(url_str));
+                }
+
+                // Rewrite "tiles" array if relative
+                if let Some(tiles) = source_obj.get_mut("tiles")
+                    && let Some(tiles_arr) = tiles.as_array_mut()
+                {
+                    for tile in tiles_arr.iter_mut() {
+                        if let Some(tile_str) = tile.as_str() {
+                            *tile = serde_json::Value::String(rewrite_url(tile_str));
                         }
                     }
+                }
 
-                    // Rewrite "tiles" array if relative
-                    if let Some(tiles) = source_obj.get_mut("tiles") {
-                        if let Some(tiles_arr) = tiles.as_array_mut() {
-                            for tile in tiles_arr.iter_mut() {
-                                if let Some(tile_str) = tile.as_str() {
-                                    *tile = serde_json::Value::String(rewrite_url(tile_str));
-                                }
-                            }
-                        }
-                    }
-
-                    // Inject encoding hint for MLT sources.
-                    // If the source URL or tile URLs reference .mlt endpoints,
-                    // set encoding: "mlt" so clients know the tile encoding.
-                    if !source_obj.contains_key("encoding") {
-                        let is_mlt = source_obj
-                            .get("url")
-                            .and_then(|v| v.as_str())
-                            .is_some_and(|u| u.contains(".mlt"))
-                            || source_obj
-                                .get("tiles")
-                                .and_then(|v| v.as_array())
-                                .is_some_and(|tiles| {
-                                    tiles
-                                        .iter()
-                                        .any(|t| t.as_str().is_some_and(|s| s.ends_with(".mlt")))
-                                });
-                        if is_mlt {
-                            source_obj.insert("encoding".to_string(), serde_json::json!("mlt"));
-                        }
+                // Inject encoding hint for MLT sources.
+                // If the source URL or tile URLs reference .mlt endpoints,
+                // set encoding: "mlt" so clients know the tile encoding.
+                if !source_obj.contains_key("encoding") {
+                    let is_mlt = source_obj
+                        .get("url")
+                        .and_then(|v| v.as_str())
+                        .is_some_and(|u| u.contains(".mlt"))
+                        || source_obj
+                            .get("tiles")
+                            .and_then(|v| v.as_array())
+                            .is_some_and(|tiles| {
+                                tiles
+                                    .iter()
+                                    .any(|t| t.as_str().is_some_and(|s| s.ends_with(".mlt")))
+                            });
+                    if is_mlt {
+                        source_obj.insert("encoding".to_string(), serde_json::json!("mlt"));
                     }
                 }
             }
@@ -288,17 +288,17 @@ pub fn rewrite_style_for_api(
     }
 
     // Rewrite glyphs URL if relative
-    if let Some(glyphs) = style.get_mut("glyphs") {
-        if let Some(glyphs_str) = glyphs.as_str() {
-            *glyphs = serde_json::Value::String(rewrite_url(glyphs_str));
-        }
+    if let Some(glyphs) = style.get_mut("glyphs")
+        && let Some(glyphs_str) = glyphs.as_str()
+    {
+        *glyphs = serde_json::Value::String(rewrite_url(glyphs_str));
     }
 
     // Rewrite sprite URL if relative
-    if let Some(sprite) = style.get_mut("sprite") {
-        if let Some(sprite_str) = sprite.as_str() {
-            *sprite = serde_json::Value::String(rewrite_url(sprite_str));
-        }
+    if let Some(sprite) = style.get_mut("sprite")
+        && let Some(sprite_str) = sprite.as_str()
+    {
+        *sprite = serde_json::Value::String(rewrite_url(sprite_str));
     }
 
     style
@@ -320,34 +320,32 @@ pub fn rewrite_style_for_native(
     let mut style = style_json.clone();
 
     // Rewrite sources - inline tile URLs
-    if let Some(style_sources) = style.get_mut("sources") {
-        if let Some(sources_obj) = style_sources.as_object_mut() {
-            for (source_id, source_config) in sources_obj.iter_mut() {
-                rewrite_source(source_id, source_config, base_url, sources);
-            }
+    if let Some(style_sources) = style.get_mut("sources")
+        && let Some(sources_obj) = style_sources.as_object_mut()
+    {
+        for (source_id, source_config) in sources_obj.iter_mut() {
+            rewrite_source(source_id, source_config, base_url, sources);
         }
     }
 
     // Rewrite glyphs URL if it's relative
-    if let Some(glyphs) = style.get_mut("glyphs") {
-        if let Some(glyphs_str) = glyphs.as_str() {
-            if glyphs_str.starts_with('/') {
-                let absolute_url = format!("{}{}", base_url, glyphs_str);
-                tracing::debug!("Rewriting glyphs URL: {} -> {}", glyphs_str, absolute_url);
-                *glyphs = serde_json::Value::String(absolute_url);
-            }
-        }
+    if let Some(glyphs) = style.get_mut("glyphs")
+        && let Some(glyphs_str) = glyphs.as_str()
+        && glyphs_str.starts_with('/')
+    {
+        let absolute_url = format!("{}{}", base_url, glyphs_str);
+        tracing::debug!("Rewriting glyphs URL: {} -> {}", glyphs_str, absolute_url);
+        *glyphs = serde_json::Value::String(absolute_url);
     }
 
     // Rewrite sprite URL if it's relative
-    if let Some(sprite) = style.get_mut("sprite") {
-        if let Some(sprite_str) = sprite.as_str() {
-            if sprite_str.starts_with('/') {
-                let absolute_url = format!("{}{}", base_url, sprite_str);
-                tracing::debug!("Rewriting sprite URL: {} -> {}", sprite_str, absolute_url);
-                *sprite = serde_json::Value::String(absolute_url);
-            }
-        }
+    if let Some(sprite) = style.get_mut("sprite")
+        && let Some(sprite_str) = sprite.as_str()
+        && sprite_str.starts_with('/')
+    {
+        let absolute_url = format!("{}{}", base_url, sprite_str);
+        tracing::debug!("Rewriting sprite URL: {} -> {}", sprite_str, absolute_url);
+        *sprite = serde_json::Value::String(absolute_url);
     }
 
     style
@@ -437,15 +435,15 @@ fn rewrite_source(
     if !source_obj.contains_key("maxzoom") {
         source_obj.insert("maxzoom".to_string(), serde_json::json!(metadata.maxzoom));
     }
-    if !source_obj.contains_key("bounds") {
-        if let Some(bounds) = &metadata.bounds {
-            source_obj.insert("bounds".to_string(), serde_json::json!(bounds));
-        }
+    if !source_obj.contains_key("bounds")
+        && let Some(bounds) = &metadata.bounds
+    {
+        source_obj.insert("bounds".to_string(), serde_json::json!(bounds));
     }
-    if !source_obj.contains_key("attribution") {
-        if let Some(attribution) = &metadata.attribution {
-            source_obj.insert("attribution".to_string(), serde_json::json!(attribution));
-        }
+    if !source_obj.contains_key("attribution")
+        && let Some(attribution) = &metadata.attribution
+    {
+        source_obj.insert("attribution".to_string(), serde_json::json!(attribution));
     }
 }
 

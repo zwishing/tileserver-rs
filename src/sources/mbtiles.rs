@@ -151,10 +151,10 @@ impl MbTilesSource {
                 }
                 "json" => {
                     // Parse vector_layers from the JSON metadata
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&value) {
-                        if let Some(layers) = json.get("vector_layers") {
-                            vector_layers = Some(layers.clone());
-                        }
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&value)
+                        && let Some(layers) = json.get("vector_layers")
+                    {
+                        vector_layers = Some(layers.clone());
                     }
                 }
                 _ => {}
@@ -162,13 +162,13 @@ impl MbTilesSource {
         }
 
         // If no center specified, calculate from bounds
-        if center.is_none() {
-            if let Some(b) = bounds {
-                let center_lon = (b[0] + b[2]) / 2.0;
-                let center_lat = (b[1] + b[3]) / 2.0;
-                let center_zoom = ((minzoom as f64 + maxzoom as f64) / 2.0).floor();
-                center = Some([center_lon, center_lat, center_zoom]);
-            }
+        if center.is_none()
+            && let Some(b) = bounds
+        {
+            let center_lon = (b[0] + b[2]) / 2.0;
+            let center_lat = (b[1] + b[3]) / 2.0;
+            let center_zoom = ((minzoom as f64 + maxzoom as f64) / 2.0).floor();
+            center = Some([center_lon, center_lat, center_zoom]);
         }
 
         Ok(TileMetadata {

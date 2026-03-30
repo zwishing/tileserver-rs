@@ -34,15 +34,14 @@ pub(crate) async fn get_fonts_list(
     // Each subdirectory is a font family (e.g., "Noto Sans Regular")
     if let Ok(mut entries) = tokio::fs::read_dir(fonts_dir).await {
         while let Ok(Some(entry)) = entries.next_entry().await {
-            if let Ok(file_type) = entry.file_type().await {
-                if file_type.is_dir() {
-                    if let Some(name) = entry.file_name().to_str() {
-                        // Only include directories that have at least one .pbf file
-                        let font_dir = entry.path();
-                        if has_pbf_files(&font_dir).await {
-                            fonts.push(name.to_string());
-                        }
-                    }
+            if let Ok(file_type) = entry.file_type().await
+                && file_type.is_dir()
+                && let Some(name) = entry.file_name().to_str()
+            {
+                // Only include directories that have at least one .pbf file
+                let font_dir = entry.path();
+                if has_pbf_files(&font_dir).await {
+                    fonts.push(name.to_string());
                 }
             }
         }
@@ -58,10 +57,10 @@ pub(crate) async fn get_fonts_list(
 async fn has_pbf_files(dir: &std::path::Path) -> bool {
     if let Ok(mut entries) = tokio::fs::read_dir(dir).await {
         while let Ok(Some(entry)) = entries.next_entry().await {
-            if let Some(name) = entry.file_name().to_str() {
-                if name.ends_with(".pbf") {
-                    return true;
-                }
+            if let Some(name) = entry.file_name().to_str()
+                && name.ends_with(".pbf")
+            {
+                return true;
             }
         }
     }
@@ -115,10 +114,10 @@ pub(crate) async fn get_font_glyphs(
         let font_path = fonts_dir.join(font_name).join(&params.range);
 
         // Security: Verify the resolved path is within fonts directory
-        if let Ok(canonical_path) = font_path.canonicalize() {
-            if !canonical_path.starts_with(&canonical_fonts_dir) {
-                continue; // Path escapes fonts directory
-            }
+        if let Ok(canonical_path) = font_path.canonicalize()
+            && !canonical_path.starts_with(&canonical_fonts_dir)
+        {
+            continue; // Path escapes fonts directory
         }
 
         if let Ok(data) = tokio::fs::read(&font_path).await {

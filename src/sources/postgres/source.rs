@@ -279,10 +279,10 @@ impl TileSource for PostgresFunctionSource {
             y,
         });
 
-        if let (Some(cache), Some(key)) = (&self.cache, &cache_key) {
-            if let Some(tile) = cache.get(key).await {
-                return Ok(Some(tile));
-            }
+        if let (Some(cache), Some(key)) = (&self.cache, &cache_key)
+            && let Some(tile) = cache.get(key).await
+        {
+            return Ok(Some(tile));
         }
 
         let conn = self.pool.get().await?;

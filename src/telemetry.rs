@@ -99,15 +99,15 @@ where
 }
 
 pub fn shutdown_telemetry() {
-    if let Some(meter_provider) = METER_PROVIDER.get() {
-        if let Err(e) = meter_provider.shutdown() {
-            tracing::warn!("Metrics shutdown error: {}", e);
-        }
+    if let Some(meter_provider) = METER_PROVIDER.get()
+        && let Err(e) = meter_provider.shutdown()
+    {
+        tracing::warn!("Metrics shutdown error: {}", e);
     }
-    if let Some(provider) = TRACER_PROVIDER.get() {
-        if let Err(e) = provider.shutdown() {
-            tracing::warn!("Tracer shutdown error: {}", e);
-        }
+    if let Some(provider) = TRACER_PROVIDER.get()
+        && let Err(e) = provider.shutdown()
+    {
+        tracing::warn!("Tracer shutdown error: {}", e);
     }
     tracing::debug!("OpenTelemetry shutdown complete");
 }
