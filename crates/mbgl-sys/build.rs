@@ -488,18 +488,16 @@ fn expected_sha256(target: &str) -> Option<&'static str> {
 fn download(url: &str, dest: &Path) -> Result<(), String> {
     let tmp = dest.with_extension("tmp");
 
-    let response = ureq::AgentBuilder::new()
-        .timeout_connect(std::time::Duration::from_secs(30))
-        .timeout_read(std::time::Duration::from_secs(300))
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_global(Some(std::time::Duration::from_secs(300)))
         .build()
-        .get(url)
-        .call()
-        .map_err(|e| format!("{url}: {e}"))?;
+        .into();
+    let mut response = agent.get(url).call().map_err(|e| format!("{url}: {e}"))?;
 
     let file =
         fs::File::create(&tmp).map_err(|e| format!("failed to create {}: {e}", tmp.display()))?;
     let mut writer = BufWriter::new(file);
-    let mut reader = response.into_reader();
+    let mut reader = response.body_mut().as_reader();
 
     io::copy(&mut reader, &mut writer)
         .map_err(|e| format!("failed to write to {}: {e}", tmp.display()))?;
@@ -542,7 +540,12 @@ fn verify_sha256(path: &Path, expected: &str) -> Result<(), String> {
         hasher.update(&buf[..n]);
     }
 
-    let actual = format!("{:x}", hasher.finalize());
+    let hash = hasher.finalize();
+    let actual = hash.iter().fold(String::with_capacity(64), |mut s, b| {
+        use std::fmt::Write;
+        let _ = write!(s, "{b:02x}");
+        s
+    });
     if actual != expected {
         let _ = fs::remove_file(path);
         return Err(format!(
