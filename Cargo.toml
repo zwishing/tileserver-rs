@@ -3,7 +3,7 @@ members = [".", "crates/mbgl-sys"]
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.91"
 repository = "https://github.com/vinayakkulkarni/tileserver-rs"
 
 [workspace.dependencies]
@@ -42,7 +42,7 @@ prost            = "0.14.3"
 geo-types        = "0.7.18"
 
 # MLT support
-mlt-core         = { version = "0.4.0" }
+mlt-core         = { version = "0.6.0" }
 
 # MBTiles / SQLite
 rusqlite         = { version = "0.39.0", features = ["bundled"] }

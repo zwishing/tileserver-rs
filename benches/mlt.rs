@@ -156,7 +156,8 @@ fn bench_mlt_parse(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("zoom", zoom), &fixtures, |b, fixtures| {
             b.iter(|| {
                 for fixture in fixtures {
-                    let _ = mlt_core::parse_layers(std::hint::black_box(fixture.data));
+                    let _ = mlt_core::Parser::default()
+                        .parse_layers(std::hint::black_box(fixture.data));
                 }
             });
         });
@@ -189,9 +190,12 @@ fn bench_mlt_decode_all(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("zoom", zoom), &fixtures, |b, fixtures| {
             b.iter(|| {
                 for fixture in fixtures {
-                    if let Ok(layers) = mlt_core::parse_layers(std::hint::black_box(fixture.data)) {
+                    if let Ok(layers) =
+                        mlt_core::Parser::default().parse_layers(std::hint::black_box(fixture.data))
+                    {
+                        let mut dec = mlt_core::Decoder::default();
                         for mut layer in layers {
-                            let _ = layer.decode_all();
+                            let _ = layer.decode_all(&mut dec);
                         }
                     }
                 }

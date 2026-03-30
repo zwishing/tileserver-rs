@@ -195,6 +195,8 @@ fn decompress_tile_data(tile: &TileData) -> Result<Vec<u8>> {
 fn mvt_to_mlt(mvt_bytes: &[u8]) -> Result<Bytes> {
     use std::collections::BTreeMap;
 
+    use mlt_core::StagedLayer;
+
     // Step 1: Parse MVT protobuf into FeatureCollection
     let fc = mlt_core::mvt::mvt_to_feature_collection(mvt_bytes.to_vec())
         .map_err(|e| TileServerError::MltEncodeError(format!("failed to parse MVT tile: {e}")))?;
@@ -211,11 +213,15 @@ fn mvt_to_mlt(mvt_bytes: &[u8]) -> Result<Bytes> {
         layer_map.entry(layer_name).or_default().push(feature);
     }
 
-    // Step 3: Build and encode each layer, write to output buffer
+    // Step 3: Build TileLayer01 per layer group, encode, and write
     let mut output = Vec::new();
     for (layer_name, features) in &layer_map {
-        let layer = build_mlt_layer(layer_name, features)?;
-        layer.write_to(&mut output).map_err(|e| {
+        let tile_layer = build_tile_layer(layer_name, features);
+        let staged = StagedLayer::Tag01(tile_layer.into());
+        let (encoded, _encoder) = staged.encode_auto().map_err(|e| {
+            TileServerError::MltEncodeError(format!("failed to encode MLT layer: {e}"))
+        })?;
+        encoded.write_to(&mut output).map_err(|e| {
             TileServerError::MltEncodeError(format!("failed to write MLT layer: {e}"))
         })?;
     }
@@ -223,17 +229,18 @@ fn mvt_to_mlt(mvt_bytes: &[u8]) -> Result<Bytes> {
     Ok(Bytes::from(output))
 }
 
-/// Build an encoded `OwnedLayer` from a set of features belonging to one MVT layer.
-fn build_mlt_layer(
+/// Build a [`TileLayer01`] from a set of features belonging to one MVT layer.
+///
+/// Collects unique property keys, infers the dominant type for each key across
+/// all features, and builds per-feature [`PropValue`] vectors parallel to
+/// `property_names`.
+fn build_tile_layer(
     layer_name: &str,
     features: &[&mlt_core::geojson::Feature],
-) -> Result<mlt_core::OwnedLayer> {
-    use mlt_core::Encodable as _;
-    use mlt_core::v01::{
-        DecodedGeometry, DecodedId, GeometryEncoder, IdEncoder, IdWidth, IntEncoder,
-        LogicalEncoder, OwnedGeometry, OwnedId, OwnedLayer01, OwnedProperty, PresenceStream,
-        ScalarEncoder,
-    };
+) -> mlt_core::v01::TileLayer01 {
+    use std::collections::BTreeSet;
+
+    use mlt_core::v01::{PropValue, TileFeature, TileLayer01};
 
     // Extract extent from first feature (injected by mvt_to_feature_collection as _extent)
     let extent = features
@@ -243,124 +250,63 @@ fn build_mlt_layer(
         .map(|v| v as u32)
         .unwrap_or(4096);
 
-    // --- Geometry ---
-    let mut decoded_geom = DecodedGeometry::default();
-    for feature in features {
-        decoded_geom.push_geom(&feature.geometry);
-    }
-    let mut geometry = OwnedGeometry::Decoded(decoded_geom);
-    let geom_encoder = GeometryEncoder::all(IntEncoder::varint());
-    geometry.encode_with(geom_encoder).map_err(|e| {
-        TileServerError::MltEncodeError(format!("failed to encode MLT geometry: {e}"))
-    })?;
-
-    // --- IDs ---
-    let ids: Vec<Option<u64>> = features.iter().map(|f| f.id).collect();
-    let has_ids = ids.iter().any(|id| id.is_some());
-    let mut id = if has_ids {
-        OwnedId::Decoded(Some(DecodedId(ids)))
-    } else {
-        OwnedId::Decoded(None)
-    };
-    if has_ids {
-        let id_encoder = IdEncoder::new(LogicalEncoder::None, IdWidth::Id64);
-        id.encode_with(id_encoder).map_err(|e| {
-            TileServerError::MltEncodeError(format!("failed to encode MLT IDs: {e}"))
-        })?;
-    }
-
-    // --- Properties (row-oriented → column-oriented) ---
-    let properties = build_column_properties(features)?;
-    let mut encoded_properties: Vec<OwnedProperty> = Vec::with_capacity(properties.len());
-    for decoded_prop in properties {
-        // Pick the right encoder based on the property value type
-        let encoder = match &decoded_prop {
-            mlt_core::v01::DecodedProperty::Bool(_) => ScalarEncoder::bool(PresenceStream::Present),
-            mlt_core::v01::DecodedProperty::F32(_) | mlt_core::v01::DecodedProperty::F64(_) => {
-                ScalarEncoder::float(PresenceStream::Present)
-            }
-            mlt_core::v01::DecodedProperty::Str(_, _) => {
-                ScalarEncoder::str(PresenceStream::Present, IntEncoder::varint())
-            }
-            _ => ScalarEncoder::int(PresenceStream::Present, IntEncoder::varint()),
-        };
-        let mut prop = OwnedProperty::Decoded(decoded_prop);
-        prop.encode_with(encoder).map_err(|e| {
-            TileServerError::MltEncodeError(format!("failed to encode MLT property: {e}"))
-        })?;
-        encoded_properties.push(prop);
-    }
-
-    // --- Assemble Layer ---
-    let layer01 = OwnedLayer01 {
-        name: layer_name.to_string(),
-        extent,
-        id,
-        geometry,
-        properties: encoded_properties,
-    };
-
-    Ok(mlt_core::OwnedLayer::Tag01(layer01))
-}
-
-/// Convert row-oriented feature properties to column-oriented `DecodedProperty` vectors.
-///
-/// MVT stores properties per-feature (row-oriented), but MLT stores them per-column.
-/// This function collects all unique property keys, infers their types, and builds
-/// a `PropValue` vector for each key across all features.
-fn build_column_properties(
-    features: &[&mlt_core::geojson::Feature],
-) -> Result<Vec<mlt_core::v01::DecodedProperty<'static>>> {
-    use mlt_core::v01::{DecodedProperty, DecodedScalar, PropValue};
-    use std::collections::BTreeSet;
-
     // Collect all unique property keys (excluding internal _layer, _extent)
-    let mut all_keys = BTreeSet::new();
+    let mut key_set = BTreeSet::new();
     for feature in features {
         for key in feature.properties.keys() {
             if !key.starts_with('_') {
-                all_keys.insert(key.clone());
+                key_set.insert(key.clone());
             }
         }
     }
+    let property_names: Vec<String> = key_set.into_iter().collect();
 
-    let num_features = features.len();
-    let mut result = Vec::with_capacity(all_keys.len());
+    // Determine dominant type per property key
+    let key_types: Vec<DominantType> = property_names
+        .iter()
+        .map(|key| infer_dominant_type(features, key))
+        .collect();
 
-    for key in &all_keys {
-        // Determine the dominant type for this key by scanning feature values
-        let prop_value = infer_column_values(features, key, num_features);
-        let decoded_prop = match prop_value {
-            PropValue::Bool(vals) => DecodedProperty::Bool(DecodedScalar::new(key.clone(), vals)),
-            PropValue::I64(vals) => DecodedProperty::I64(DecodedScalar::new(key.clone(), vals)),
-            PropValue::F64(vals) => DecodedProperty::F64(DecodedScalar::new(key.clone(), vals)),
-            PropValue::Str(decoded_strings) => DecodedProperty::Str(key.clone(), decoded_strings),
-            PropValue::I32(vals) => DecodedProperty::I32(DecodedScalar::new(key.clone(), vals)),
-            PropValue::U32(vals) => DecodedProperty::U32(DecodedScalar::new(key.clone(), vals)),
-            PropValue::U64(vals) => DecodedProperty::U64(DecodedScalar::new(key.clone(), vals)),
-            PropValue::I8(vals) => DecodedProperty::I8(DecodedScalar::new(key.clone(), vals)),
-            PropValue::U8(vals) => DecodedProperty::U8(DecodedScalar::new(key.clone(), vals)),
-            PropValue::F32(vals) => DecodedProperty::F32(DecodedScalar::new(key.clone(), vals)),
-            PropValue::SharedDict(dict) => DecodedProperty::SharedDict(dict),
-        };
-        result.push(decoded_prop);
+    // Build TileFeature per feature
+    let tile_features: Vec<TileFeature> = features
+        .iter()
+        .map(|feature| {
+            let properties: Vec<PropValue> = property_names
+                .iter()
+                .zip(&key_types)
+                .map(|(key, dominant)| json_to_prop_value(feature.properties.get(key), *dominant))
+                .collect();
+
+            TileFeature {
+                id: feature.id,
+                geometry: feature.geometry.clone(),
+                properties,
+            }
+        })
+        .collect();
+
+    TileLayer01 {
+        name: layer_name.to_string(),
+        extent,
+        property_names,
+        features: tile_features,
     }
-
-    Ok(result)
 }
 
-/// Infer the column type and build a `PropValue` vector for a single property key.
-///
-/// Scans all features to determine the best type (String, i64, f64, bool),
-/// inserting `None` for features where the property is absent.
-fn infer_column_values(
-    features: &[&mlt_core::geojson::Feature],
-    key: &str,
-    _num_features: usize,
-) -> mlt_core::v01::PropValue {
-    use mlt_core::v01::PropValue;
+/// Dominant type classification for a property column.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DominantType {
+    String,
+    Bool,
+    Float,
+    Int,
+}
 
-    // First pass: determine dominant type
+/// Infer the dominant type for a property key by scanning all features.
+///
+/// Priority: String (if mixed or string present) > Bool > Float > Int.
+/// Falls back to String if no values are found.
+fn infer_dominant_type(features: &[&mlt_core::geojson::Feature], key: &str) -> DominantType {
     let mut has_string = false;
     let mut has_float = false;
     let mut has_int = false;
@@ -383,39 +329,37 @@ fn infer_column_values(
         }
     }
 
-    // If mixed types exist, prefer string (can represent anything)
-    // Otherwise use the most specific type
+    // Mixed types → String (can represent anything)
     if has_string || (!has_int && !has_float && !has_bool) {
-        let vals: Vec<Option<String>> = features
-            .iter()
-            .map(|f| {
-                f.properties.get(key).and_then(|v| match v {
-                    serde_json::Value::String(s) => Some(s.clone()),
-                    serde_json::Value::Null => None,
-                    other => Some(other.to_string()),
-                })
-            })
-            .collect();
-        PropValue::Str(vals.into())
+        DominantType::String
     } else if has_bool && !has_int && !has_float {
-        let vals: Vec<Option<bool>> = features
-            .iter()
-            .map(|f| f.properties.get(key).and_then(|v| v.as_bool()))
-            .collect();
-        PropValue::Bool(vals)
+        DominantType::Bool
     } else if has_float {
-        let vals: Vec<Option<f64>> = features
-            .iter()
-            .map(|f| f.properties.get(key).and_then(|v| v.as_f64()))
-            .collect();
-        PropValue::F64(vals)
+        DominantType::Float
     } else {
-        // Integer — use i64 since MVT properties can be signed
-        let vals: Vec<Option<i64>> = features
-            .iter()
-            .map(|f| f.properties.get(key).and_then(|v| v.as_i64()))
-            .collect();
-        PropValue::I64(vals)
+        DominantType::Int
+    }
+}
+
+/// Convert a JSON property value to a per-feature [`PropValue`] based on the dominant type.
+fn json_to_prop_value(
+    value: Option<&serde_json::Value>,
+    dominant: DominantType,
+) -> mlt_core::v01::PropValue {
+    use mlt_core::v01::PropValue;
+
+    match dominant {
+        DominantType::String => {
+            let s = value.and_then(|v| match v {
+                serde_json::Value::String(s) => Some(s.clone()),
+                serde_json::Value::Null => None,
+                other => Some(other.to_string()),
+            });
+            PropValue::Str(s)
+        }
+        DominantType::Bool => PropValue::Bool(value.and_then(|v| v.as_bool())),
+        DominantType::Float => PropValue::F64(value.and_then(|v| v.as_f64())),
+        DominantType::Int => PropValue::I64(value.and_then(|v| v.as_i64())),
     }
 }
 
@@ -434,20 +378,26 @@ fn mlt_to_mvt(mlt_bytes: &[u8]) -> Result<Bytes> {
     use prost::Message;
 
     // Step 1: Parse MLT layers (lazy — column data not yet decoded)
-    let mut layers = mlt_core::parse_layers(mlt_bytes)
+    let mut parser = mlt_core::Parser::default();
+    let mut layers = parser
+        .parse_layers(mlt_bytes)
         .map_err(|e| TileServerError::MltDecodeError(format!("failed to parse MLT tile: {e}")))?;
 
     // Step 2: Decode all columns in each layer
+    let mut dec = mlt_core::Decoder::default();
     for layer in &mut layers {
-        layer.decode_all().map_err(|e| {
+        layer.decode_all(&mut dec).map_err(|e| {
             TileServerError::MltDecodeError(format!("failed to decode MLT layer: {e}"))
         })?;
     }
 
     // Step 3: Convert decoded MLT layers to FeatureCollection
-    let fc = mlt_core::geojson::FeatureCollection::from_layers(&mut layers).map_err(|e| {
-        TileServerError::MltDecodeError(format!("failed to convert MLT layers to features: {e}"))
-    })?;
+    let fc =
+        mlt_core::geojson::FeatureCollection::from_layers(&mut layers, &mut dec).map_err(|e| {
+            TileServerError::MltDecodeError(format!(
+                "failed to convert MLT layers to features: {e}"
+            ))
+        })?;
 
     // Step 4: Build MVT protobuf from FeatureCollection
     let mvt_tile = feature_collection_to_mvt(&fc)?;
@@ -1035,238 +985,6 @@ mod tests {
         tile.encode_to_vec()
     }
 
-    /// Build an MVT tile with an empty layer (no features).
-    fn make_mvt_empty_layer_tile() -> Vec<u8> {
-        use prost::Message;
-        let tile = MvtProto::Tile {
-            layers: vec![MvtProto::Layer {
-                version: 2,
-                name: "empty".to_string(),
-                features: vec![],
-                keys: vec![],
-                values: vec![],
-                extent: Some(4096),
-            }],
-        };
-        tile.encode_to_vec()
-    }
-
-    /// Build an MVT tile with completely empty layers list.
-    fn make_mvt_no_layers_tile() -> Vec<u8> {
-        use prost::Message;
-        let tile = MvtProto::Tile { layers: vec![] };
-        tile.encode_to_vec()
-    }
-
-    /// Build an MVT tile with mixed property types for testing type inference.
-    fn make_mvt_mixed_props_tile() -> Vec<u8> {
-        use prost::Message;
-        let tile = MvtProto::Tile {
-            layers: vec![MvtProto::Layer {
-                version: 2,
-                name: "mixed".to_string(),
-                features: vec![
-                    MvtProto::Feature {
-                        id: Some(1),
-                        tags: vec![0, 0, 1, 1, 2, 2], // str, int, bool
-                        r#type: Some(MvtProto::GeomType::Point as i32),
-                        geometry: vec![command_integer(1, 1), zigzag_encode(10), zigzag_encode(20)],
-                    },
-                    MvtProto::Feature {
-                        id: Some(2),
-                        tags: vec![0, 3, 1, 4, 2, 5], // str, float, bool
-                        r#type: Some(MvtProto::GeomType::Point as i32),
-                        geometry: vec![command_integer(1, 1), zigzag_encode(30), zigzag_encode(40)],
-                    },
-                ],
-                keys: vec![
-                    "label".to_string(),
-                    "value".to_string(),
-                    "active".to_string(),
-                ],
-                values: vec![
-                    MvtProto::Value {
-                        string_value: Some("alpha".to_string()),
-                        ..Default::default()
-                    },
-                    MvtProto::Value {
-                        int_value: Some(42),
-                        ..Default::default()
-                    },
-                    MvtProto::Value {
-                        bool_value: Some(true),
-                        ..Default::default()
-                    },
-                    MvtProto::Value {
-                        string_value: Some("beta".to_string()),
-                        ..Default::default()
-                    },
-                    MvtProto::Value {
-                        double_value: Some(2.72),
-                        ..Default::default()
-                    },
-                    MvtProto::Value {
-                        bool_value: Some(false),
-                        ..Default::default()
-                    },
-                ],
-                extent: Some(4096),
-            }],
-        };
-        tile.encode_to_vec()
-    }
-
-    /// Build an MVT tile with linestring geometry.
-    fn make_mvt_linestring_tile() -> Vec<u8> {
-        use prost::Message;
-        let tile = MvtProto::Tile {
-            layers: vec![MvtProto::Layer {
-                version: 2,
-                name: "lines".to_string(),
-                features: vec![MvtProto::Feature {
-                    id: Some(1),
-                    tags: vec![],
-                    r#type: Some(MvtProto::GeomType::Linestring as i32),
-                    geometry: vec![
-                        command_integer(1, 1), // MoveTo(1)
-                        zigzag_encode(0),
-                        zigzag_encode(0),
-                        command_integer(2, 2), // LineTo(2)
-                        zigzag_encode(100),
-                        zigzag_encode(0),
-                        zigzag_encode(0),
-                        zigzag_encode(100),
-                    ],
-                }],
-                keys: vec![],
-                values: vec![],
-                extent: Some(4096),
-            }],
-        };
-        tile.encode_to_vec()
-    }
-
-    /// Build an MVT tile with polygon geometry (exterior + interior ring).
-    fn make_mvt_polygon_tile() -> Vec<u8> {
-        use prost::Message;
-        let tile = MvtProto::Tile {
-            layers: vec![MvtProto::Layer {
-                version: 2,
-                name: "polygons".to_string(),
-                features: vec![MvtProto::Feature {
-                    id: Some(1),
-                    tags: vec![0, 0],
-                    r#type: Some(MvtProto::GeomType::Polygon as i32),
-                    geometry: vec![
-                        // Exterior ring: square (0,0)-(100,0)-(100,100)-(0,100)
-                        command_integer(1, 1), // MoveTo(1)
-                        zigzag_encode(0),
-                        zigzag_encode(0),
-                        command_integer(2, 3), // LineTo(3)
-                        zigzag_encode(100),
-                        zigzag_encode(0),
-                        zigzag_encode(0),
-                        zigzag_encode(100),
-                        zigzag_encode(-100),
-                        zigzag_encode(0),
-                        command_integer(7, 1), // ClosePath
-                    ],
-                }],
-                keys: vec!["kind".to_string()],
-                values: vec![MvtProto::Value {
-                    string_value: Some("park".to_string()),
-                    ..Default::default()
-                }],
-                extent: Some(4096),
-            }],
-        };
-        tile.encode_to_vec()
-    }
-
-    /// Build an MVT tile with features missing some properties (sparse columns).
-    fn make_mvt_sparse_props_tile() -> Vec<u8> {
-        use prost::Message;
-        let tile = MvtProto::Tile {
-            layers: vec![MvtProto::Layer {
-                version: 2,
-                name: "sparse".to_string(),
-                features: vec![
-                    // Feature 1: has both 'name' and 'pop'
-                    MvtProto::Feature {
-                        id: Some(1),
-                        tags: vec![0, 0, 1, 1], // name="city_a", pop=1000
-                        r#type: Some(MvtProto::GeomType::Point as i32),
-                        geometry: vec![command_integer(1, 1), zigzag_encode(10), zigzag_encode(20)],
-                    },
-                    // Feature 2: has only 'name' (missing 'pop')
-                    MvtProto::Feature {
-                        id: Some(2),
-                        tags: vec![0, 2], // name="city_b"
-                        r#type: Some(MvtProto::GeomType::Point as i32),
-                        geometry: vec![command_integer(1, 1), zigzag_encode(30), zigzag_encode(40)],
-                    },
-                    // Feature 3: has only 'pop' (missing 'name')
-                    MvtProto::Feature {
-                        id: Some(3),
-                        tags: vec![1, 3], // pop=5000
-                        r#type: Some(MvtProto::GeomType::Point as i32),
-                        geometry: vec![command_integer(1, 1), zigzag_encode(50), zigzag_encode(60)],
-                    },
-                ],
-                keys: vec!["name".to_string(), "pop".to_string()],
-                values: vec![
-                    MvtProto::Value {
-                        string_value: Some("city_a".to_string()),
-                        ..Default::default()
-                    },
-                    MvtProto::Value {
-                        int_value: Some(1000),
-                        ..Default::default()
-                    },
-                    MvtProto::Value {
-                        string_value: Some("city_b".to_string()),
-                        ..Default::default()
-                    },
-                    MvtProto::Value {
-                        int_value: Some(5000),
-                        ..Default::default()
-                    },
-                ],
-                extent: Some(4096),
-            }],
-        };
-        tile.encode_to_vec()
-    }
-
-    /// Build an MVT tile with large numeric IDs.
-    fn make_mvt_large_id_tile() -> Vec<u8> {
-        use prost::Message;
-        let tile = MvtProto::Tile {
-            layers: vec![MvtProto::Layer {
-                version: 2,
-                name: "large_ids".to_string(),
-                features: vec![
-                    MvtProto::Feature {
-                        id: Some(u64::MAX),
-                        tags: vec![],
-                        r#type: Some(MvtProto::GeomType::Point as i32),
-                        geometry: vec![command_integer(1, 1), zigzag_encode(10), zigzag_encode(20)],
-                    },
-                    MvtProto::Feature {
-                        id: Some(0),
-                        tags: vec![],
-                        r#type: Some(MvtProto::GeomType::Point as i32),
-                        geometry: vec![command_integer(1, 1), zigzag_encode(30), zigzag_encode(40)],
-                    },
-                ],
-                keys: vec![],
-                values: vec![],
-                extent: Some(4096),
-            }],
-        };
-        tile.encode_to_vec()
-    }
-
     // -------------------------------------------------------------------------
     // MVT → MLT transcoding tests (Phase 2)
     // -------------------------------------------------------------------------
@@ -1290,7 +1008,7 @@ mod tests {
         assert_eq!(mlt_tile.compression, TileCompression::None);
         assert!(!mlt_tile.data.is_empty(), "MLT output should not be empty");
         // Verify MLT data is valid by parsing it back
-        let layers = mlt_core::parse_layers(&mlt_tile.data);
+        let layers = mlt_core::Parser::default().parse_layers(&mlt_tile.data);
         assert!(
             layers.is_ok(),
             "MLT output should be parseable: {:?}",
@@ -1310,138 +1028,8 @@ mod tests {
         assert_eq!(result.format, TileFormat::Mlt);
         assert!(!result.data.is_empty());
         // Verify MLT is parseable
-        let layers = mlt_core::parse_layers(&result.data);
-        assert!(
-            layers.is_ok(),
-            "MLT output should parse: {:?}",
-            layers.err()
-        );
-    }
-
-    #[test]
-    fn test_mvt_to_mlt_multi_layer_tile() {
-        let mvt_bytes = make_mvt_multi_layer_tile();
-        let tile = TileData {
-            data: Bytes::from(mvt_bytes),
-            format: TileFormat::Pbf,
-            compression: TileCompression::None,
-        };
-        let result = transcode_tile(&tile, TileFormat::Mlt).unwrap();
-        assert_eq!(result.format, TileFormat::Mlt);
-        assert!(!result.data.is_empty());
-        // Verify we can parse back and get 2 layers
-        let mut layers = mlt_core::parse_layers(&result.data).unwrap();
-        assert_eq!(layers.len(), 2, "Should have 2 layers (roads + water)");
-        // Verify layer names
-        for layer in &mut layers {
-            layer.decode_all().unwrap();
-        }
-    }
-
-    #[test]
-    fn test_mvt_to_mlt_empty_layer() {
-        let mvt_bytes = make_mvt_empty_layer_tile();
-        let tile = TileData {
-            data: Bytes::from(mvt_bytes),
-            format: TileFormat::Pbf,
-            compression: TileCompression::None,
-        };
-        // Empty layer might produce minimal output or skip entirely
-        let result = transcode_tile(&tile, TileFormat::Mlt);
-        // Whether it succeeds or fails is implementation-dependent;
-        // the key is it should not panic
-        if let Ok(mlt_tile) = result {
-            assert_eq!(mlt_tile.format, TileFormat::Mlt);
-        }
-    }
-
-    #[test]
-    fn test_mvt_to_mlt_no_layers() {
-        let mvt_bytes = make_mvt_no_layers_tile();
-        let tile = TileData {
-            data: Bytes::from(mvt_bytes),
-            format: TileFormat::Pbf,
-            compression: TileCompression::None,
-        };
-        let result = transcode_tile(&tile, TileFormat::Mlt);
-        // Empty tile should produce empty or minimal MLT output
-        if let Ok(mlt_tile) = result {
-            assert_eq!(mlt_tile.format, TileFormat::Mlt);
-        }
-    }
-
-    #[test]
-    fn test_mvt_to_mlt_linestring() {
-        let mvt_bytes = make_mvt_linestring_tile();
-        let tile = TileData {
-            data: Bytes::from(mvt_bytes),
-            format: TileFormat::Pbf,
-            compression: TileCompression::None,
-        };
-        let result = transcode_tile(&tile, TileFormat::Mlt).unwrap();
-        assert_eq!(result.format, TileFormat::Mlt);
-        assert!(!result.data.is_empty());
-        let layers = mlt_core::parse_layers(&result.data);
+        let layers = mlt_core::Parser::default().parse_layers(&result.data);
         assert!(layers.is_ok());
-    }
-
-    #[test]
-    fn test_mvt_to_mlt_polygon() {
-        let mvt_bytes = make_mvt_polygon_tile();
-        let tile = TileData {
-            data: Bytes::from(mvt_bytes),
-            format: TileFormat::Pbf,
-            compression: TileCompression::None,
-        };
-        let result = transcode_tile(&tile, TileFormat::Mlt).unwrap();
-        assert_eq!(result.format, TileFormat::Mlt);
-        assert!(!result.data.is_empty());
-        let layers = mlt_core::parse_layers(&result.data);
-        assert!(layers.is_ok());
-    }
-
-    #[test]
-    fn test_mvt_to_mlt_mixed_property_types() {
-        let mvt_bytes = make_mvt_mixed_props_tile();
-        let tile = TileData {
-            data: Bytes::from(mvt_bytes),
-            format: TileFormat::Pbf,
-            compression: TileCompression::None,
-        };
-        let result = transcode_tile(&tile, TileFormat::Mlt).unwrap();
-        assert_eq!(result.format, TileFormat::Mlt);
-        assert!(!result.data.is_empty());
-        let layers = mlt_core::parse_layers(&result.data);
-        assert!(layers.is_ok());
-    }
-
-    #[test]
-    fn test_mvt_to_mlt_sparse_properties() {
-        // Features with missing properties should produce None in column vectors
-        let mvt_bytes = make_mvt_sparse_props_tile();
-        let tile = TileData {
-            data: Bytes::from(mvt_bytes),
-            format: TileFormat::Pbf,
-            compression: TileCompression::None,
-        };
-        let result = transcode_tile(&tile, TileFormat::Mlt).unwrap();
-        assert_eq!(result.format, TileFormat::Mlt);
-        assert!(!result.data.is_empty());
-        let layers = mlt_core::parse_layers(&result.data);
-        assert!(layers.is_ok());
-    }
-
-    #[test]
-    fn test_mvt_to_mlt_large_ids() {
-        let mvt_bytes = make_mvt_large_id_tile();
-        let tile = TileData {
-            data: Bytes::from(mvt_bytes),
-            format: TileFormat::Pbf,
-            compression: TileCompression::None,
-        };
-        let result = transcode_tile(&tile, TileFormat::Mlt).unwrap();
-        assert_eq!(result.format, TileFormat::Mlt);
-        assert!(!result.data.is_empty());
     }
 
     #[test]
@@ -1464,7 +1052,7 @@ mod tests {
         assert_eq!(result.format, TileFormat::Mlt);
         assert_eq!(result.compression, TileCompression::None);
         assert!(!result.data.is_empty());
-        let layers = mlt_core::parse_layers(&result.data);
+        let layers = mlt_core::Parser::default().parse_layers(&result.data);
         assert!(layers.is_ok());
     }
 
@@ -1847,186 +1435,227 @@ mod tests {
     }
 
     // -------------------------------------------------------------------------
-    // Type inference tests (infer_column_values)
+    // Type inference tests (infer_dominant_type)
     // -------------------------------------------------------------------------
 
     #[test]
-    fn test_infer_column_values_all_strings() {
+    fn test_infer_dominant_type_all_strings() {
         let features = [
             make_test_feature(serde_json::json!({"k": "a"})),
             make_test_feature(serde_json::json!({"k": "b"})),
         ];
         let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
-        let result = infer_column_values(&refs, "k", 2);
-        match result {
-            mlt_core::v01::PropValue::Str(vals) => {
-                assert_eq!(vals.feature_count(), 2);
-                assert_eq!(vals.get(0), Some("a"));
-                assert_eq!(vals.get(1), Some("b"));
-            }
-            other => panic!("Expected Str, got: {other:?}"),
-        }
+        let dt = infer_dominant_type(&refs, "k");
+        assert!(
+            matches!(dt, DominantType::String),
+            "Expected String, got: {dt:?}"
+        );
     }
 
     #[test]
-    fn test_infer_column_values_all_ints() {
+    fn test_infer_dominant_type_all_ints() {
         let features = [
             make_test_feature(serde_json::json!({"k": 10})),
             make_test_feature(serde_json::json!({"k": 20})),
         ];
         let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
-        let result = infer_column_values(&refs, "k", 2);
-        match result {
-            mlt_core::v01::PropValue::I64(vals) => {
-                assert_eq!(vals, vec![Some(10), Some(20)]);
-            }
-            other => panic!("Expected I64, got: {other:?}"),
-        }
+        let dt = infer_dominant_type(&refs, "k");
+        assert!(matches!(dt, DominantType::Int), "Expected Int, got: {dt:?}");
     }
 
     #[test]
-    fn test_infer_column_values_all_bools() {
+    fn test_infer_dominant_type_all_bools() {
         let features = [
             make_test_feature(serde_json::json!({"k": true})),
             make_test_feature(serde_json::json!({"k": false})),
         ];
         let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
-        let result = infer_column_values(&refs, "k", 2);
-        match result {
-            mlt_core::v01::PropValue::Bool(vals) => {
-                assert_eq!(vals, vec![Some(true), Some(false)]);
-            }
-            other => panic!("Expected Bool, got: {other:?}"),
-        }
+        let dt = infer_dominant_type(&refs, "k");
+        assert!(
+            matches!(dt, DominantType::Bool),
+            "Expected Bool, got: {dt:?}"
+        );
     }
 
     #[test]
-    fn test_infer_column_values_all_floats() {
+    fn test_infer_dominant_type_all_floats() {
         let features = [
             make_test_feature(serde_json::json!({"k": 1.5})),
             make_test_feature(serde_json::json!({"k": 2.7})),
         ];
         let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
-        let result = infer_column_values(&refs, "k", 2);
-        match result {
-            mlt_core::v01::PropValue::F64(vals) => {
-                assert_eq!(vals, vec![Some(1.5), Some(2.7)]);
-            }
-            other => panic!("Expected F64, got: {other:?}"),
-        }
+        let dt = infer_dominant_type(&refs, "k");
+        assert!(
+            matches!(dt, DominantType::Float),
+            "Expected Float, got: {dt:?}"
+        );
     }
 
     #[test]
-    fn test_infer_column_values_mixed_int_float_promotes_to_f64() {
-        // When mixing int and float, should promote to f64
+    fn test_infer_dominant_type_mixed_int_float_promotes_to_float() {
         let features = [
             make_test_feature(serde_json::json!({"k": 10})),
             make_test_feature(serde_json::json!({"k": 2.72})),
         ];
         let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
-        let result = infer_column_values(&refs, "k", 2);
-        match result {
-            mlt_core::v01::PropValue::F64(vals) => {
-                assert_eq!(vals.len(), 2);
-                assert_eq!(vals[0], Some(10.0));
-                assert_eq!(vals[1], Some(2.72));
-            }
-            other => panic!("Expected F64 for mixed int/float, got: {other:?}"),
-        }
+        let dt = infer_dominant_type(&refs, "k");
+        assert!(
+            matches!(dt, DominantType::Float),
+            "Expected Float for mixed int/float, got: {dt:?}"
+        );
     }
 
     #[test]
-    fn test_infer_column_values_mixed_types_falls_back_to_string() {
-        // When mixing string and int, should fall back to String
+    fn test_infer_dominant_type_mixed_types_falls_back_to_string() {
         let features = [
             make_test_feature(serde_json::json!({"k": "hello"})),
             make_test_feature(serde_json::json!({"k": 42})),
         ];
         let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
-        let result = infer_column_values(&refs, "k", 2);
-        match result {
-            mlt_core::v01::PropValue::Str(vals) => {
-                assert_eq!(vals.feature_count(), 2);
-                assert_eq!(vals.get(0), Some("hello"));
-                assert_eq!(vals.get(1), Some("42"));
-            }
-            other => panic!("Expected Str for mixed types, got: {other:?}"),
-        }
+        let dt = infer_dominant_type(&refs, "k");
+        assert!(
+            matches!(dt, DominantType::String),
+            "Expected String for mixed types, got: {dt:?}"
+        );
     }
 
     #[test]
-    fn test_infer_column_values_missing_key_produces_none() {
+    fn test_infer_dominant_type_missing_key() {
         let features = [
             make_test_feature(serde_json::json!({"k": "present"})),
             make_test_feature(serde_json::json!({"other": "no k"})),
         ];
         let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
-        let result = infer_column_values(&refs, "k", 2);
-        match result {
-            mlt_core::v01::PropValue::Str(vals) => {
-                assert_eq!(vals.feature_count(), 2);
-                assert_eq!(vals.get(0), Some("present"));
-                assert_eq!(vals.get(1), None);
-            }
-            other => panic!("Expected Str with None for missing, got: {other:?}"),
-        }
+        let dt = infer_dominant_type(&refs, "k");
+        assert!(
+            matches!(dt, DominantType::String),
+            "Expected String when key present in some features, got: {dt:?}"
+        );
     }
 
     #[test]
-    fn test_infer_column_values_null_values() {
+    fn test_infer_dominant_type_null_values() {
         let features = [
             make_test_feature(serde_json::json!({"k": null})),
             make_test_feature(serde_json::json!({"k": "present"})),
         ];
         let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
-        let result = infer_column_values(&refs, "k", 2);
-        match result {
-            mlt_core::v01::PropValue::Str(vals) => {
-                assert_eq!(vals.feature_count(), 2);
-                assert_eq!(vals.get(0), None);
-                assert_eq!(vals.get(1), Some("present"));
-            }
-            other => panic!("Expected Str with None for null, got: {other:?}"),
-        }
+        let dt = infer_dominant_type(&refs, "k");
+        assert!(
+            matches!(dt, DominantType::String),
+            "Expected String when one value is null, got: {dt:?}"
+        );
     }
 
     // -------------------------------------------------------------------------
-    // build_column_properties tests
+    // json_to_prop_value tests
     // -------------------------------------------------------------------------
 
     #[test]
-    fn test_build_column_properties_skips_internal_keys() {
+    fn test_json_to_prop_value_string() {
+        let val = serde_json::json!("hello");
+        let pv = json_to_prop_value(Some(&val), DominantType::String);
+        assert!(
+            matches!(pv, mlt_core::v01::PropValue::Str(Some(ref s)) if s == "hello"),
+            "Expected Str(Some(\"hello\")), got: {pv:?}"
+        );
+    }
+
+    #[test]
+    fn test_json_to_prop_value_int() {
+        let val = serde_json::json!(42);
+        let pv = json_to_prop_value(Some(&val), DominantType::Int);
+        assert!(
+            matches!(pv, mlt_core::v01::PropValue::I64(Some(42))),
+            "Expected I64(Some(42)), got: {pv:?}"
+        );
+    }
+
+    #[test]
+    fn test_json_to_prop_value_bool() {
+        let val = serde_json::json!(true);
+        let pv = json_to_prop_value(Some(&val), DominantType::Bool);
+        assert!(
+            matches!(pv, mlt_core::v01::PropValue::Bool(Some(true))),
+            "Expected Bool(Some(true)), got: {pv:?}"
+        );
+    }
+
+    #[test]
+    fn test_json_to_prop_value_float() {
+        let val = serde_json::json!(1.23);
+        let pv = json_to_prop_value(Some(&val), DominantType::Float);
+        assert!(
+            matches!(pv, mlt_core::v01::PropValue::F64(Some(v)) if (v - 1.23).abs() < f64::EPSILON),
+            "Expected F64(Some(1.23)), got: {pv:?}"
+        );
+    }
+
+    #[test]
+    fn test_json_to_prop_value_null_returns_none() {
+        let pv = json_to_prop_value(None, DominantType::Int);
+        assert!(
+            matches!(pv, mlt_core::v01::PropValue::I64(None)),
+            "Expected I64(None) for null, got: {pv:?}"
+        );
+    }
+
+    #[test]
+    fn test_json_to_prop_value_int_as_float() {
+        let val = serde_json::json!(10);
+        let pv = json_to_prop_value(Some(&val), DominantType::Float);
+        assert!(
+            matches!(pv, mlt_core::v01::PropValue::F64(Some(v)) if (v - 10.0).abs() < f64::EPSILON),
+            "Expected F64(Some(10.0)), got: {pv:?}"
+        );
+    }
+
+    #[test]
+    fn test_json_to_prop_value_int_as_string() {
+        let val = serde_json::json!(42);
+        let pv = json_to_prop_value(Some(&val), DominantType::String);
+        assert!(
+            matches!(pv, mlt_core::v01::PropValue::Str(Some(ref s)) if s == "42"),
+            "Expected Str(Some(\"42\")), got: {pv:?}"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // build_tile_layer tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_build_tile_layer_skips_internal_keys() {
         let features = [make_test_feature(serde_json::json!({
             "_layer": "internal",
             "_extent": 4096,
             "name": "visible"
         }))];
         let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
-        let props = build_column_properties(&refs).unwrap();
+        let layer = build_tile_layer("test", &refs);
         // Should only have "name", not _layer or _extent
-        assert_eq!(props.len(), 1);
-        assert_eq!(props[0].name(), "name");
+        assert_eq!(layer.property_names.len(), 1);
+        assert_eq!(layer.property_names[0], "name");
     }
 
     #[test]
-    fn test_build_column_properties_no_properties() {
+    fn test_build_tile_layer_no_properties() {
         let features = [make_test_feature(serde_json::json!({}))];
         let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
-        let props = build_column_properties(&refs).unwrap();
-        assert!(props.is_empty());
+        let layer = build_tile_layer("test", &refs);
+        assert!(layer.property_names.is_empty());
     }
 
     #[test]
-    fn test_build_column_properties_multiple_keys() {
+    fn test_build_tile_layer_multiple_keys() {
         let features = [make_test_feature(
             serde_json::json!({"a": 1, "b": "two", "c": true}),
         )];
         let refs: Vec<&mlt_core::geojson::Feature> = features.iter().collect();
-        let props = build_column_properties(&refs).unwrap();
-        assert_eq!(props.len(), 3);
-        // BTreeMap ordering: a, b, c
-        let names: Vec<&str> = props.iter().map(|p| p.name()).collect();
-        assert_eq!(names, vec!["a", "b", "c"]);
+        let layer = build_tile_layer("test", &refs);
+        assert_eq!(layer.property_names.len(), 3);
+        // BTreeSet ordering: a, b, c
+        assert_eq!(layer.property_names, vec!["a", "b", "c"]);
     }
 
     // -------------------------------------------------------------------------
