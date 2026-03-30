@@ -22,13 +22,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Create draft release
+      - name: Create draft release (skip if exists)
         run: |
-          gh release create "$TAG_NAME" \
-            --repo "${{ github.repository }}" \
-            --title "mbgl-sys $TAG_NAME" \
-            --notes "Pre-built MapLibre Native static libraries for mbgl-sys v${{ github.event.inputs.version }}" \
-            --draft
+          if gh release view "$TAG_NAME" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release $TAG_NAME already exists, skipping creation"
+          else
+            gh release create "$TAG_NAME" \
+              --repo "${{ github.repository }}" \
+              --title "mbgl-sys $TAG_NAME" \
+              --notes "Pre-built MapLibre Native static libraries for mbgl-sys v${{ github.event.inputs.version }}" \
+              --draft
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -97,6 +101,7 @@ jobs:
         run: |
           gh release upload "$TAG_NAME" \
             --repo "${{ github.repository }}" \
+            --clobber \
             "mbgl-native-${TARGET}.tar.gz"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -196,6 +201,7 @@ jobs:
         run: |
           gh release upload "$TAG_NAME" \
             --repo "${{ github.repository }}" \
+            --clobber \
             "mbgl-native-${TARGET}.tar.gz"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -206,10 +212,10 @@ jobs:
     needs: [build-macos, build-linux]
     timeout-minutes: 5
     steps:
-      - name: Remove draft flag
+      - name: Ensure release is published
         run: |
           gh release edit "$TAG_NAME" \
             --repo "${{ github.repository }}" \
-            --draft=false
+            --draft=false || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
