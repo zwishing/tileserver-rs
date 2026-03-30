@@ -95,14 +95,15 @@ pub(crate) async fn get_style_tilejson(
     let state = shared.load();
 
     // Only handle requests ending with .json
-    let style_id = style_json
-        .strip_suffix(".json")
-        .ok_or_else(|| TileServerError::StyleNotFound(style_json.clone()))?;
+    let style_id = match style_json.strip_suffix(".json") {
+        Some(id) => id,
+        None => return Err(TileServerError::StyleNotFound(style_json)),
+    };
 
-    let style = state
-        .styles
-        .get(style_id)
-        .ok_or_else(|| TileServerError::StyleNotFound(style_id.to_string()))?;
+    let style = match state.styles.get(style_id) {
+        Some(s) => s,
+        None => return Err(TileServerError::StyleNotFound(style_id.to_string())),
+    };
 
     // Build raster tile URL template with optional key
     let key_query = query
@@ -165,16 +166,16 @@ pub(crate) async fn get_sprite(
     }
 
     // Get style to find its directory
-    let style = state
-        .styles
-        .get(&params.style)
-        .ok_or_else(|| TileServerError::StyleNotFound(params.style.clone()))?;
+    let style = match state.styles.get(&params.style) {
+        Some(s) => s,
+        None => return Err(TileServerError::StyleNotFound(params.style)),
+    };
 
     // Get the style directory (parent of style.json)
     let style_dir = style
         .path
         .parent()
-        .ok_or_else(|| TileServerError::StyleNotFound(params.style.clone()))?;
+        .ok_or_else(|| TileServerError::StyleNotFound(style.id.clone()))?;
 
     // Build path to sprite file
     let sprite_path = style_dir.join(&params.sprite_file);
@@ -218,15 +219,15 @@ pub(crate) async fn get_wmts_capabilities(
     Query(query): Query<WmtsQueryParams>,
 ) -> Result<Response, TileServerError> {
     let state = shared.load();
-    let style = state
-        .styles
-        .get(&style_id)
-        .ok_or_else(|| TileServerError::StyleNotFound(style_id.clone()))?;
+    let style = match state.styles.get(&style_id) {
+        Some(s) => s,
+        None => return Err(TileServerError::StyleNotFound(style_id)),
+    };
 
     // Generate WMTS capabilities XML with optional key
     let xml = wmts::generate_wmts_capabilities(
         &state.base_url,
-        &style_id,
+        &style.id,
         &style.name,
         0,  // minzoom
         22, // maxzoom

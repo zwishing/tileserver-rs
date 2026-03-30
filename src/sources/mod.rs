@@ -33,6 +33,7 @@ pub enum TileFormat {
 
 impl TileFormat {
     #[inline]
+    #[must_use]
     pub fn content_type(&self) -> &'static str {
         match self {
             TileFormat::Pbf => "application/x-protobuf",
@@ -46,6 +47,7 @@ impl TileFormat {
     }
 
     #[inline]
+    #[must_use]
     pub fn extension(&self) -> &'static str {
         match self {
             TileFormat::Pbf => "pbf",
@@ -60,6 +62,7 @@ impl TileFormat {
 
     /// Returns true if this format contains vector tile data (MVT or MLT)
     #[inline]
+    #[must_use]
     pub fn is_vector(&self) -> bool {
         matches!(self, TileFormat::Pbf | TileFormat::Mlt)
     }
@@ -93,6 +96,7 @@ pub enum TileCompression {
 
 impl TileCompression {
     #[inline]
+    #[must_use]
     pub fn content_encoding(&self) -> Option<&'static str> {
         match self {
             TileCompression::None => None,
@@ -159,11 +163,13 @@ pub struct TileJson {
 
 impl TileMetadata {
     /// Convert to TileJSON format
+    #[must_use]
     pub fn to_tilejson(&self, base_url: &str) -> TileJson {
         self.to_tilejson_with_key(base_url, None)
     }
 
     /// Convert to TileJSON format with optional API key
+    #[must_use]
     pub fn to_tilejson_with_key(&self, base_url: &str, key: Option<&str>) -> TileJson {
         let key_query = key
             .map(|k| format!("?key={}", urlencoding::encode(k)))
@@ -212,6 +218,7 @@ pub struct TileData {
 ///
 /// Based on Martin's detection logic:
 /// <https://github.com/maplibre/martin/blob/c0c49a7/martin-tile-utils/src/lib.rs#L290>
+#[must_use]
 pub fn detect_mlt_format(data: &[u8]) -> bool {
     if data.len() < 2 {
         return false;

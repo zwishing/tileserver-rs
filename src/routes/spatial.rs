@@ -119,10 +119,10 @@ pub(crate) async fn get_spatial_schema(
     Path(source_id): Path<String>,
 ) -> Result<Json<SpatialSchemaResponse>, TileServerError> {
     let state = shared.load();
-    let source = state
-        .sources
-        .get(&source_id)
-        .ok_or_else(|| TileServerError::SourceNotFound(source_id.clone()))?;
+    let source = match state.sources.get(&source_id) {
+        Some(s) => s,
+        None => return Err(TileServerError::SourceNotFound(source_id)),
+    };
 
     let meta = source.metadata();
     let layers = extract_layer_info(&meta.vector_layers);
@@ -144,10 +144,10 @@ pub(crate) async fn get_spatial_stats(
     Path(source_id): Path<String>,
 ) -> Result<Json<SpatialStatsResponse>, TileServerError> {
     let state = shared.load();
-    let source = state
-        .sources
-        .get(&source_id)
-        .ok_or_else(|| TileServerError::SourceNotFound(source_id.clone()))?;
+    let source = match state.sources.get(&source_id) {
+        Some(s) => s,
+        None => return Err(TileServerError::SourceNotFound(source_id)),
+    };
 
     let meta = source.metadata();
     let layer_count = meta
@@ -180,10 +180,10 @@ pub(crate) async fn post_spatial_query(
     Json(request): Json<SpatialQueryRequest>,
 ) -> Result<Json<SpatialQueryResponse>, TileServerError> {
     let state = shared.load();
-    let source = state
-        .sources
-        .get(&request.source)
-        .ok_or_else(|| TileServerError::SourceNotFound(request.source.clone()))?;
+    let source = match state.sources.get(&request.source) {
+        Some(s) => s,
+        None => return Err(TileServerError::SourceNotFound(request.source)),
+    };
 
     let meta = source.metadata();
 
@@ -221,7 +221,7 @@ pub(crate) async fn post_spatial_query(
         sources::TileCompression::Gzip => {
             use std::io::Read;
             let mut decoder = flate2::read::GzDecoder::new(&tile_data.data[..]);
-            let mut decompressed = Vec::new();
+            let mut decompressed = Vec::with_capacity(tile_data.data.len() * 4);
             decoder
                 .read_to_end(&mut decompressed)
                 .map_err(|e| TileServerError::MetadataError(format!("gzip decode failed: {e}")))?;

@@ -205,10 +205,10 @@ pub(crate) async fn get_tile(
                     y,
                 })?
         } else {
-            let source = state
-                .sources
-                .get(&params.source)
-                .ok_or_else(|| TileServerError::SourceNotFound(params.source.clone()))?;
+            let source = match state.sources.get(&params.source) {
+                Some(s) => s,
+                None => return Err(TileServerError::SourceNotFound(params.source)),
+            };
             source
                 .get_tile(params.z, params.x, y)
                 .await?
@@ -222,10 +222,10 @@ pub(crate) async fn get_tile(
         #[cfg(not(feature = "postgres"))]
         let tile = {
             let _ = query;
-            let source = state
-                .sources
-                .get(&params.source)
-                .ok_or_else(|| TileServerError::SourceNotFound(params.source.clone()))?;
+            let source = match state.sources.get(&params.source) {
+                Some(s) => s,
+                None => return Err(TileServerError::SourceNotFound(params.source)),
+            };
 
             source
                 .get_tile(params.z, params.x, y)

@@ -71,10 +71,10 @@ pub(crate) async fn get_raster_tile(
     let (y, scale, format) = params.parse().ok_or(TileServerError::InvalidTileRequest)?;
 
     // Get style
-    let style = state
-        .styles
-        .get(&params.style)
-        .ok_or_else(|| TileServerError::StyleNotFound(params.style.clone()))?;
+    let style = match state.styles.get(&params.style) {
+        Some(s) => s,
+        None => return Err(TileServerError::StyleNotFound(params.style)),
+    };
 
     let rewritten_style =
         styles::rewrite_style_for_native(&style.style_json, &state.render_base_url, &state.sources);
@@ -174,10 +174,10 @@ pub(crate) async fn get_raster_tile_with_size(
     let scale = effective_scale.min(9);
 
     // Get style
-    let style = state
-        .styles
-        .get(&params.style)
-        .ok_or_else(|| TileServerError::StyleNotFound(params.style.clone()))?;
+    let style = match state.styles.get(&params.style) {
+        Some(s) => s,
+        None => return Err(TileServerError::StyleNotFound(params.style)),
+    };
 
     let rewritten_style =
         styles::rewrite_style_for_native(&style.style_json, &state.render_base_url, &state.sources);
@@ -265,10 +265,10 @@ pub(crate) async fn get_static_image(
         .map_err(TileServerError::RenderError)?;
 
     // Get style
-    let style = state
-        .styles
-        .get(&params.style)
-        .ok_or_else(|| TileServerError::StyleNotFound(params.style.clone()))?;
+    let style = match state.styles.get(&params.style) {
+        Some(s) => s,
+        None => return Err(TileServerError::StyleNotFound(params.style)),
+    };
 
     // Rewrite style to inline tile URLs for native rendering
     let rewritten_style =

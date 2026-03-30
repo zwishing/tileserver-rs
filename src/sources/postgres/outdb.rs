@@ -103,6 +103,7 @@ impl PostgresOutDbRasterSource {
         })
     }
 
+    #[must_use]
     pub fn tile_query(&self) -> &str {
         &self.sql_query
     }

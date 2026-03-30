@@ -222,6 +222,7 @@ impl UrlQueryParams {
 /// Similar to tileserver-gl's `fixUrl()` function, this:
 /// - Converts relative URLs to absolute
 /// - Preserves and forwards query parameters (like `?key=...`)
+#[must_use]
 pub fn rewrite_style_for_api(
     style_json: &serde_json::Value,
     base_url: &str,

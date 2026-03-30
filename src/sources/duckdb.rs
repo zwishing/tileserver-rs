@@ -80,7 +80,7 @@ struct MvtFeature {
 }
 
 fn encode_mvt_value(val: &PropValue) -> Vec<u8> {
-    let mut buf = Vec::new();
+    let mut buf = Vec::with_capacity(16);
     match val {
         PropValue::String(s) => prost::encoding::string::encode(1, s, &mut buf),
         PropValue::Double(d) => prost::encoding::double::encode(3, d, &mut buf),
@@ -97,7 +97,7 @@ fn encode_mvt_tile(features: &[MvtFeature], layer_name: &str) -> Vec<u8> {
     let mut encoded_features: Vec<Vec<u8>> = Vec::with_capacity(features.len());
 
     for feat in features {
-        let mut tags: Vec<u32> = Vec::new();
+        let mut tags: Vec<u32> = Vec::with_capacity(feat.properties.len() * 2);
         for (key, val) in &feat.properties {
             let key_idx = *key_map.entry(key.clone()).or_insert_with(|| {
                 let idx = keys.len() as u32;
@@ -110,7 +110,7 @@ fn encode_mvt_tile(features: &[MvtFeature], layer_name: &str) -> Vec<u8> {
             tags.push(val_idx);
         }
 
-        let mut feature_buf = Vec::new();
+        let mut feature_buf = Vec::with_capacity(64);
         // field 3: geometry type
         prost::encoding::uint32::encode(3, &feat.geom_type, &mut feature_buf);
         // field 4: geometry (packed uint32)
@@ -147,7 +147,7 @@ fn encode_mvt_tile(features: &[MvtFeature], layer_name: &str) -> Vec<u8> {
         encoded_features.push(feature_buf);
     }
 
-    let mut layer_buf = Vec::new();
+    let mut layer_buf = Vec::with_capacity(256);
     // field 15: version
     prost::encoding::uint32::encode(15, &2u32, &mut layer_buf);
     // field 1: name

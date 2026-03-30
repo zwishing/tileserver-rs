@@ -28,7 +28,7 @@ pub(crate) async fn get_fonts_list(
         None => return Ok(Json(Vec::new())),
     };
 
-    let mut fonts = Vec::new();
+    let mut fonts = Vec::with_capacity(16);
 
     // Read the fonts directory to find font families
     // Each subdirectory is a font family (e.g., "Noto Sans Regular")

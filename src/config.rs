@@ -360,6 +360,7 @@ pub struct ColorMapConfig {
 
 #[cfg(feature = "raster")]
 impl ColorMapConfig {
+    #[must_use]
     pub fn parse_color(hex: &str) -> Option<[u8; 4]> {
         let hex = hex.trim_start_matches('#');
         if hex.len() == 6 {
@@ -378,6 +379,7 @@ impl ColorMapConfig {
         }
     }
 
+    #[must_use]
     pub fn get_color(&self, value: f64) -> [u8; 4] {
         if self.entries.is_empty() {
             return [0, 0, 0, 0];

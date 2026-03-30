@@ -17,6 +17,17 @@ use crate::config::TelemetryConfig;
 static TRACER_PROVIDER: std::sync::OnceLock<SdkTracerProvider> = std::sync::OnceLock::new();
 static METER_PROVIDER: std::sync::OnceLock<SdkMeterProvider> = std::sync::OnceLock::new();
 
+/// Initialize OpenTelemetry tracing and metrics.
+///
+/// Returns `None` when telemetry is disabled or OTLP exporter creation fails.
+///
+/// # Why `Box<dyn Layer>` (not `impl Layer`)
+///
+/// The concrete return type is `OpenTelemetryLayer<S, opentelemetry_sdk::trace::Tracer>`
+/// which is complex, internal to `tracing-opentelemetry`, and varies by configuration.
+/// `impl Trait` cannot be used in return position with `Option` when one branch returns
+/// `None`. The layer is composed into a dynamic subscriber chain at runtime via
+/// `tracing_subscriber::Registry::with()`, which accepts `Box<dyn Layer>`.
 pub fn init_telemetry<S>(config: &TelemetryConfig) -> Option<Box<dyn Layer<S> + Send + Sync>>
 where
     S: Subscriber + for<'span> LookupSpan<'span> + Send + Sync,

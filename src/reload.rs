@@ -73,6 +73,7 @@ impl SharedState {
     }
 
     /// Access the upload registry (for upload/delete handlers)
+    #[must_use]
     pub fn uploads(&self) -> &UploadRegistry {
         &self.uploads
     }

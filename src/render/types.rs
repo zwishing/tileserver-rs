@@ -17,6 +17,7 @@ pub enum ImageFormat {
 }
 
 impl ImageFormat {
+    #[must_use]
     pub fn content_type(&self) -> &'static str {
         match self {
             Self::Png => "image/png",
@@ -187,6 +188,7 @@ pub struct RenderOptions {
 
 impl RenderOptions {
     /// Create options for a raster tile
+    #[must_use]
     pub fn for_tile(
         style_id: String,
         style_json: String,

@@ -38,6 +38,7 @@ const SCALE_DENOMINATORS_256: [f64; 19] = [
 /// * `min_zoom` - Minimum zoom level
 /// * `max_zoom` - Maximum zoom level
 /// * `key` - Optional API key to append to all URLs as `?key=...`
+#[must_use]
 pub fn generate_wmts_capabilities(
     base_url: &str,
     style_id: &str,

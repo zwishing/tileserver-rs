@@ -120,6 +120,7 @@ impl PostgresTableSource {
         })
     }
 
+    #[must_use]
     pub fn tile_query(&self) -> &str {
         &self.tile_query
     }

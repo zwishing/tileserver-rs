@@ -167,7 +167,7 @@ fn decompress_tile_data(tile: &TileData) -> Result<Vec<u8>> {
         TileCompression::None => Ok(tile.data.to_vec()),
         TileCompression::Gzip => {
             let mut decoder = GzDecoder::new(tile.data.as_ref());
-            let mut decompressed = Vec::new();
+            let mut decompressed = Vec::with_capacity(tile.data.len() * 4);
             decoder.read_to_end(&mut decompressed).map_err(|e| {
                 TileServerError::MltDecodeError(format!("gzip decompression failed: {e}"))
             })?;
@@ -214,7 +214,7 @@ fn mvt_to_mlt(mvt_bytes: &[u8]) -> Result<Bytes> {
     }
 
     // Step 3: Build TileLayer01 per layer group, encode, and write
-    let mut output = Vec::new();
+    let mut output = Vec::with_capacity(mvt_bytes.len());
     for (layer_name, features) in &layer_map {
         let tile_layer = build_tile_layer(layer_name, features);
         let staged = StagedLayer::Tag01(tile_layer.into());
@@ -450,7 +450,7 @@ fn feature_collection_to_mvt(fc: &mlt_core::geojson::FeatureCollection) -> Resul
 
             // Encode properties as interned key/value tags
             // Skip internal properties (_layer, _extent)
-            let mut tags = Vec::new();
+            let mut tags = Vec::with_capacity(feature.properties.len() * 2);
             for (key, val) in &feature.properties {
                 if key.starts_with('_') {
                     continue; // Skip internal properties
@@ -531,14 +531,14 @@ fn encode_geometry_to_mvt(geometry: &mlt_core::geojson::Geom32) -> (MvtProto::Ge
             (MvtProto::GeomType::Linestring, commands)
         }
         Geometry::MultiLineString(mls) => {
-            let mut commands = Vec::new();
+            let mut commands = Vec::with_capacity(mls.0.len() * 8);
             for line in &mls.0 {
                 commands.extend(encode_linestring(&line.0, false));
             }
             (MvtProto::GeomType::Linestring, commands)
         }
         Geometry::Polygon(poly) => {
-            let mut commands = Vec::new();
+            let mut commands = Vec::with_capacity(poly.exterior().0.len() * 2 + 4);
             // Exterior ring
             commands.extend(encode_linestring(&poly.exterior().0, true));
             // Interior rings (holes)
@@ -548,7 +548,7 @@ fn encode_geometry_to_mvt(geometry: &mlt_core::geojson::Geom32) -> (MvtProto::Ge
             (MvtProto::GeomType::Polygon, commands)
         }
         Geometry::MultiPolygon(mp) => {
-            let mut commands = Vec::new();
+            let mut commands = Vec::with_capacity(mp.0.len() * 16);
             for polygon in &mp.0 {
                 commands.extend(encode_linestring(&polygon.exterior().0, true));
                 for ring in polygon.interiors() {

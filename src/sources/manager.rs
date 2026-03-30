@@ -379,6 +379,7 @@ impl SourceManager {
     }
 
     #[cfg(all(feature = "postgres", feature = "raster"))]
+    #[must_use]
     pub fn is_outdb_raster_source(&self, id: &str) -> bool {
         self.sources
             .get(id)
@@ -419,6 +420,7 @@ impl SourceManager {
     }
 
     #[cfg(feature = "postgres")]
+    #[must_use]
     pub fn is_postgres_function_source(&self, id: &str) -> bool {
         self.sources
             .get(id)

@@ -45,6 +45,7 @@ pub struct MarkerOverlay {
 /// See: https://developers.google.com/maps/documentation/utilities/polylinealgorithm
 ///
 /// Note: Google's format is (lat, lon) but we return GeoPoint with (lon, lat) for GeoJSON compatibility.
+#[must_use]
 pub fn decode_polyline(encoded: &str) -> Vec<GeoPoint> {
     let mut points = Vec::new();
     let mut index = 0;
@@ -183,6 +184,7 @@ fn is_encoded_polyline(s: &str) -> bool {
 /// Example: `path-5+f00-88f(0,0|10,10|20,0)`
 /// Or encoded polyline: `path-5+f00(encodedPolylineString)`
 /// Or simple encoded: `enc:_p~iF~ps|U_ulLnnqC_mqNvxq`
+#[must_use]
 pub fn parse_path(path_str: &str) -> Option<PathOverlay> {
     // Default values
     let mut stroke_width = 3.0f32;
@@ -266,6 +268,7 @@ pub fn parse_path(path_str: &str) -> Option<PathOverlay> {
 /// Format: `{icon}-{label}+{color}({lon},{lat})`
 /// Example: `pin-s+f00(-122.4,37.8)`
 /// Or simple: `{lon},{lat}`
+#[must_use]
 pub fn parse_marker(marker_str: &str) -> Option<MarkerOverlay> {
     let marker_str = marker_str.trim();
 
@@ -614,6 +617,7 @@ fn blend_pixel(image: &mut RgbaImage, x: u32, y: u32, color: Rgba<u8>) {
 
 /// Calculate bounding box from paths and markers for auto-fit
 #[allow(dead_code)]
+#[must_use]
 pub fn calculate_bounds(
     paths: &[PathOverlay],
     markers: &[MarkerOverlay],
