@@ -1,5 +1,57 @@
 # Changelog
 
+## [2.20.0](https://github.com/vinayakkulkarni/tileserver-rs/compare/v2.19.0...v2.20.0) (2026-03-30)
+
+
+### Features
+
+* **client:** replace Hermes models with Qwen3 lineup for LLM chat ([8defec7](https://github.com/vinayakkulkarni/tileserver-rs/commit/8defec760e6368b40663b9ff438d7c598ae8df64))
+* **mbgl-sys:** add prebuilt feature and CI workflow for native library distribution ([6c0472d](https://github.com/vinayakkulkarni/tileserver-rs/commit/6c0472d698abc785b4383a5794b817be952183f6))
+* **mlt:** upgrade mlt-core 0.4→0.6 with full API migration ([07206b6](https://github.com/vinayakkulkarni/tileserver-rs/commit/07206b68bdd8034e2a6a8aede6d1b5f15f375b62))
+
+
+### Bug Fixes
+
+* **ci:** add MapLibre link-time dependencies to Rust CI ([0d51bd7](https://github.com/vinayakkulkarni/tileserver-rs/commit/0d51bd766ed14461bf6aafbba74930f772581f2c))
+* **ci:** increase Rust CI timeout to 90min to prevent test cancellation ([9ceedb8](https://github.com/vinayakkulkarni/tileserver-rs/commit/9ceedb8eefa2ecb6ca345b34a65c7a153a112f4e))
+* **ci:** normalize YAML indentation in release workflows ([7108613](https://github.com/vinayakkulkarni/tileserver-rs/commit/710861309e5d4c0f0033eec71865181347fe0a77))
+* **ci:** use per-package include-component-in-tag for release-please ([8b12b6a](https://github.com/vinayakkulkarni/tileserver-rs/commit/8b12b6a1cc0825a6e68ecb9b44bb1501905ac738))
+* **sources:** update duckdb import path after module rename ([0ae937a](https://github.com/vinayakkulkarni/tileserver-rs/commit/0ae937a4af5ffe857fa32233cbaf3878c0969ce9))
+
+
+### Performance Improvements
+
+* **ci:** remove redundant cargo check and release build from CI ([9087e43](https://github.com/vinayakkulkarni/tileserver-rs/commit/9087e4323b073ed40c68c94616d38bb57b8db3ab))
+* **ci:** use pre-built MapLibre Native libs instead of rebuilding ([27055b1](https://github.com/vinayakkulkarni/tileserver-rs/commit/27055b1240f2358f04d52702c4cea359e37abaa6))
+* use Vec::with_capacity on hot allocation paths ([e853443](https://github.com/vinayakkulkarni/tileserver-rs/commit/e85344374fcf8c4875e4e0bf774b920af968783c))
+
+
+### Documentation
+
+* add crates.io badges and prebuilt feature docs to READMEs ([54c9b10](https://github.com/vinayakkulkarni/tileserver-rs/commit/54c9b107f39c1634992a56da454aa3bcd898d236))
+* add module-level documentation to source files ([d8a91f1](https://github.com/vinayakkulkarni/tileserver-rs/commit/d8a91f1c97162cad8e6268c24fcde9954fff981f))
+* update documentation for project restructure ([7e799ff](https://github.com/vinayakkulkarni/tileserver-rs/commit/7e799ff1929433b157c72cbbecc6ea5f0f433377))
+
+
+### Miscellaneous
+
+* **deps:** update all dependency versions ([908f12a](https://github.com/vinayakkulkarni/tileserver-rs/commit/908f12ae3057bd9b5daa36b891e87ad3bcec243a))
+* **deps:** update all dependency versions ([7c699a1](https://github.com/vinayakkulkarni/tileserver-rs/commit/7c699a15e3cb937c01753635b0dba1efe61fdc69))
+* **deps:** update all dependency versions in source files ([273f639](https://github.com/vinayakkulkarni/tileserver-rs/commit/273f639a8e56ec8ca3cc06f96b1cafe49d89bb16))
+* **homebrew:** update formula to v2.19.0 ([f9bb9b5](https://github.com/vinayakkulkarni/tileserver-rs/commit/f9bb9b551ac5252dac779bc47064108e41488e3e))
+
+
+### Code Refactoring
+
+* add #[must_use] on public pure functions ([f939663](https://github.com/vinayakkulkarni/tileserver-rs/commit/f939663fac3add4b2cc3f9c2351e8a4654553e62))
+* add #[non_exhaustive] on public enums ([f722303](https://github.com/vinayakkulkarni/tileserver-rs/commit/f722303d860a824661d568e844355a101df3af2f))
+* **client:** fix Vue/Nuxt anti-patterns — cleanup timers, API layer, types ([8a184f2](https://github.com/vinayakkulkarni/tileserver-rs/commit/8a184f246231ebce807d77791d7d2eafa8ad376a))
+* fix Rust anti-patterns — eliminate clones, add with_capacity, must_use ([e59f742](https://github.com/vinayakkulkarni/tileserver-rs/commit/e59f742bb474c1deb32b2dffc23f3f9ef7b720fa))
+* rename crate to mbgl-sys and restructure project layout ([4d292a6](https://github.com/vinayakkulkarni/tileserver-rs/commit/4d292a63b256912c6f834a06de6e1f29cb399a4f))
+* replace index loop with windows(2) in draw_path ([d82b0b3](https://github.com/vinayakkulkarni/tileserver-rs/commit/d82b0b3013b8de64f2f7e4dc5dc1ce5735c6bcc4))
+* replace unwrap with expect for better panic messages ([495c85f](https://github.com/vinayakkulkarni/tileserver-rs/commit/495c85f1b0e17c0a9739f49edf71da0d487d47b4))
+* **routes:** extract route handlers from main.rs into modules ([6b3f8cb](https://github.com/vinayakkulkarni/tileserver-rs/commit/6b3f8cbb6200aaaa587fb762b7feb3c7e0b55dcb))
+
 ## [2.19.0](https://github.com/vinayakkulkarni/tileserver-rs/compare/v2.18.0...v2.19.0) (2026-03-19)
 
 
