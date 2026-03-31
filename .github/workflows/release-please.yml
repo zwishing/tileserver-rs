@@ -49,13 +49,31 @@ jobs:
 
       - name: Publish mbgl-sys to crates.io
         run: |
-          # Exchange GitHub OIDC token for crates.io publish token
+          set -euo pipefail
+
+          # Step 1: Get GitHub OIDC token with crates.io audience
           OIDC_TOKEN=$(curl -sLS "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=https://crates.io" \
             -H "User-Agent: actions/oidc-client" \
-            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}")
-          OIDC_TOKEN=$(echo "${OIDC_TOKEN}" | jq -r '.value')
-          CARGO_REGISTRY_TOKEN=$(curl -sLS 'https://crates.io/api/v1/tokens/trusted-publishing' \
-            -H "Authorization: Bearer ${OIDC_TOKEN}" | jq -r '.token')
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" | jq -r '.value')
+
+          if [ -z "${OIDC_TOKEN}" ] || [ "${OIDC_TOKEN}" = "null" ]; then
+            echo "::error::Failed to obtain OIDC token from GitHub"
+            exit 1
+          fi
+
+          # Step 2: Exchange OIDC token for crates.io publish token (POST with JSON body)
+          EXCHANGE_RESPONSE=$(curl -sLS -X POST 'https://crates.io/api/v1/tokens/trusted-publishing' \
+            -H 'Content-Type: application/json' \
+            -d "{\"jwt\": \"${OIDC_TOKEN}\"}")
+          CARGO_REGISTRY_TOKEN=$(echo "${EXCHANGE_RESPONSE}" | jq -r '.token')
+
+          if [ -z "${CARGO_REGISTRY_TOKEN}" ] || [ "${CARGO_REGISTRY_TOKEN}" = "null" ]; then
+            echo "::error::Failed to exchange OIDC token for crates.io token"
+            echo "::error::Response: ${EXCHANGE_RESPONSE}"
+            exit 1
+          fi
+
+          # Step 3: Publish
           export CARGO_REGISTRY_TOKEN
           cargo publish -p mbgl-sys
 
