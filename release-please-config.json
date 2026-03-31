@@ -13,6 +13,9 @@
       "extra-files": [
         "apps/client/package.json",
         "homebrew/Formula/tileserver-rs.rb"
+      ],
+      "exclude-paths": [
+        "crates/mbgl-sys"
       ]
     },
     "crates/mbgl-sys": {
