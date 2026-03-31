@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      publish_mbgl_sys:
+        description: 'Publish mbgl-sys to crates.io'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -28,7 +35,7 @@ jobs:
 
   publish-mbgl-sys:
     needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
+    if: needs.release-please.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.publish_mbgl_sys)
     runs-on: ubuntu-latest
     permissions:
       contents: read
