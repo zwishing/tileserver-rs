@@ -6,7 +6,8 @@
     VControlGeolocate,
   } from '@geoql/v-maplibre';
   import { ArrowLeft, Palette, Sparkles } from 'lucide-vue-next';
-  import { useEventListener } from '@vueuse/core';
+  import { useEventListener, useStorage } from '@vueuse/core';
+  import type { LlmPaletteMode } from '~/types/llm';
 
   const route = useRoute('styles-style');
   const styleId = computed(() => String(route.params.style));
@@ -30,20 +31,22 @@
     removeAllOverlays,
   } = useFileDrop(mapRef);
 
-  const chatOpen = ref(false);
+  const chatMode = useStorage<LlmPaletteMode>('tileserver-llm-mode', 'closed');
+
+  const isChatVisible = computed(() => chatMode.value !== 'closed');
 
   function toggleChat() {
-    chatOpen.value = !chatOpen.value;
+    chatMode.value = chatMode.value === 'closed' ? 'expanded' : 'closed';
   }
 
-  // ⌘K / Ctrl+K to toggle command palette, Esc to close
+  // ⌘K / Ctrl+K to toggle chat, Esc to close/minimize
   useEventListener('keydown', (e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
       e.preventDefault();
       toggleChat();
     }
-    if (e.key === 'Escape' && chatOpen.value) {
-      chatOpen.value = false;
+    if (e.key === 'Escape' && chatMode.value === 'expanded') {
+      chatMode.value = 'minimized';
     }
   });
 </script>
@@ -61,9 +64,9 @@
       <span>{{ styleId }}</span>
     </button>
 
-    <!-- Bottom dock: AI chat trigger (hidden for screenshots, hidden when chat is open) -->
+    <!-- Bottom dock: AI chat trigger (hidden for screenshots, hidden when chat is visible) -->
     <button
-      v-if="!isScreenshot && !chatOpen"
+      v-if="!isScreenshot && !isChatVisible"
       class="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 border border-border bg-background/95 px-5 py-2.5 shadow-lg backdrop-blur-sm transition-all hover:border-primary/50 hover:shadow-xl"
       @click="toggleChat"
     >
@@ -123,13 +126,14 @@
       @remove-all="removeAllOverlays"
     />
 
-    <!-- LLM Command Palette -->
+    <!-- LLM Draggable Chat -->
     <ClientOnly>
       <LlmPalette
-        :open="chatOpen"
+        v-if="isChatVisible"
+        :mode="chatMode"
         :map-ref="mapRef"
         :overlays="overlays"
-        @update:open="chatOpen = $event"
+        @update:mode="chatMode = $event"
       />
     </ClientOnly>
   </div>

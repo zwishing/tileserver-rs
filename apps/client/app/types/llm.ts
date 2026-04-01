@@ -172,6 +172,22 @@ export interface SuggestedPrompt {
  */
 export type LlmIconName = 'map' | 'layers' | 'search' | 'palette' | 'globe';
 
+/**
+ * Palette display mode:
+ * - 'expanded'  — full chat panel, draggable
+ * - 'minimized' — small floating pill showing status
+ * - 'closed'    — completely hidden
+ */
+export type LlmPaletteMode = 'expanded' | 'minimized' | 'closed';
+
+/**
+ * Persisted position for the draggable palette
+ */
+export interface LlmPalettePosition {
+  x: number;
+  y: number;
+}
+
 // ============================================================================
 // COMPONENT PROPS TYPES
 // ============================================================================
