@@ -35,7 +35,7 @@ jobs:
 
   publish-mbgl-sys:
     needs: release-please
-    if: needs.release-please.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.publish_mbgl_sys)
+    if: always() && (needs.release-please.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.publish_mbgl_sys))
     runs-on: ubuntu-latest
     permissions:
       contents: read
