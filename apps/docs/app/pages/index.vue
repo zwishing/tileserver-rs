@@ -14,6 +14,9 @@
     Container,
     Sun,
     Moon,
+    RotateCw,
+    Server,
+    FileSpreadsheet,
   } from 'lucide-vue-next';
 
   definePageMeta({ layout: false });
@@ -89,6 +92,24 @@
       title: 'MLT Transcoding',
       description:
         'On-the-fly MLT↔MVT transcoding — serve next-gen MapLibre Tiles from existing MVT sources.',
+    },
+    {
+      icon: RotateCw,
+      title: 'Hot Reload',
+      description:
+        'Live configuration reload via SIGHUP or admin API — zero downtime source and style updates.',
+    },
+    {
+      icon: Server,
+      title: 'PostGIS Support',
+      description:
+        'Serve vector tiles directly from PostgreSQL/PostGIS with on-the-fly MVT generation.',
+    },
+    {
+      icon: FileSpreadsheet,
+      title: 'GeoParquet Source',
+      description:
+        'Query GeoParquet files via DuckDB with spatial filtering and automatic MVT encoding.',
     },
   ];
 
