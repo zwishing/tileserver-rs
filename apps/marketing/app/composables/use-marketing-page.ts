@@ -20,6 +20,7 @@ import {
   Puzzle,
   FileSpreadsheet,
   Braces,
+  Timer,
 } from 'lucide-vue-next';
 import type {
   Feature,
@@ -139,6 +140,12 @@ export function useMarketingPage() {
       title: 'OpenAPI & Analytics',
       description:
         'Interactive OpenAPI spec with Scalar UI. Generate SDKs, import into Postman, or track usage with built-in telemetry.',
+    },
+    {
+      icon: Timer,
+      title: 'Configurable Caching',
+      description:
+        'Per-source cache control headers with configurable max-age, stale-while-revalidate, and CDN-friendly strategies for optimal tile delivery.',
     },
   ];
 
