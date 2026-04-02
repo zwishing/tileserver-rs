@@ -1,18 +1,24 @@
 name: "Build MapLibre Native"
 
 on:
+  push:
+    tags:
+      - "mbgl-sys-v*"
   workflow_dispatch:
     inputs:
       version:
-        description: "mbgl-sys version (e.g., 0.1.0)"
+        description: "mbgl-sys version (e.g., 0.1.2) — only needed for manual dispatch"
         required: true
         type: string
 
 permissions:
   contents: write
+  actions: write
 
 env:
-  TAG_NAME: mbgl-sys-v${{ github.event.inputs.version }}
+  # Tag push: github.ref_name = 'mbgl-sys-v0.1.2'
+  # Manual dispatch: construct from input
+  TAG_NAME: ${{ github.event_name == 'push' && github.ref_name || format('mbgl-sys-v{0}', github.event.inputs.version) }}
   CARGO_INCREMENTAL: 0
   CARGO_TERM_COLOR: always
 
@@ -30,7 +36,7 @@ jobs:
             gh release create "$TAG_NAME" \
               --repo "${{ github.repository }}" \
               --title "mbgl-sys $TAG_NAME" \
-              --notes "Pre-built MapLibre Native static libraries for mbgl-sys v${{ github.event.inputs.version }}" \
+              --notes "Pre-built MapLibre Native static libraries for ${{ env.TAG_NAME }}" \
               --draft
           fi
         env:
@@ -217,5 +223,35 @@ jobs:
           gh release edit "$TAG_NAME" \
             --repo "${{ github.repository }}" \
             --draft=false || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  retrigger-releases:
+    name: Re-trigger failed release builds
+    runs-on: ubuntu-latest
+    needs: [publish-release]
+    timeout-minutes: 5
+    if: github.event_name == 'push'
+    steps:
+      - name: Re-run failed downstream workflows
+        run: |
+          sleep 30
+
+          for workflow in release-docker.yml release-linux.yml release-macos-arm64.yml; do
+            FAILED_RUN=$(gh run list \
+              --repo "${{ github.repository }}" \
+              --workflow="$workflow" \
+              --status=failure \
+              --limit=1 \
+              --json databaseId,createdAt \
+              --jq '.[0].databaseId // empty')
+
+            if [ -n "$FAILED_RUN" ]; then
+              echo "Re-running failed $workflow (run $FAILED_RUN)..."
+              gh run rerun "$FAILED_RUN" --repo "${{ github.repository }}" --failed || true
+            else
+              echo "No recent failures for $workflow"
+            fi
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

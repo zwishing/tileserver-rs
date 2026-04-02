@@ -6,15 +6,19 @@ FROM ubuntu:24.04 AS maplibre-downloader
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-ARG MBGL_VERSION=0.1.0
 ARG TARGETARCH
 
+# Extract mbgl-sys version from Cargo.toml (no hardcoded version)
+COPY crates/mbgl-sys/Cargo.toml /tmp/mbgl-sys-cargo.toml
+
 WORKDIR /build
-RUN case "$TARGETARCH" in \
+RUN MBGL_VERSION=$(grep '^version' /tmp/mbgl-sys-cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/') && \
+    case "$TARGETARCH" in \
       amd64) MBGL_TARGET="x86_64-unknown-linux-gnu" ;; \
       arm64) MBGL_TARGET="aarch64-unknown-linux-gnu" ;; \
       *) echo "Unsupported arch: $TARGETARCH" && exit 1 ;; \
     esac && \
+    echo "Downloading mbgl-sys v${MBGL_VERSION} for ${MBGL_TARGET}..." && \
     curl -fSL "https://github.com/vinayakkulkarni/tileserver-rs/releases/download/mbgl-sys-v${MBGL_VERSION}/mbgl-native-${MBGL_TARGET}.tar.gz" | tar xz
 
 # =============================================================================

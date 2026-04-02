@@ -96,9 +96,24 @@ jobs:
       - name: Download pre-built MapLibre Native
         run: |
           MBGL_VERSION=$(grep '^version' crates/mbgl-sys/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          URL="https://github.com/${{ github.repository }}/releases/download/mbgl-sys-v${MBGL_VERSION}/mbgl-native-${{ matrix.target }}.tar.gz"
           echo "Downloading mbgl-sys v${MBGL_VERSION} for ${{ matrix.target }}..."
-          curl -fSL "https://github.com/${{ github.repository }}/releases/download/mbgl-sys-v${MBGL_VERSION}/mbgl-native-${{ matrix.target }}.tar.gz" | tar xz
-          ls -lh lib/
+
+          MAX_RETRIES=5
+          DELAY=60
+          for i in $(seq 1 $MAX_RETRIES); do
+            if curl -fSL "$URL" | tar xz; then
+              echo "✅ Download successful"
+              ls -lh lib/
+              exit 0
+            fi
+            if [ "$i" -lt "$MAX_RETRIES" ]; then
+              echo "⏳ Attempt $i/$MAX_RETRIES failed, waiting ${DELAY}s before retry..."
+              sleep $DELAY
+            fi
+          done
+          echo "❌ Failed to download native binaries after $MAX_RETRIES attempts"
+          exit 1
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
