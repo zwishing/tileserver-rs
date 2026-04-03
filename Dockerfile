@@ -26,7 +26,7 @@ RUN MBGL_VERSION=$(grep 'mbgl-sys' /tmp/release-manifest.json | sed 's/.*: *"\(.
 # =============================================================================
 FROM oven/bun:1 AS node-builder
 
-ARG FEATURES="frontend mlt"
+ARG FEATURES="frontend mlt geoparquet"
 
 # ulimit -s unlimited increases the POSIX thread stack size so Bun's JSC engine
 # can handle the deep CJS resolver recursion caused by @mlc-ai/web-llm in Vite builds
@@ -98,8 +98,8 @@ RUN mkdir -p src benches && echo "fn main() {}" > src/main.rs && echo "fn main()
 # Copy the embedded SPA
 COPY --from=node-builder /app/apps/client/.output/public ./apps/client/.output/public
 
-# Features are now enabled by default in Cargo.toml (postgres, raster, mlt)
-ARG FEATURES="frontend mlt"
+# Features are now enabled by default in Cargo.toml (postgres, raster, mlt, geoparquet)
+ARG FEATURES="frontend mlt geoparquet"
 
 # Build dependencies only (may fail on first try, that's ok)
 RUN if [ -n "$FEATURES" ]; then \
