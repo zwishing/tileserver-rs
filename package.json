@@ -49,7 +49,7 @@
         "@deck.gl/mapbox": "^9.2.11",
         "@deck.gl/mesh-layers": "^9.2.11",
         "@geoql/v-maplibre": "^1.6.1",
-        "@luma.gl/engine": "^9.2.6",
+        "@luma.gl/engine": "~9.2.6",
         "maplibre-gl-inspect": "^0.0.8",
         "@maplibre/mlt": "^1.1.8",
         "@tanstack/query-db-collection": "^1.0.33",
