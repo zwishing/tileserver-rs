@@ -138,52 +138,37 @@ pub struct StaticQueryParams {
     pub path: Option<String>,
     /// Marker overlay (encoded)
     pub marker: Option<String>,
-    /// Parse coordinates as lat/lng instead of lng/lat
+    /// GeoJSON geometry, Feature, or FeatureCollection as URL-encoded JSON string
+    pub geojson: Option<String>,
+    /// Parse coordinates as lat/lng instead of lng/lat (Google Maps convention)
     #[serde(default)]
-    #[allow(dead_code)]
     pub latlng: bool,
-    /// Padding for bounding box (default 0.1)
-    #[allow(dead_code)]
+    /// Padding fraction for auto-fit bounding box (default 0.1)
     pub padding: Option<f64>,
     /// Maximum zoom level for auto-fit
-    #[allow(dead_code)]
     pub maxzoom: Option<u8>,
 }
 
 /// Options for rendering a map image
 #[derive(Debug, Clone)]
 pub struct RenderOptions {
-    /// Style ID for navigation
     pub style_id: String,
-    /// Style JSON content (kept for future use)
-    #[allow(dead_code)]
     pub style_json: String,
-    /// Image width in pixels
     pub width: u32,
-    /// Image height in pixels
     pub height: u32,
     /// Pixel ratio / scale (1-9)
     pub scale: u8,
-    /// Center longitude
     pub lon: f64,
-    /// Center latitude
     pub lat: f64,
-    /// Zoom level
     pub zoom: f64,
-    /// Bearing (rotation) in degrees (reserved for future use)
-    #[allow(dead_code)]
+    /// Camera bearing (rotation) in degrees
     pub bearing: f64,
-    /// Pitch (tilt) in degrees (reserved for future use)
-    #[allow(dead_code)]
+    /// Camera pitch (tilt) in degrees
     pub pitch: f64,
-    /// Output format
     pub format: ImageFormat,
-    /// Optional path overlay (reserved for future use)
-    #[allow(dead_code)]
     pub path: Option<String>,
-    /// Optional marker overlay (reserved for future use)
-    #[allow(dead_code)]
     pub marker: Option<String>,
+    pub geojson: Option<String>,
 }
 
 impl RenderOptions {
@@ -223,6 +208,7 @@ impl RenderOptions {
             format,
             path: None,
             marker: None,
+            geojson: None,
         }
     }
 
@@ -306,13 +292,14 @@ impl RenderOptions {
                 (center_lon, center_lat, zoom, 0.0, 0.0)
             }
             StaticType::Auto => {
-                // For auto mode, calculate bounds from paths/markers
                 let mut paths = Vec::new();
                 let mut markers = Vec::new();
 
                 if let Some(ref path_str) = query_params.path {
                     for path_part in path_str.split('~') {
-                        if let Some(path) = crate::render::overlay::parse_path(path_part) {
+                        if let Some(path) =
+                            crate::render::overlay::parse_path(path_part, query_params.latlng)
+                        {
                             paths.push(path);
                         }
                     }
@@ -324,6 +311,13 @@ impl RenderOptions {
                             markers.push(marker);
                         }
                     }
+                }
+
+                if let Some(ref geojson_str) = query_params.geojson {
+                    let (geojson_paths, geojson_markers) =
+                        crate::render::overlay::parse_geojson(geojson_str);
+                    paths.extend(geojson_paths);
+                    markers.extend(geojson_markers);
                 }
 
                 if let Some((min_lon, min_lat, max_lon, max_lat)) =
@@ -383,6 +377,7 @@ impl RenderOptions {
             format,
             path: query_params.path,
             marker: query_params.marker,
+            geojson: query_params.geojson,
         })
     }
 }

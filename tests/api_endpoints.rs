@@ -862,7 +862,11 @@ mod overlay_params_tests {
         ];
 
         for path in valid_paths {
-            assert!(parse_path(path).is_some(), "Should parse path: {}", path);
+            assert!(
+                parse_path(path, false).is_some(),
+                "Should parse path: {}",
+                path
+            );
         }
     }
 

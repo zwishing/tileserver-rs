@@ -99,21 +99,18 @@ impl Renderer {
         mut image: super::native::RenderedImage,
         options: &RenderOptions,
     ) -> Result<super::native::RenderedImage> {
-        // Parse paths and markers
         let mut paths = Vec::new();
         let mut markers = Vec::new();
 
         if let Some(ref path_str) = options.path {
-            // Multiple paths can be separated by |
             for path_part in path_str.split('~') {
-                if let Some(path) = super::overlay::parse_path(path_part) {
+                if let Some(path) = super::overlay::parse_path(path_part, false) {
                     paths.push(path);
                 }
             }
         }
 
         if let Some(ref marker_str) = options.marker {
-            // Multiple markers can be separated by |
             for marker_part in marker_str.split('~') {
                 if let Some(marker) = super::overlay::parse_marker(marker_part) {
                     markers.push(marker);
@@ -121,7 +118,12 @@ impl Renderer {
             }
         }
 
-        // If no overlays, return the original image
+        if let Some(ref geojson_str) = options.geojson {
+            let (geojson_paths, geojson_markers) = super::overlay::parse_geojson(geojson_str);
+            paths.extend(geojson_paths);
+            markers.extend(geojson_markers);
+        }
+
         if paths.is_empty() && markers.is_empty() {
             return Ok(image);
         }

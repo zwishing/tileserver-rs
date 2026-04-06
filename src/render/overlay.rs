@@ -3,6 +3,7 @@
 //! Supports drawing paths (polylines) and markers on rendered map images.
 
 use image::{Rgba, RgbaImage};
+use serde_json::Value;
 
 /// A point in geographic coordinates
 #[derive(Debug, Clone, Copy)]
@@ -20,8 +21,7 @@ pub struct PathOverlay {
     pub stroke_color: Rgba<u8>,
     /// Stroke width in pixels
     pub stroke_width: f32,
-    /// Fill color (RGBA) - for closed polygons (reserved for future use)
-    #[allow(dead_code)]
+    /// Fill color (RGBA) for closed polygons
     pub fill_color: Option<Rgba<u8>>,
 }
 
@@ -32,7 +32,7 @@ pub struct MarkerOverlay {
     pub position: GeoPoint,
     /// Marker color (RGBA)
     pub color: Rgba<u8>,
-    /// Optional label text (reserved for future use)
+    /// Optional label text — not yet rendered; reserved for a future text-rendering pass
     #[allow(dead_code)]
     pub label: Option<String>,
     /// Marker size in pixels
@@ -185,34 +185,46 @@ fn is_encoded_polyline(s: &str) -> bool {
 /// Or encoded polyline: `path-5+f00(encodedPolylineString)`
 /// Or simple encoded: `enc:_p~iF~ps|U_ulLnnqC_mqNvxq`
 #[must_use]
-pub fn parse_path(path_str: &str) -> Option<PathOverlay> {
-    // Default values
+/// Parse a coordinate pair `"a,b"` respecting the `latlng` flag.
+///
+/// When `latlng` is `true` the string is interpreted as `"lat,lon"` (Google Maps
+/// convention) and the values are swapped so the returned point is always
+/// `GeoPoint { lon, lat }` (GeoJSON / Web Mercator convention).
+fn parse_coord_pair(s: &str, latlng: bool) -> Option<GeoPoint> {
+    let xy: Vec<&str> = s.split(',').collect();
+    if xy.len() >= 2 {
+        let a: f64 = xy[0].parse().ok()?;
+        let b: f64 = xy[1].parse().ok()?;
+        if latlng {
+            Some(GeoPoint { lon: b, lat: a })
+        } else {
+            Some(GeoPoint { lon: a, lat: b })
+        }
+    } else {
+        None
+    }
+}
+
+pub fn parse_path(path_str: &str, latlng: bool) -> Option<PathOverlay> {
     let mut stroke_width = 3.0f32;
-    let mut stroke_color = Rgba([0, 0, 255, 255]); // Blue
+    let mut stroke_color = Rgba([0, 0, 255, 255]);
     let mut fill_color: Option<Rgba<u8>> = None;
     let mut points = Vec::new();
 
-    // Parse the path format
     let path_str = path_str.trim();
 
-    // Check for simple encoded polyline format: enc:...
     if let Some(encoded) = path_str.strip_prefix("enc:") {
         points = decode_polyline(encoded);
-    }
-    // Try to parse path-{width}+{color}(-{fill})({coords}) format
-    else if let Some(rest) = path_str.strip_prefix("path-") {
-        // Find the opening parenthesis for coordinates
+    } else if let Some(rest) = path_str.strip_prefix("path-") {
         if let Some(paren_idx) = rest.find('(') {
             let style_part = &rest[..paren_idx];
-            let coords_part = &rest[paren_idx + 1..rest.len() - 1]; // Remove ( and )
+            let coords_part = &rest[paren_idx + 1..rest.len() - 1];
 
-            // Parse style: width+color or width+color-fill
             let parts: Vec<&str> = style_part.split('+').collect();
             if !parts.is_empty() {
                 stroke_width = parts[0].parse().unwrap_or(3.0);
             }
             if parts.len() > 1 {
-                // Check for fill color
                 let color_parts: Vec<&str> = parts[1].split('-').collect();
                 stroke_color = parse_hex_color(color_parts[0]).unwrap_or(stroke_color);
                 if color_parts.len() > 1 {
@@ -220,33 +232,22 @@ pub fn parse_path(path_str: &str) -> Option<PathOverlay> {
                 }
             }
 
-            // Try to decode as polyline first, fall back to pipe-separated coordinates
             if is_encoded_polyline(coords_part) {
                 points = decode_polyline(coords_part);
             } else {
-                // Parse coordinates: lon,lat|lon,lat|...
                 for coord in coords_part.split('|') {
-                    let xy: Vec<&str> = coord.split(',').collect();
-                    if xy.len() >= 2
-                        && let (Ok(lon), Ok(lat)) = (xy[0].parse(), xy[1].parse())
-                    {
-                        points.push(GeoPoint { lon, lat });
+                    if let Some(p) = parse_coord_pair(coord, latlng) {
+                        points.push(p);
                     }
                 }
             }
         }
+    } else if is_encoded_polyline(path_str) {
+        points = decode_polyline(path_str);
     } else {
-        // Simple format: either pipe-separated coordinates or encoded polyline
-        if is_encoded_polyline(path_str) {
-            points = decode_polyline(path_str);
-        } else {
-            for coord in path_str.split('|') {
-                let xy: Vec<&str> = coord.split(',').collect();
-                if xy.len() >= 2
-                    && let (Ok(lon), Ok(lat)) = (xy[0].parse(), xy[1].parse())
-                {
-                    points.push(GeoPoint { lon, lat });
-                }
+        for coord in path_str.split('|') {
+            if let Some(p) = parse_coord_pair(coord, latlng) {
+                points.push(p);
             }
         }
     }
@@ -446,14 +447,16 @@ fn draw_path(
         return;
     }
 
-    // Convert all points to pixel coordinates
     let pixels: Vec<(f32, f32)> = path
         .points
         .iter()
         .map(|p| geo_to_pixel(p, center_lon, center_lat, zoom, width, height, scale))
         .collect();
 
-    // Draw line segments
+    if let Some(fill) = path.fill_color {
+        fill_polygon(image, &pixels, fill);
+    }
+
     let stroke_width = path.stroke_width * scale;
     for pair in pixels.windows(2) {
         draw_line(
@@ -507,6 +510,64 @@ fn draw_line(
                         blend_pixel(image, px as u32, py as u32, color);
                     }
                 }
+            }
+        }
+    }
+}
+
+/// Fill a polygon using the scanline even-odd algorithm with alpha compositing.
+///
+/// `pixels` are in image-space (px, py). The polygon is auto-closed when the
+/// first and last vertex are more than 0.5 px apart.
+fn fill_polygon(image: &mut RgbaImage, pixels: &[(f32, f32)], color: Rgba<u8>) {
+    if pixels.len() < 3 {
+        return;
+    }
+
+    let mut poly = pixels.to_vec();
+    let first = poly[0];
+    let last = *poly.last().unwrap();
+    if (first.0 - last.0).abs() > 0.5 || (first.1 - last.1).abs() > 0.5 {
+        poly.push(first);
+    }
+
+    let min_y = poly.iter().map(|p| p.1).fold(f32::INFINITY, f32::min);
+    let max_y = poly.iter().map(|p| p.1).fold(f32::NEG_INFINITY, f32::max);
+    let img_h = image.height() as i32;
+    let img_w = image.width() as i32;
+    let scan_min = (min_y.floor() as i32).max(0);
+    let scan_max = (max_y.ceil() as i32).min(img_h - 1);
+
+    let n = poly.len();
+    for y in scan_min..=scan_max {
+        let yf = y as f32 + 0.5;
+        let mut xs: Vec<f32> = Vec::new();
+
+        for i in 0..n - 1 {
+            let (x0, y0) = poly[i];
+            let (x1, y1) = poly[i + 1];
+            if (y1 - y0).abs() < f32::EPSILON {
+                continue;
+            }
+            let y_lo = y0.min(y1);
+            let y_hi = y0.max(y1);
+            if yf < y_lo || yf >= y_hi {
+                continue;
+            }
+            let t = (yf - y0) / (y1 - y0);
+            xs.push(x0 + t * (x1 - x0));
+        }
+
+        xs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+        for chunk in xs.chunks(2) {
+            if chunk.len() < 2 {
+                break;
+            }
+            let x_start = (chunk[0].floor() as i32).max(0);
+            let x_end = (chunk[1].ceil() as i32).min(img_w - 1);
+            for x in x_start..=x_end {
+                blend_pixel(image, x as u32, y as u32, color);
             }
         }
     }
@@ -616,7 +677,6 @@ fn blend_pixel(image: &mut RgbaImage, x: u32, y: u32, color: Rgba<u8>) {
 }
 
 /// Calculate bounding box from paths and markers for auto-fit
-#[allow(dead_code)]
 #[must_use]
 pub fn calculate_bounds(
     paths: &[PathOverlay],
@@ -651,6 +711,218 @@ pub fn calculate_bounds(
     } else {
         None
     }
+}
+
+/// Parse a GeoJSON string into path and marker overlays.
+///
+/// Accepts GeoJSON `Geometry`, `Feature`, or `FeatureCollection`.
+/// Supported geometry types: `Point`, `LineString`, `MultiLineString`,
+/// `Polygon` (outer ring only), `MultiPolygon` (outer rings only).
+///
+/// Styling is read from `Feature.properties`:
+/// - `stroke` — hex stroke color (default `0000ff`)
+/// - `stroke-width` — stroke width in pixels (default `3.0`)
+/// - `fill` — hex fill color for polygons (optional)
+/// - `marker-color` — hex marker color (default `ff0000`)
+/// - `marker-size` — marker size in pixels (default `12.0`)
+///
+/// Invalid JSON is silently ignored (logged at WARN level).
+pub fn parse_geojson(geojson_str: &str) -> (Vec<PathOverlay>, Vec<MarkerOverlay>) {
+    let mut paths = Vec::new();
+    let mut markers = Vec::new();
+
+    let value = match serde_json::from_str::<Value>(geojson_str) {
+        Ok(v) => v,
+        Err(_) => {
+            tracing::warn!("Failed to parse GeoJSON overlay string");
+            return (paths, markers);
+        }
+    };
+
+    process_geojson_value(&value, &mut paths, &mut markers);
+    (paths, markers)
+}
+
+fn process_geojson_value(
+    value: &Value,
+    paths: &mut Vec<PathOverlay>,
+    markers: &mut Vec<MarkerOverlay>,
+) {
+    match value.get("type").and_then(Value::as_str) {
+        Some("FeatureCollection") => {
+            if let Some(features) = value.get("features").and_then(Value::as_array) {
+                for feat in features {
+                    process_geojson_value(feat, paths, markers);
+                }
+            }
+        }
+        Some("Feature") => {
+            let props = value.get("properties");
+            let stroke_color = props
+                .and_then(|p| p.get("stroke"))
+                .and_then(Value::as_str)
+                .and_then(parse_hex_color)
+                .unwrap_or(Rgba([0, 0, 255, 255]));
+            let stroke_width = props
+                .and_then(|p| p.get("stroke-width"))
+                .and_then(Value::as_f64)
+                .unwrap_or(3.0) as f32;
+            let fill_color = props
+                .and_then(|p| p.get("fill"))
+                .and_then(Value::as_str)
+                .and_then(parse_hex_color);
+            let marker_color = props
+                .and_then(|p| p.get("marker-color"))
+                .and_then(Value::as_str)
+                .and_then(parse_hex_color)
+                .unwrap_or(Rgba([255, 0, 0, 255]));
+            let marker_size = props
+                .and_then(|p| p.get("marker-size"))
+                .and_then(Value::as_f64)
+                .unwrap_or(12.0) as f32;
+
+            if let Some(geom) = value.get("geometry") {
+                process_geometry(
+                    geom,
+                    stroke_color,
+                    stroke_width,
+                    fill_color,
+                    marker_color,
+                    marker_size,
+                    paths,
+                    markers,
+                );
+            }
+        }
+        Some("Point" | "LineString" | "MultiLineString" | "Polygon" | "MultiPolygon") => {
+            process_geometry(
+                value,
+                Rgba([0, 0, 255, 255]),
+                3.0,
+                None,
+                Rgba([255, 0, 0, 255]),
+                12.0,
+                paths,
+                markers,
+            );
+        }
+        _ => {}
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn process_geometry(
+    geom: &Value,
+    stroke_color: Rgba<u8>,
+    stroke_width: f32,
+    fill_color: Option<Rgba<u8>>,
+    marker_color: Rgba<u8>,
+    marker_size: f32,
+    paths: &mut Vec<PathOverlay>,
+    markers: &mut Vec<MarkerOverlay>,
+) {
+    match geom.get("type").and_then(Value::as_str) {
+        Some("Point") => {
+            if let Some(pos) = geojson_point(geom) {
+                markers.push(MarkerOverlay {
+                    position: pos,
+                    color: marker_color,
+                    label: None,
+                    size: marker_size,
+                });
+            }
+        }
+        Some("LineString") => {
+            let pts = geojson_coord_array(geom, "coordinates");
+            if pts.len() >= 2 {
+                paths.push(PathOverlay {
+                    points: pts,
+                    stroke_color,
+                    stroke_width,
+                    fill_color: None,
+                });
+            }
+        }
+        Some("MultiLineString") => {
+            if let Some(lines) = geom.get("coordinates").and_then(Value::as_array) {
+                for line in lines {
+                    if let Some(arr) = line.as_array() {
+                        let pts = coords_to_geopoints(arr);
+                        if pts.len() >= 2 {
+                            paths.push(PathOverlay {
+                                points: pts,
+                                stroke_color,
+                                stroke_width,
+                                fill_color: None,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        Some("Polygon") => {
+            if let Some(rings) = geom.get("coordinates").and_then(Value::as_array)
+                && let Some(outer) = rings.first()
+                && let Some(arr) = outer.as_array()
+            {
+                let pts = coords_to_geopoints(arr);
+                if pts.len() >= 3 {
+                    paths.push(PathOverlay {
+                        points: pts,
+                        stroke_color,
+                        stroke_width,
+                        fill_color,
+                    });
+                }
+            }
+        }
+        Some("MultiPolygon") => {
+            if let Some(polys) = geom.get("coordinates").and_then(Value::as_array) {
+                for poly in polys {
+                    if let Some(rings) = poly.as_array()
+                        && let Some(outer) = rings.first()
+                        && let Some(arr) = outer.as_array()
+                    {
+                        let pts = coords_to_geopoints(arr);
+                        if pts.len() >= 3 {
+                            paths.push(PathOverlay {
+                                points: pts,
+                                stroke_color,
+                                stroke_width,
+                                fill_color,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn geojson_point(geom: &Value) -> Option<GeoPoint> {
+    let arr = geom.get("coordinates")?.as_array()?;
+    let lon = arr.first()?.as_f64()?;
+    let lat = arr.get(1)?.as_f64()?;
+    Some(GeoPoint { lon, lat })
+}
+
+fn geojson_coord_array(geom: &Value, field: &str) -> Vec<GeoPoint> {
+    geom.get(field)
+        .and_then(Value::as_array)
+        .map(|a| coords_to_geopoints(a))
+        .unwrap_or_default()
+}
+
+fn coords_to_geopoints(arr: &[Value]) -> Vec<GeoPoint> {
+    arr.iter()
+        .filter_map(|c| {
+            let pair = c.as_array()?;
+            let lon = pair.first()?.as_f64()?;
+            let lat = pair.get(1)?.as_f64()?;
+            Some(GeoPoint { lon, lat })
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -729,7 +1001,7 @@ mod tests {
 
     #[test]
     fn test_parse_path_basic() {
-        let path = parse_path("path-5+f00(-122.4,37.8|-122.5,37.9)").unwrap();
+        let path = parse_path("path-5+f00(-122.4,37.8|-122.5,37.9)", false).unwrap();
         assert_eq!(path.points.len(), 2);
         assert_eq!(path.stroke_width, 5.0);
         assert_eq!(path.stroke_color, Rgba([255, 0, 0, 255]));
@@ -741,7 +1013,7 @@ mod tests {
 
     #[test]
     fn test_parse_path_with_fill_color() {
-        let path = parse_path("path-3+00f-ff0(-10,20|30,40|50,60)").unwrap();
+        let path = parse_path("path-3+00f-ff0(-10,20|30,40|50,60)", false).unwrap();
         assert_eq!(path.points.len(), 3);
         assert_eq!(path.stroke_width, 3.0);
         assert_eq!(path.stroke_color, Rgba([0, 0, 255, 255]));
@@ -750,7 +1022,8 @@ mod tests {
 
     #[test]
     fn test_parse_path_many_points() {
-        let path = parse_path("path-2+fff(0,0|1,1|2,2|3,3|4,4|5,5|6,6|7,7|8,8|9,9)").unwrap();
+        let path =
+            parse_path("path-2+fff(0,0|1,1|2,2|3,3|4,4|5,5|6,6|7,7|8,8|9,9)", false).unwrap();
         assert_eq!(path.points.len(), 10);
         assert_eq!(path.stroke_width, 2.0);
         for (i, point) in path.points.iter().enumerate() {
@@ -761,7 +1034,7 @@ mod tests {
 
     #[test]
     fn test_parse_path_negative_coordinates() {
-        let path = parse_path("path-1+000(-180,-90|180,90)").unwrap();
+        let path = parse_path("path-1+000(-180,-90|180,90)", false).unwrap();
         assert_eq!(path.points.len(), 2);
         assert!((path.points[0].lon - (-180.0)).abs() < 0.001);
         assert!((path.points[0].lat - (-90.0)).abs() < 0.001);
@@ -771,7 +1044,11 @@ mod tests {
 
     #[test]
     fn test_parse_path_decimal_precision() {
-        let path = parse_path("path-1+f00(-122.123456,37.987654|-122.654321,37.123456)").unwrap();
+        let path = parse_path(
+            "path-1+f00(-122.123456,37.987654|-122.654321,37.123456)",
+            false,
+        )
+        .unwrap();
         assert_eq!(path.points.len(), 2);
         assert!((path.points[0].lon - (-122.123456)).abs() < 0.0000001);
         assert!((path.points[0].lat - 37.987654).abs() < 0.0000001);
@@ -780,7 +1057,7 @@ mod tests {
     #[test]
     fn test_parse_path_simple_format() {
         // Simple format without path- prefix
-        let path = parse_path("0,0|10,10|20,0").unwrap();
+        let path = parse_path("0,0|10,10|20,0", false).unwrap();
         assert_eq!(path.points.len(), 3);
         // Should use defaults
         assert_eq!(path.stroke_width, 3.0);
@@ -789,40 +1066,39 @@ mod tests {
 
     #[test]
     fn test_parse_path_single_point_returns_none() {
-        // A path needs at least 2 points
-        assert!(parse_path("path-5+f00(-122.4,37.8)").is_none());
-        assert!(parse_path("0,0").is_none());
+        assert!(parse_path("path-5+f00(-122.4,37.8)", false).is_none());
+        assert!(parse_path("0,0", false).is_none());
     }
 
     #[test]
     fn test_parse_path_empty_returns_none() {
-        assert!(parse_path("").is_none());
-        assert!(parse_path("path-5+f00()").is_none());
+        assert!(parse_path("", false).is_none());
+        assert!(parse_path("path-5+f00()", false).is_none());
     }
 
     #[test]
     fn test_parse_path_invalid_coordinates() {
         // Invalid coordinate format should be skipped
-        let path = parse_path("path-5+f00(invalid|0,0|1,1)").unwrap();
+        let path = parse_path("path-5+f00(invalid|0,0|1,1)", false).unwrap();
         assert_eq!(path.points.len(), 2); // Only valid points
     }
 
     #[test]
     fn test_parse_path_default_stroke_width() {
         // When width can't be parsed, should use default 3.0
-        let path = parse_path("path-invalid+f00(0,0|1,1)").unwrap();
+        let path = parse_path("path-invalid+f00(0,0|1,1)", false).unwrap();
         assert_eq!(path.stroke_width, 3.0);
     }
 
     #[test]
     fn test_parse_path_whitespace() {
-        let path = parse_path("  path-5+f00(-122.4,37.8|-122.5,37.9)  ").unwrap();
+        let path = parse_path("  path-5+f00(-122.4,37.8|-122.5,37.9)  ", false).unwrap();
         assert_eq!(path.points.len(), 2);
     }
 
     #[test]
     fn test_parse_path_6_digit_color() {
-        let path = parse_path("path-5+ff5500(0,0|1,1)").unwrap();
+        let path = parse_path("path-5+ff5500(0,0|1,1)", false).unwrap();
         assert_eq!(path.stroke_color, Rgba([255, 85, 0, 255]));
     }
 
@@ -1328,7 +1604,7 @@ mod tests {
 
         // Parse with style prefix and encoded polyline
         let path_str = format!("path-5+f00({})", encoded);
-        let path = parse_path(&path_str).unwrap();
+        let path = parse_path(&path_str, false).unwrap();
 
         assert_eq!(path.points.len(), 2);
         assert_eq!(path.stroke_width, 5.0);
@@ -1350,7 +1626,7 @@ mod tests {
         let encoded = encode_polyline(&points);
         let path_str = format!("enc:{}", encoded);
 
-        let path = parse_path(&path_str).unwrap();
+        let path = parse_path(&path_str, false).unwrap();
         assert_eq!(path.points.len(), 2);
         assert!((path.points[0].lat - 0.0).abs() < 0.001);
         assert!((path.points[1].lat - 10.0).abs() < 0.001);
@@ -1418,5 +1694,189 @@ mod tests {
         assert!((decoded[0].lon - (-180.0)).abs() < 0.00001);
         assert!((decoded[1].lat - 85.0).abs() < 0.00001);
         assert!((decoded[1].lon - 180.0).abs() < 0.00001);
+    }
+
+    // ============================================================
+    // Polygon Fill Tests
+    // ============================================================
+
+    #[test]
+    fn test_fill_polygon_basic() {
+        let mut img = RgbaImage::new(100, 100);
+        let pixels = vec![(10.0f32, 10.0), (90.0, 10.0), (50.0, 90.0)];
+        fill_polygon(&mut img, &pixels, Rgba([255u8, 0, 0, 255]));
+        let center = img.get_pixel(50, 40);
+        assert!(center[3] > 0, "interior pixel should be filled");
+        assert_eq!(center[0], 255, "R channel should be 255");
+    }
+
+    #[test]
+    fn test_fill_polygon_auto_close() {
+        let mut img = RgbaImage::new(100, 100);
+        let pixels = vec![(10.0f32, 10.0), (90.0, 10.0), (50.0, 90.0)];
+        fill_polygon(&mut img, &pixels, Rgba([0u8, 255, 0, 255]));
+        let p = img.get_pixel(50, 50);
+        assert!(p[3] > 0, "pixel should be written even for open polygon");
+    }
+
+    #[test]
+    fn test_fill_polygon_noop_fewer_than_3_points() {
+        let mut img = RgbaImage::new(100, 100);
+        let before: Vec<_> = img.pixels().copied().collect();
+        fill_polygon(
+            &mut img,
+            &[(10.0, 10.0), (90.0, 90.0)],
+            Rgba([255, 0, 0, 255]),
+        );
+        let after: Vec<_> = img.pixels().copied().collect();
+        assert_eq!(before, after, "image must not change for < 3 points");
+    }
+
+    #[test]
+    fn test_draw_path_with_fill_modifies_image() {
+        let path = PathOverlay {
+            points: vec![
+                GeoPoint {
+                    lon: -0.01,
+                    lat: -0.01,
+                },
+                GeoPoint {
+                    lon: 0.01,
+                    lat: -0.01,
+                },
+                GeoPoint {
+                    lon: 0.0,
+                    lat: 0.01,
+                },
+            ],
+            stroke_color: Rgba([0, 0, 255, 255]),
+            stroke_width: 2.0,
+            fill_color: Some(Rgba([255, 0, 0, 128])),
+        };
+        let mut img = RgbaImage::new(512, 512);
+        draw_path(&mut img, &path, 0.0, 0.0, 14.0, 512, 512, 1.0);
+        let any_written = img.pixels().any(|p| p[3] > 0);
+        assert!(any_written, "at least some pixels must be written");
+    }
+
+    #[test]
+    fn test_parse_path_latlng_swaps_coordinates() {
+        let path = parse_path("10.0,20.0|30.0,40.0", true).unwrap();
+        assert!(
+            (path.points[0].lon - 20.0).abs() < 0.001,
+            "lon should be second value"
+        );
+        assert!(
+            (path.points[0].lat - 10.0).abs() < 0.001,
+            "lat should be first value"
+        );
+    }
+
+    #[test]
+    fn test_parse_path_latlng_false_preserves_order() {
+        let path = parse_path("10.0,20.0|30.0,40.0", false).unwrap();
+        assert!(
+            (path.points[0].lon - 10.0).abs() < 0.001,
+            "lon should be first value"
+        );
+        assert!(
+            (path.points[0].lat - 20.0).abs() < 0.001,
+            "lat should be second value"
+        );
+    }
+
+    // ============================================================
+    // GeoJSON Overlay Tests
+    // ============================================================
+
+    #[test]
+    fn test_parse_geojson_point_feature() {
+        let geojson = r#"{
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [-122.4, 37.8]},
+            "properties": {}
+        }"#;
+        let (paths, markers) = parse_geojson(geojson);
+        assert!(paths.is_empty());
+        assert_eq!(markers.len(), 1);
+        assert!((markers[0].position.lon - (-122.4)).abs() < 1e-9);
+        assert!((markers[0].position.lat - 37.8).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_parse_geojson_linestring_with_stroke() {
+        let geojson = r#"{
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [[-122.4,37.8],[-122.5,37.9],[-122.6,38.0]]
+            },
+            "properties": {"stroke": "ff0000", "stroke-width": 5}
+        }"#;
+        let (paths, markers) = parse_geojson(geojson);
+        assert_eq!(paths.len(), 1);
+        assert_eq!(paths[0].points.len(), 3);
+        assert_eq!(paths[0].stroke_color, Rgba([255, 0, 0, 255]));
+        assert!((paths[0].stroke_width - 5.0).abs() < f32::EPSILON);
+        assert!(markers.is_empty());
+    }
+
+    #[test]
+    fn test_parse_geojson_polygon_with_fill() {
+        let geojson = r#"{
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[[-1.0,-1.0],[1.0,-1.0],[0.0,1.0],[-1.0,-1.0]]]
+            },
+            "properties": {"fill": "00ff0080"}
+        }"#;
+        let (paths, markers) = parse_geojson(geojson);
+        assert_eq!(paths.len(), 1);
+        let fill = paths[0].fill_color.expect("fill_color should be set");
+        assert_eq!(fill[1], 255, "G channel should be 255 (green)");
+        assert_eq!(fill[3], 128, "alpha should be 128");
+        assert!(markers.is_empty());
+    }
+
+    #[test]
+    fn test_parse_geojson_feature_collection() {
+        let geojson = r#"{
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [0.0, 0.0]},
+                    "properties": {}
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "LineString",
+                        "coordinates": [[0.0,0.0],[1.0,1.0]]
+                    },
+                    "properties": {}
+                }
+            ]
+        }"#;
+        let (paths, markers) = parse_geojson(geojson);
+        assert_eq!(markers.len(), 1);
+        assert_eq!(paths.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_geojson_invalid_returns_empty() {
+        let (paths, markers) = parse_geojson("not json at all {{{");
+        assert!(paths.is_empty());
+        assert!(markers.is_empty());
+    }
+
+    #[test]
+    fn test_parse_geojson_bare_geometry() {
+        let geojson = r#"{"type":"Point","coordinates":[-74.0,40.7]}"#;
+        let (paths, markers) = parse_geojson(geojson);
+        assert!(paths.is_empty());
+        assert_eq!(markers.len(), 1);
+        assert!((markers[0].position.lon - (-74.0)).abs() < 1e-9);
     }
 }

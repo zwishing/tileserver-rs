@@ -93,7 +93,7 @@ mod overlay_rendering {
     fn render_path_test_image(path_str: &str) -> RgbaImage {
         let mut image = RgbaImage::from_pixel(256, 256, Rgba([240, 240, 240, 255]));
 
-        if let Some(path) = parse_path(path_str) {
+        if let Some(path) = parse_path(path_str, false) {
             let paths = vec![path];
             draw_overlays(&mut image, &paths, &[], 0.0, 0.0, 5.0, 1.0);
         }
@@ -171,8 +171,8 @@ mod overlay_rendering {
         let mut image = RgbaImage::from_pixel(512, 512, Rgba([255, 255, 255, 255]));
 
         let paths = vec![
-            parse_path("path-4+0000ff(-2,-2|2,2)").unwrap(),
-            parse_path("path-4+00ff00(-2,2|2,-2)").unwrap(),
+            parse_path("path-4+0000ff(-2,-2|2,2)", false).unwrap(),
+            parse_path("path-4+00ff00(-2,2|2,-2)", false).unwrap(),
         ];
 
         let markers = vec![
@@ -236,14 +236,17 @@ mod polyline_rendering {
         );
 
         // Create a path from decoded points
-        let path = parse_path(&format!(
-            "path-3+ff6600({})",
-            points
-                .iter()
-                .map(|p| format!("{},{}", p.lon, p.lat))
-                .collect::<Vec<_>>()
-                .join("|")
-        ))
+        let path = parse_path(
+            &format!(
+                "path-3+ff6600({})",
+                points
+                    .iter()
+                    .map(|p| format!("{},{}", p.lon, p.lat))
+                    .collect::<Vec<_>>()
+                    .join("|")
+            ),
+            false,
+        )
         .unwrap();
 
         // Calculate center from points
@@ -274,6 +277,7 @@ mod polyline_rendering {
         // Create a simple encoded polyline for a square
         let path = parse_path(
             "path-5+00ffff(-122.0,37.0|-122.1,37.0|-122.1,37.1|-122.0,37.1|-122.0,37.0)",
+            false,
         );
 
         assert!(path.is_some(), "Should parse path with coordinates");
