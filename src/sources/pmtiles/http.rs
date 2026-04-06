@@ -59,6 +59,7 @@ impl HttpPmTilesSource {
             TileType::Jpeg => TileFormat::Jpeg,
             TileType::Webp => TileFormat::Webp,
             TileType::Avif => TileFormat::Avif,
+            TileType::Mlt => TileFormat::Mlt,
             TileType::Unknown => TileFormat::Unknown,
         };
 
