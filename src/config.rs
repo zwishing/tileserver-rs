@@ -32,6 +32,9 @@ pub struct Config {
     /// Native renderer pool configuration
     #[serde(default)]
     pub render: RenderPoolConfig,
+    /// Global in-process tile cache
+    #[serde(default)]
+    pub cache: CacheConfig,
 }
 
 /// Native renderer pool configuration for server-side raster tile generation
@@ -58,6 +61,44 @@ impl Default for RenderPoolConfig {
         Self {
             pool_size: default_render_pool_size(),
             render_timeout_secs: default_render_timeout_secs(),
+        }
+    }
+}
+
+/// Global in-process tile cache configuration.
+///
+/// ```toml
+/// [cache]
+/// enabled = true
+/// max_size_mb = 512
+/// ttl_seconds = 3600
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CacheConfig {
+    /// Enable the tile cache (default: `false`)
+    #[serde(default)]
+    pub enabled: bool,
+    /// Maximum cache size in megabytes (default: 512)
+    #[serde(default = "default_global_cache_max_size_mb")]
+    pub max_size_mb: u64,
+    /// Time-to-live for cache entries in seconds (default: 3600)
+    #[serde(default = "default_global_cache_ttl_seconds")]
+    pub ttl_seconds: u64,
+}
+
+fn default_global_cache_max_size_mb() -> u64 {
+    512
+}
+fn default_global_cache_ttl_seconds() -> u64 {
+    3600
+}
+
+impl Default for CacheConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            max_size_mb: default_global_cache_max_size_mb(),
+            ttl_seconds: default_global_cache_ttl_seconds(),
         }
     }
 }

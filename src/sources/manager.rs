@@ -34,6 +34,7 @@ pub struct SourceManager {
     postgres_pool: Option<Arc<PostgresPool>>,
     #[cfg(feature = "postgres")]
     tile_cache: Option<Arc<TileCache>>,
+    global_cache: Option<Arc<crate::cache::TileCache>>,
 }
 
 impl SourceManager {
@@ -45,6 +46,53 @@ impl SourceManager {
             postgres_pool: None,
             #[cfg(feature = "postgres")]
             tile_cache: None,
+            global_cache: None,
+        }
+    }
+
+    /// Attach a global tile cache. All non-postgres `get_tile` calls will use it.
+    #[must_use]
+    pub fn with_cache(mut self, cache: Arc<crate::cache::TileCache>) -> Self {
+        self.global_cache = Some(cache);
+        self
+    }
+
+    /// Reference to the global cache, if configured (used by admin flush endpoint).
+    #[must_use]
+    pub fn cache(&self) -> Option<&Arc<crate::cache::TileCache>> {
+        self.global_cache.as_ref()
+    }
+
+    /// Get a vector tile, checking the global cache first when enabled.
+    pub async fn get_tile(
+        &self,
+        id: &str,
+        z: u8,
+        x: u32,
+        y: u32,
+    ) -> crate::error::Result<Option<crate::sources::TileData>> {
+        let source = self
+            .sources
+            .get(id)
+            .ok_or_else(|| TileServerError::SourceNotFound(id.to_string()))?;
+
+        if let Some(cache) = &self.global_cache {
+            let key = crate::cache::TileCacheKey {
+                source_id: id.into(),
+                z,
+                x,
+                y,
+            };
+            if let Some(cached) = cache.get(&key).await {
+                return Ok(Some(cached));
+            }
+            let result = source.get_tile(z, x, y).await?;
+            if let Some(ref tile) = result {
+                cache.insert(key, tile.clone()).await;
+            }
+            Ok(result)
+        } else {
+            source.get_tile(z, x, y).await
         }
     }
 
@@ -322,6 +370,7 @@ impl SourceManager {
             postgres_pool: None,
             #[cfg(feature = "postgres")]
             tile_cache: None,
+            global_cache: None,
         }
     }
 

@@ -24,6 +24,9 @@ pub struct PingResponse {
     loaded_styles: usize,
     renderer_enabled: bool,
     version: &'static str,
+    cache_enabled: bool,
+    cache_entries: u64,
+    cache_bytes: u64,
 }
 
 #[derive(serde::Serialize)]
@@ -44,14 +47,28 @@ struct ReloadErrorResponse {
     error: String,
 }
 
+#[derive(serde::Serialize)]
+struct CacheFlushResponse {
+    ok: bool,
+    invalidated_entries: u64,
+    freed_bytes: u64,
+}
+
 pub fn admin_router(state: SharedState) -> Router {
     Router::new()
         .route("/__admin/reload", post(admin_reload))
+        .route("/__admin/cache/flush", post(admin_cache_flush))
         .with_state(state)
 }
 
 pub async fn ping_check(State(shared): State<SharedState>) -> Json<PingResponse> {
     let meta = shared.meta();
+    let state = shared.load();
+    let (cache_enabled, cache_entries, cache_bytes) = if let Some(cache) = state.sources.cache() {
+        (true, cache.entry_count(), cache.weighted_size())
+    } else {
+        (false, 0, 0)
+    };
     Json(PingResponse {
         status: "ok",
         config_hash: meta.config_hash.clone(),
@@ -60,7 +77,30 @@ pub async fn ping_check(State(shared): State<SharedState>) -> Json<PingResponse>
         loaded_styles: meta.loaded_styles,
         renderer_enabled: meta.renderer_enabled,
         version: env!("CARGO_PKG_VERSION"),
+        cache_enabled,
+        cache_entries,
+        cache_bytes,
     })
+}
+
+async fn admin_cache_flush(State(shared): State<SharedState>) -> Json<CacheFlushResponse> {
+    let state = shared.load();
+    if let Some(cache) = state.sources.cache() {
+        let entries = cache.entry_count();
+        let bytes = cache.weighted_size();
+        cache.invalidate_all();
+        Json(CacheFlushResponse {
+            ok: true,
+            invalidated_entries: entries,
+            freed_bytes: bytes,
+        })
+    } else {
+        Json(CacheFlushResponse {
+            ok: true,
+            invalidated_entries: 0,
+            freed_bytes: 0,
+        })
+    }
 }
 
 async fn admin_reload(

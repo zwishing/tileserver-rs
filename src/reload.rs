@@ -197,11 +197,26 @@ pub async fn build_app_state(
 ) -> anyhow::Result<AppState> {
     // Load tile sources
     #[cfg(feature = "postgres")]
-    let sources =
+    let raw_sources =
         SourceManager::from_configs_with_postgres(&config.sources, config.postgres.as_ref())
             .await?;
     #[cfg(not(feature = "postgres"))]
-    let sources = SourceManager::from_configs(&config.sources).await?;
+    let raw_sources = SourceManager::from_configs(&config.sources).await?;
+
+    let sources = if config.cache.enabled {
+        let cache = Arc::new(crate::cache::TileCache::new(
+            config.cache.max_size_mb,
+            config.cache.ttl_seconds,
+        ));
+        tracing::info!(
+            "Global tile cache enabled: {}MB TTL {}s",
+            config.cache.max_size_mb,
+            config.cache.ttl_seconds,
+        );
+        raw_sources.with_cache(cache)
+    } else {
+        raw_sources
+    };
     tracing::info!("Loaded {} tile source(s)", sources.len());
 
     // Load styles
