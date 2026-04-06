@@ -205,7 +205,7 @@ deadpool-postgres = { workspace = true, optional = true }
 tokio-postgres   = { workspace = true, optional = true }
 postgres-types   = { workspace = true, optional = true }
 semver           = { workspace = true, optional = true }
-moka             = { workspace = true, optional = true }
+moka             = { workspace = true }
 
 # Optional S3 support
 # aws-config = { version = "1.5", optional = true }
@@ -224,7 +224,7 @@ duckdb           = { workspace = true, optional = true }
 [features]
 default = ["postgres", "raster", "mlt"]
 frontend = ["rust-embed"]
-postgres = ["deadpool-postgres", "tokio-postgres", "postgres-types", "semver", "moka"]
+postgres = ["deadpool-postgres", "tokio-postgres", "postgres-types", "semver"]
 postgres-integration = ["postgres"]
 raster = ["gdal"]
 # s3 = ["aws-config", "aws-sdk-s3"]
@@ -258,3 +258,7 @@ opt-level = 3
 name = "mlt"
 harness = false
 required-features = ["mlt"]
+
+[[bench]]
+name = "cache"
+harness = false

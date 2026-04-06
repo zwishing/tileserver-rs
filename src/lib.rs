@@ -4,6 +4,7 @@
 
 pub mod admin;
 pub mod autodetect;
+pub mod cache;
 pub mod cache_control;
 pub mod config;
 pub mod error;
@@ -19,7 +20,8 @@ pub mod transcode;
 pub mod upload;
 pub mod wmts;
 
-pub use config::Config;
+pub use cache::TileCache;
+pub use config::{CacheConfig, Config};
 pub use error::{Result, TileServerError};
 pub use reload::AppState;
 pub use sources::{
