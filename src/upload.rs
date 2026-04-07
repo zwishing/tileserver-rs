@@ -274,3 +274,68 @@ pub async fn delete_upload(
 
     Ok(StatusCode::NO_CONTENT)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_detect_source_type_mbtiles() {
+        let st = detect_source_type("world.mbtiles").unwrap();
+        assert!(matches!(st, SourceType::MBTiles));
+    }
+
+    #[test]
+    fn test_detect_source_type_sqlite() {
+        let st = detect_source_type("data.sqlite").unwrap();
+        assert!(matches!(st, SourceType::MBTiles));
+    }
+
+    #[test]
+    fn test_detect_source_type_db() {
+        let st = detect_source_type("data.db").unwrap();
+        assert!(matches!(st, SourceType::MBTiles));
+    }
+
+    #[test]
+    fn test_detect_source_type_unsupported() {
+        let result = detect_source_type("data.csv");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_detect_source_type_no_extension() {
+        let result = detect_source_type("noextension");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_detect_source_type_case_insensitive() {
+        let st = detect_source_type("tiles.MBTILES").unwrap();
+        assert!(matches!(st, SourceType::MBTiles));
+    }
+
+    #[test]
+    fn test_source_type_label_mbtiles() {
+        assert_eq!(source_type_label(&SourceType::MBTiles), "mbtiles");
+    }
+
+    #[test]
+    fn test_source_type_label_pmtiles() {
+        assert_eq!(source_type_label(&SourceType::PMTiles), "pmtiles");
+    }
+
+    #[cfg(feature = "raster")]
+    #[test]
+    fn test_detect_source_type_tiff() {
+        let st = detect_source_type("satellite.tif").unwrap();
+        assert!(matches!(st, SourceType::Cog));
+    }
+
+    #[cfg(feature = "geoparquet")]
+    #[test]
+    fn test_detect_source_type_parquet() {
+        let st = detect_source_type("buildings.parquet").unwrap();
+        assert!(matches!(st, SourceType::GeoParquet));
+    }
+}
