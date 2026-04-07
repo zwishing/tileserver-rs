@@ -201,6 +201,15 @@ fn read_f64_le(buf: &[u8], offset: usize) -> f64 {
     ])
 }
 
+fn read_u32_le(buf: &[u8], offset: usize) -> u32 {
+    u32::from_le_bytes([
+        buf[offset],
+        buf[offset + 1],
+        buf[offset + 2],
+        buf[offset + 3],
+    ])
+}
+
 fn wkb_point_to_mvt(wkb: &[u8], tile_bbox: &[f64; 4]) -> Option<(Vec<u32>, u32)> {
     if wkb.len() < 21 {
         return None;
@@ -212,6 +221,277 @@ fn wkb_point_to_mvt(wkb: &[u8], tile_bbox: &[f64; 4]) -> Option<(Vec<u32>, u32)>
         vec![mvt_command(1, 1), zigzag_encode(x), zigzag_encode(y)],
         1,
     ))
+}
+
+fn wkb_linestring_to_mvt(wkb: &[u8], tile_bbox: &[f64; 4]) -> Option<(Vec<u32>, u32)> {
+    if wkb.len() < 9 {
+        return None;
+    }
+    let num_points = read_u32_le(wkb, 5) as usize;
+    if num_points < 2 {
+        return None;
+    }
+    let required = 9 + num_points * 16;
+    if wkb.len() < required {
+        return None;
+    }
+
+    let mut geom: Vec<u32> = Vec::with_capacity(3 + num_points * 2);
+    let mut cursor_x = 0i32;
+    let mut cursor_y = 0i32;
+
+    let lon = read_f64_le(wkb, 9);
+    let lat = read_f64_le(wkb, 17);
+    let (x0, y0) = lon_lat_to_tile_xy(lon, lat, tile_bbox, MVT_EXTENT);
+    geom.push(mvt_command(1, 1));
+    geom.push(zigzag_encode(x0 - cursor_x));
+    geom.push(zigzag_encode(y0 - cursor_y));
+    cursor_x = x0;
+    cursor_y = y0;
+
+    geom.push(mvt_command(2, (num_points - 1) as u32));
+    for i in 1..num_points {
+        let offset = 9 + i * 16;
+        let lon = read_f64_le(wkb, offset);
+        let lat = read_f64_le(wkb, offset + 8);
+        let (px, py) = lon_lat_to_tile_xy(lon, lat, tile_bbox, MVT_EXTENT);
+        geom.push(zigzag_encode(px - cursor_x));
+        geom.push(zigzag_encode(py - cursor_y));
+        cursor_x = px;
+        cursor_y = py;
+    }
+
+    Some((geom, 2))
+}
+
+fn encode_wkb_ring(
+    wkb: &[u8],
+    ring_start: usize,
+    tile_bbox: &[f64; 4],
+    cursor_x: &mut i32,
+    cursor_y: &mut i32,
+    geom: &mut Vec<u32>,
+) -> Option<usize> {
+    if wkb.len() < ring_start + 4 {
+        return None;
+    }
+    let num_points = read_u32_le(wkb, ring_start) as usize;
+    if num_points < 4 {
+        return None;
+    }
+    let ring_data_len = 4 + num_points * 16;
+    if wkb.len() < ring_start + ring_data_len {
+        return None;
+    }
+
+    let coord_start = ring_start + 4;
+
+    let lon0 = read_f64_le(wkb, coord_start);
+    let lat0 = read_f64_le(wkb, coord_start + 8);
+    let (x0, y0) = lon_lat_to_tile_xy(lon0, lat0, tile_bbox, MVT_EXTENT);
+    let move_x = x0;
+    let move_y = y0;
+
+    geom.push(mvt_command(1, 1));
+    geom.push(zigzag_encode(x0 - *cursor_x));
+    geom.push(zigzag_encode(y0 - *cursor_y));
+    *cursor_x = x0;
+    *cursor_y = y0;
+
+    let line_count = num_points - 2;
+    geom.push(mvt_command(2, line_count as u32));
+    for i in 1..=line_count {
+        let offset = coord_start + i * 16;
+        let lon = read_f64_le(wkb, offset);
+        let lat = read_f64_le(wkb, offset + 8);
+        let (px, py) = lon_lat_to_tile_xy(lon, lat, tile_bbox, MVT_EXTENT);
+        geom.push(zigzag_encode(px - *cursor_x));
+        geom.push(zigzag_encode(py - *cursor_y));
+        *cursor_x = px;
+        *cursor_y = py;
+    }
+
+    geom.push(mvt_command(7, 1));
+    *cursor_x = move_x;
+    *cursor_y = move_y;
+
+    Some(ring_data_len)
+}
+
+fn wkb_polygon_to_mvt(wkb: &[u8], tile_bbox: &[f64; 4]) -> Option<(Vec<u32>, u32)> {
+    if wkb.len() < 9 {
+        return None;
+    }
+    let num_rings = read_u32_le(wkb, 5) as usize;
+    if num_rings == 0 {
+        return None;
+    }
+
+    let mut geom: Vec<u32> = Vec::with_capacity(num_rings * 10);
+    let mut cursor_x = 0i32;
+    let mut cursor_y = 0i32;
+    let mut offset = 9;
+
+    for _ in 0..num_rings {
+        let consumed = encode_wkb_ring(
+            wkb,
+            offset,
+            tile_bbox,
+            &mut cursor_x,
+            &mut cursor_y,
+            &mut geom,
+        )?;
+        offset += consumed;
+    }
+
+    Some((geom, 3))
+}
+
+fn wkb_multipoint_to_mvt(wkb: &[u8], tile_bbox: &[f64; 4]) -> Option<(Vec<u32>, u32)> {
+    if wkb.len() < 9 {
+        return None;
+    }
+    let n_geoms = read_u32_le(wkb, 5) as usize;
+    if n_geoms == 0 {
+        return None;
+    }
+    if wkb.len() < 9 + n_geoms * 21 {
+        return None;
+    }
+
+    let mut geom: Vec<u32> = Vec::with_capacity(1 + n_geoms * 2);
+    geom.push(mvt_command(1, n_geoms as u32));
+
+    let mut cursor_x = 0i32;
+    let mut cursor_y = 0i32;
+
+    for i in 0..n_geoms {
+        let sub_offset = 9 + i * 21;
+        let lon = read_f64_le(wkb, sub_offset + 5);
+        let lat = read_f64_le(wkb, sub_offset + 13);
+        let (px, py) = lon_lat_to_tile_xy(lon, lat, tile_bbox, MVT_EXTENT);
+        geom.push(zigzag_encode(px - cursor_x));
+        geom.push(zigzag_encode(py - cursor_y));
+        cursor_x = px;
+        cursor_y = py;
+    }
+
+    Some((geom, 1))
+}
+
+fn wkb_multilinestring_to_mvt(wkb: &[u8], tile_bbox: &[f64; 4]) -> Option<(Vec<u32>, u32)> {
+    if wkb.len() < 9 {
+        return None;
+    }
+    let n_geoms = read_u32_le(wkb, 5) as usize;
+    if n_geoms == 0 {
+        return None;
+    }
+
+    let mut geom: Vec<u32> = Vec::new();
+    let mut cursor_x = 0i32;
+    let mut cursor_y = 0i32;
+    let mut offset = 9;
+
+    for _ in 0..n_geoms {
+        if wkb.len() < offset + 9 {
+            return None;
+        }
+        let num_points = read_u32_le(wkb, offset + 5) as usize;
+        if num_points < 2 {
+            return None;
+        }
+        let sub_required = 9 + num_points * 16;
+        if wkb.len() < offset + sub_required {
+            return None;
+        }
+
+        let coord_start = offset + 9;
+
+        let lon0 = read_f64_le(wkb, coord_start);
+        let lat0 = read_f64_le(wkb, coord_start + 8);
+        let (x0, y0) = lon_lat_to_tile_xy(lon0, lat0, tile_bbox, MVT_EXTENT);
+        geom.push(mvt_command(1, 1));
+        geom.push(zigzag_encode(x0 - cursor_x));
+        geom.push(zigzag_encode(y0 - cursor_y));
+        cursor_x = x0;
+        cursor_y = y0;
+
+        geom.push(mvt_command(2, (num_points - 1) as u32));
+        for i in 1..num_points {
+            let pt_offset = coord_start + i * 16;
+            let lon = read_f64_le(wkb, pt_offset);
+            let lat = read_f64_le(wkb, pt_offset + 8);
+            let (px, py) = lon_lat_to_tile_xy(lon, lat, tile_bbox, MVT_EXTENT);
+            geom.push(zigzag_encode(px - cursor_x));
+            geom.push(zigzag_encode(py - cursor_y));
+            cursor_x = px;
+            cursor_y = py;
+        }
+
+        offset += sub_required;
+    }
+
+    Some((geom, 2))
+}
+
+fn wkb_multipolygon_to_mvt(wkb: &[u8], tile_bbox: &[f64; 4]) -> Option<(Vec<u32>, u32)> {
+    if wkb.len() < 9 {
+        return None;
+    }
+    let n_geoms = read_u32_le(wkb, 5) as usize;
+    if n_geoms == 0 {
+        return None;
+    }
+
+    let mut geom: Vec<u32> = Vec::new();
+    let mut cursor_x = 0i32;
+    let mut cursor_y = 0i32;
+    let mut offset = 9;
+
+    for _ in 0..n_geoms {
+        if wkb.len() < offset + 9 {
+            return None;
+        }
+        let num_rings = read_u32_le(wkb, offset + 5) as usize;
+        if num_rings == 0 {
+            return None;
+        }
+        let ring_offset_start = offset + 9;
+        let mut ring_offset = ring_offset_start;
+
+        for _ in 0..num_rings {
+            let consumed = encode_wkb_ring(
+                wkb,
+                ring_offset,
+                tile_bbox,
+                &mut cursor_x,
+                &mut cursor_y,
+                &mut geom,
+            )?;
+            ring_offset += consumed;
+        }
+
+        offset = ring_offset;
+    }
+
+    Some((geom, 3))
+}
+
+fn wkb_to_mvt(wkb: &[u8], tile_bbox: &[f64; 4]) -> Option<(Vec<u32>, u32)> {
+    if wkb.len() < 5 {
+        return None;
+    }
+    let geom_type = read_u32_le(wkb, 1);
+    match geom_type {
+        1 => wkb_point_to_mvt(wkb, tile_bbox),
+        2 => wkb_linestring_to_mvt(wkb, tile_bbox),
+        3 => wkb_polygon_to_mvt(wkb, tile_bbox),
+        4 => wkb_multipoint_to_mvt(wkb, tile_bbox),
+        5 => wkb_multilinestring_to_mvt(wkb, tile_bbox),
+        6 => wkb_multipolygon_to_mvt(wkb, tile_bbox),
+        _ => None,
+    }
 }
 
 pub struct DuckDbSource {
@@ -366,7 +646,7 @@ impl TileSource for DuckDbSource {
                     _ => continue,
                 };
 
-                if let Some((geom, geom_type)) = wkb_point_to_mvt(wkb, &tile_bbox) {
+                if let Some((geom, geom_type)) = wkb_to_mvt(wkb, &tile_bbox) {
                     features.push(MvtFeature {
                         geom_type,
                         geometry: geom,
