@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn test_source_not_found_display() {
         let err = TileServerError::SourceNotFound("osm".to_string());
-        assert_eq!(err.to_string(), "Source not found: osm");
+        assert_eq!(err.to_string(), "source not found: osm");
     }
 
     #[test]
@@ -184,31 +184,31 @@ mod tests {
             x: 100,
             y: 200,
         };
-        assert_eq!(err.to_string(), "Tile not found: z=14, x=100, y=200");
+        assert_eq!(err.to_string(), "tile not found: z=14, x=100, y=200");
     }
 
     #[test]
     fn test_invalid_coordinates_display() {
         let err = TileServerError::InvalidCoordinates { z: 1, x: 5, y: 5 };
-        assert_eq!(err.to_string(), "Invalid tile coordinates: z=1, x=5, y=5");
+        assert_eq!(err.to_string(), "invalid tile coordinates: z=1, x=5, y=5");
     }
 
     #[test]
     fn test_invalid_tile_request_display() {
         let err = TileServerError::InvalidTileRequest;
-        assert_eq!(err.to_string(), "Invalid tile request format");
+        assert_eq!(err.to_string(), "invalid tile request format");
     }
 
     #[test]
     fn test_style_not_found_display() {
         let err = TileServerError::StyleNotFound("bright".to_string());
-        assert_eq!(err.to_string(), "Style not found: bright");
+        assert_eq!(err.to_string(), "style not found: bright");
     }
 
     #[test]
     fn test_config_error_display() {
         let err = TileServerError::ConfigError("bad toml".to_string());
-        assert_eq!(err.to_string(), "Configuration error: bad toml");
+        assert_eq!(err.to_string(), "configuration error: bad toml");
     }
 
     #[test]
