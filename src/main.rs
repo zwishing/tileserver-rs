@@ -101,9 +101,14 @@ async fn main() -> anyhow::Result<()> {
         config::Config::load_with_metadata(Some(path.clone()))?.content_hash
     } else {
         use sha2::{Digest, Sha256};
+        use std::fmt::Write;
         let content = toml::to_string(&config).unwrap_or_default();
         let digest = Sha256::digest(content.as_bytes());
-        digest.iter().map(|b| format!("{:02x}", b)).collect()
+        let mut hex = String::with_capacity(64);
+        for b in digest {
+            write!(hex, "{b:02x}").expect("write to String never fails");
+        }
+        hex
     };
 
     let meta = ReloadMeta {

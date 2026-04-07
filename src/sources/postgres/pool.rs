@@ -164,7 +164,7 @@ impl PostgresPool {
         Ok(())
     }
 
-    #[allow(dead_code)]
+    #[allow(dead_code)] // Public accessor; reserved for diagnostics and logging
     #[must_use]
     pub fn id(&self) -> &str {
         &self.id
@@ -176,15 +176,13 @@ impl PostgresPool {
         self.supports_tile_margin
     }
 
-    /// Returns the PostgreSQL version.
-    #[allow(dead_code)]
+    #[allow(dead_code)] // Public accessor; reserved for version-gated feature detection
     #[must_use]
     pub fn postgres_version(&self) -> &Version {
         &self.postgres_version
     }
 
-    /// Returns the PostGIS version.
-    #[allow(dead_code)]
+    #[allow(dead_code)] // Public accessor; reserved for PostGIS version-gated features
     #[must_use]
     pub fn postgis_version(&self) -> &Version {
         &self.postgis_version

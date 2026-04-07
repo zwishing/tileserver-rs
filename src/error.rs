@@ -9,40 +9,40 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum TileServerError {
-    #[error("Source not found: {0}")]
+    #[error("source not found: {0}")]
     SourceNotFound(String),
 
-    #[error("Tile not found: z={z}, x={x}, y={y}")]
+    #[error("tile not found: z={z}, x={x}, y={y}")]
     TileNotFound { z: u8, x: u32, y: u32 },
 
-    #[error("Invalid tile coordinates: z={z}, x={x}, y={y}")]
+    #[error("invalid tile coordinates: z={z}, x={x}, y={y}")]
     InvalidCoordinates { z: u8, x: u32, y: u32 },
 
-    #[error("Invalid tile request format")]
+    #[error("invalid tile request format")]
     InvalidTileRequest,
 
-    #[error("Style not found: {0}")]
+    #[error("style not found: {0}")]
     StyleNotFound(String),
 
-    #[error("Sprite not found: {0}")]
+    #[error("sprite not found: {0}")]
     SpriteNotFound(String),
 
-    #[error("Font not found: {0}")]
+    #[error("font not found: {0}")]
     FontNotFound(String),
 
-    #[error("Not found: {0}")]
+    #[error("not found: {0}")]
     NotFound(String),
 
-    #[error("Failed to read file: {0}")]
+    #[error("failed to read file: {0}")]
     FileError(#[from] std::io::Error),
 
-    #[error("Failed to parse metadata: {0}")]
+    #[error("failed to parse metadata: {0}")]
     MetadataError(String),
 
-    #[error("Configuration error: {0}")]
+    #[error("configuration error: {0}")]
     ConfigError(String),
 
-    #[error("Render error: {0}")]
+    #[error("render error: {0}")]
     RenderError(String),
 
     #[error("MBTiles error: {0}")]
@@ -58,7 +58,7 @@ pub enum TileServerError {
     TranscodeUnsupported { from: String, to: String },
 
     #[cfg(feature = "raster")]
-    #[error("Raster error: {0}")]
+    #[error("raster error: {0}")]
     RasterError(String),
 
     #[cfg(feature = "postgres")]
@@ -87,7 +87,7 @@ pub enum TileServerError {
     #[error("file too large")]
     UploadTooLarge,
 
-    #[error("Internal error: {0}")]
+    #[error("internal error: {0}")]
     Internal(#[from] anyhow::Error),
 }
 

@@ -1,7 +1,6 @@
 <script setup lang="ts">
   import { ChevronRight, Database } from 'lucide-vue-next';
   import { motion } from 'motion-v';
-
   import type { Data } from '~/types/data';
 
   defineProps<{
@@ -57,53 +56,18 @@
             sources.length
           }}</Badge>
         </CollapsibleTrigger>
-
         <CollapsibleContent>
-          <Separator class="bg-border/50" />
-          <div class="p-4">
-            <!-- Loading -->
-            <div v-if="isLoading" class="flex justify-center py-12">
-              <div
-                class="size-8 animate-spin rounded-full border-2 border-muted border-t-primary"
-              ></div>
-            </div>
-
-            <!-- Empty -->
-            <div v-else-if="!hasData" class="py-12 text-center">
-              <div
-                class="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-muted/50"
-              >
-                <Database class="size-8 text-muted-foreground" />
-              </div>
-              <p class="font-medium">No data sources configured</p>
-              <p class="mt-1 text-sm text-muted-foreground">
-                Add PMTiles or MBTiles to config.toml
-              </p>
-            </div>
-
-            <!-- No results -->
-            <div
-              v-else-if="sources.length === 0"
-              class="py-12 text-center text-muted-foreground"
-            >
-              No data sources match "{{ searchQuery }}"
-            </div>
-
-            <!-- List -->
-            <div v-else class="space-y-3">
-              <HomeDataCard
-                v-for="(source, i) in sources"
-                :key="source.id"
-                :source="source"
-                :index="i"
-                :base-url="baseUrl"
-                :is-xyz-expanded="expandedXyz.has(source.id)"
-                :copied-url="copiedUrl"
-                @toggle-xyz="handleToggleXyz"
-                @copy-url="handleCopyUrl"
-              />
-            </div>
-          </div>
+          <HomeDataListContent
+            :sources="sources"
+            :is-loading="isLoading"
+            :has-data="hasData"
+            :search-query="searchQuery"
+            :base-url="baseUrl"
+            :expanded-xyz="expandedXyz"
+            :copied-url="copiedUrl"
+            @toggle-xyz="handleToggleXyz"
+            @copy-url="handleCopyUrl"
+          />
         </CollapsibleContent>
       </Card>
     </Collapsible>

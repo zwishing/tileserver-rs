@@ -72,15 +72,15 @@ impl FromStr for TileFormat {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s.to_lowercase().as_str() {
-            "pbf" | "mvt" | "vector" => TileFormat::Pbf,
-            "png" => TileFormat::Png,
-            "jpg" | "jpeg" => TileFormat::Jpeg,
-            "webp" => TileFormat::Webp,
-            "avif" => TileFormat::Avif,
-            "mlt" => TileFormat::Mlt,
-            _ => TileFormat::Unknown,
-        })
+        match s.to_lowercase().as_str() {
+            "pbf" | "mvt" | "vector" => Ok(TileFormat::Pbf),
+            "png" => Ok(TileFormat::Png),
+            "jpg" | "jpeg" => Ok(TileFormat::Jpeg),
+            "webp" => Ok(TileFormat::Webp),
+            "avif" => Ok(TileFormat::Avif),
+            "mlt" => Ok(TileFormat::Mlt),
+            _ => Err(()),
+        }
     }
 }
 

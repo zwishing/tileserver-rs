@@ -17,7 +17,7 @@ pub struct TableInfo {
     pub table: String,
     pub geometry_column: String,
     pub srid: i32,
-    #[allow(dead_code)]
+    #[allow(dead_code)] // Populated during introspection; reserved for geometry-type validation
     pub geometry_type: String,
     pub id_column: Option<String>,
     pub properties: Vec<String>,
@@ -32,12 +32,14 @@ pub struct PostgresTableSource {
     table_info: TableInfo,
     tile_query: String,
     #[allow(dead_code)]
+    // Config value baked into tile_query SQL; kept for future tile-query regeneration
     extent: u32,
     #[allow(dead_code)]
+    // Config value baked into tile_query SQL; kept for future tile-query regeneration
     buffer: u32,
-    #[allow(dead_code)]
+    #[allow(dead_code)] // Config value baked into tile_query SQL; kept for future LIMIT injection
     max_features: Option<u32>,
-    #[allow(dead_code)]
+    #[allow(dead_code)] // Detected at pool init; reserved for margin-aware ST_TileEnvelope queries
     supports_tile_margin: bool,
     cache: Option<Arc<TileCache>>,
 }
