@@ -692,10 +692,15 @@ pub struct ConfigLoadMetadata {
 
 impl Config {
     fn hash_content(content: &str) -> String {
+        use std::fmt::Write;
         let mut hasher = Sha256::new();
         hasher.update(content.as_bytes());
         let digest = hasher.finalize();
-        digest.iter().map(|b| format!("{:02x}", b)).collect()
+        let mut hex = String::with_capacity(64);
+        for b in digest {
+            write!(hex, "{b:02x}").expect("write to String never fails");
+        }
+        hex
     }
 
     fn substitute_env_vars(content: &str) -> String {

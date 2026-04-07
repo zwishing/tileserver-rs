@@ -296,21 +296,13 @@ fn extract_layer_info(vector_layers: &Option<serde_json::Value>) -> Vec<SpatialL
 /// Parse MVT protobuf tile data and extract features as JSON.
 /// This is a lightweight parser — it reads the protobuf wire format directly
 /// without pulling in a full protobuf library (already have the data as bytes).
+// TODO: implement MVT feature decoding (requires protobuf parsing)
 fn parse_mvt_features(
     data: &[u8],
     layer_filter: &Option<Vec<String>>,
     limit: usize,
 ) -> Vec<SpatialFeature> {
-    // MVT is a protobuf format. We'll use a simple approach:
-    // Try to parse as JSON-like structure from the raw tile metadata.
-    // For a full implementation, we'd use prost to decode the MVT protobuf.
-    // For now, return basic layer info extracted from the tile.
-    //
-    // NOTE: Full MVT decoding is available via the `mlt` feature flag
-    // which brings in prost. This stub provides the API contract.
     let _ = (data, layer_filter, limit);
-
-    // Return empty features with a note — full MVT decoding to be added
-    // when the `mlt` feature flag is enabled (it brings prost for protobuf)
+    tracing::warn!("parse_mvt_features: MVT decoding not yet implemented, returning empty");
     Vec::new()
 }

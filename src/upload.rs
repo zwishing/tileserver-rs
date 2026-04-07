@@ -17,6 +17,20 @@ use crate::error::TileServerError;
 use crate::reload::{AppState, SharedState, UploadInfo};
 use crate::sources::SourceManager;
 
+fn state_with_sources(state: &AppState, new_manager: SourceManager) -> AppState {
+    AppState {
+        sources: Arc::new(new_manager),
+        styles: state.styles.clone(),
+        renderer: state.renderer.clone(),
+        base_url: state.base_url.clone(),
+        render_base_url: state.render_base_url.clone(),
+        ui_enabled: state.ui_enabled,
+        fonts_dir: state.fonts_dir.clone(),
+        files_dir: state.files_dir.clone(),
+        upload_dir: state.upload_dir.clone(),
+    }
+}
+
 /// Upload response returned to the client
 #[derive(Serialize)]
 pub struct UploadResponse {
@@ -171,17 +185,7 @@ pub async fn upload_file(
     sources_map.insert(source_id.clone(), new_source);
     let new_manager = SourceManager::from_sources(sources_map);
 
-    let new_state = AppState {
-        sources: Arc::new(new_manager),
-        styles: state.styles.clone(),
-        renderer: state.renderer.clone(),
-        base_url: state.base_url.clone(),
-        render_base_url: state.render_base_url.clone(),
-        ui_enabled: state.ui_enabled,
-        fonts_dir: state.fonts_dir.clone(),
-        files_dir: state.files_dir.clone(),
-        upload_dir: state.upload_dir.clone(),
-    };
+    let new_state = state_with_sources(&state, new_manager);
 
     shared.store(Arc::new(new_state));
 
@@ -255,17 +259,7 @@ pub async fn delete_upload(
     sources_map.remove(&source_id);
     let new_manager = SourceManager::from_sources(sources_map);
 
-    let new_state = AppState {
-        sources: Arc::new(new_manager),
-        styles: state.styles.clone(),
-        renderer: state.renderer.clone(),
-        base_url: state.base_url.clone(),
-        render_base_url: state.render_base_url.clone(),
-        ui_enabled: state.ui_enabled,
-        fonts_dir: state.fonts_dir.clone(),
-        files_dir: state.files_dir.clone(),
-        upload_dir: state.upload_dir.clone(),
-    };
+    let new_state = state_with_sources(&state, new_manager);
 
     shared.store(Arc::new(new_state));
 

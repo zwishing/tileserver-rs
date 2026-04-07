@@ -462,7 +462,7 @@ fn feature_collection_to_mvt(fc: &mlt_core::geojson::FeatureCollection) -> Resul
                     idx
                 });
 
-                let val_str = format!("{val}");
+                let val_str = val.to_string();
                 let val_idx = *value_index.entry(val_str.clone()).or_insert_with(|| {
                     let idx = values.len() as u32;
                     values.push(json_value_to_mvt(val));

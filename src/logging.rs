@@ -59,7 +59,14 @@ pub async fn request_logger(request: Request<Body>, next: Next) -> Response<Body
         .path_and_query()
         .map(|pq| pq.as_str().to_string())
         .unwrap_or_else(|| request.uri().path().to_string());
-    let version = format!("{:?}", request.version());
+    let version = match request.version() {
+        axum::http::Version::HTTP_09 => "HTTP/0.9",
+        axum::http::Version::HTTP_10 => "HTTP/1.0",
+        axum::http::Version::HTTP_11 => "HTTP/1.1",
+        axum::http::Version::HTTP_2 => "HTTP/2.0",
+        axum::http::Version::HTTP_3 => "HTTP/3.0",
+        _ => "HTTP/?",
+    };
 
     // Get client IP from x-forwarded-for header or connection info
     let client_ip = request

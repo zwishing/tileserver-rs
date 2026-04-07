@@ -32,9 +32,6 @@ pub struct MarkerOverlay {
     pub position: GeoPoint,
     /// Marker color (RGBA)
     pub color: Rgba<u8>,
-    /// Optional label text — not yet rendered; reserved for a future text-rendering pass
-    #[allow(dead_code)]
-    pub label: Option<String>,
     /// Marker size in pixels
     pub size: f32,
 }
@@ -275,7 +272,6 @@ pub fn parse_marker(marker_str: &str) -> Option<MarkerOverlay> {
 
     // Default values
     let mut color = Rgba([255, 0, 0, 255]); // Red
-    let mut label: Option<String> = None;
     let mut size = 24.0f32;
 
     // Try to parse pin-{size}-{label}+{color}({lon},{lat}) format
@@ -295,7 +291,7 @@ pub fn parse_marker(marker_str: &str) -> Option<MarkerOverlay> {
                     _ => 24.0,
                 };
                 if size_label.len() > 1 {
-                    label = Some(size_label[1].to_string());
+                    let _label = size_label[1]; // parsed but not stored; no text rendering yet
                 }
             }
             if parts.len() > 1 {
@@ -310,7 +306,6 @@ pub fn parse_marker(marker_str: &str) -> Option<MarkerOverlay> {
                 return Some(MarkerOverlay {
                     position: GeoPoint { lon, lat },
                     color,
-                    label,
                     size,
                 });
             }
@@ -324,7 +319,6 @@ pub fn parse_marker(marker_str: &str) -> Option<MarkerOverlay> {
             return Some(MarkerOverlay {
                 position: GeoPoint { lon, lat },
                 color,
-                label: None,
                 size,
             });
         }
@@ -526,7 +520,7 @@ fn fill_polygon(image: &mut RgbaImage, pixels: &[(f32, f32)], color: Rgba<u8>) {
 
     let mut poly = pixels.to_vec();
     let first = poly[0];
-    let last = *poly.last().unwrap();
+    let Some(&last) = poly.last() else { return };
     if (first.0 - last.0).abs() > 0.5 || (first.1 - last.1).abs() > 0.5 {
         poly.push(first);
     }
@@ -829,7 +823,6 @@ fn process_geometry(
                 markers.push(MarkerOverlay {
                     position: pos,
                     color: marker_color,
-                    label: None,
                     size: marker_size,
                 });
             }
@@ -846,7 +839,6 @@ fn process_geometry(
                         markers.push(MarkerOverlay {
                             position: GeoPoint { lon, lat },
                             color: marker_color,
-                            label: None,
                             size: marker_size,
                         });
                     }
@@ -1172,7 +1164,6 @@ mod tests {
     #[test]
     fn test_parse_marker_with_label() {
         let marker = parse_marker("pin-s-A+f00(-122.4,37.8)").unwrap();
-        assert_eq!(marker.label, Some("A".to_string()));
         assert_eq!(marker.size, 20.0);
         assert_eq!(marker.color, Rgba([255, 0, 0, 255]));
     }
@@ -1186,7 +1177,6 @@ mod tests {
         // Should use defaults
         assert_eq!(marker.color, Rgba([255, 0, 0, 255])); // Default red
         assert_eq!(marker.size, 24.0);
-        assert_eq!(marker.label, None);
     }
 
     #[test]
@@ -1236,7 +1226,7 @@ mod tests {
                 lat: 37.8,
             },
             color: Rgba([255, 0, 0, 255]),
-            label: None,
+
             size: 24.0,
         }];
 
@@ -1256,7 +1246,7 @@ mod tests {
                     lat: 37.8,
                 },
                 color: Rgba([255, 0, 0, 255]),
-                label: None,
+
                 size: 24.0,
             },
             MarkerOverlay {
@@ -1265,7 +1255,7 @@ mod tests {
                     lat: 37.7,
                 },
                 color: Rgba([0, 255, 0, 255]),
-                label: None,
+
                 size: 24.0,
             },
         ];
@@ -1323,7 +1313,7 @@ mod tests {
                 lat: 15.0,
             },
             color: Rgba([255, 0, 0, 255]),
-            label: None,
+
             size: 24.0,
         }];
 
@@ -1349,7 +1339,7 @@ mod tests {
                     lat: -90.0,
                 },
                 color: Rgba([255, 0, 0, 255]),
-                label: None,
+
                 size: 24.0,
             },
             MarkerOverlay {
@@ -1358,7 +1348,7 @@ mod tests {
                     lat: 90.0,
                 },
                 color: Rgba([0, 255, 0, 255]),
-                label: None,
+
                 size: 24.0,
             },
         ];
@@ -1447,7 +1437,7 @@ mod tests {
                 lat: 37.85,
             },
             color: Rgba([0, 0, 255, 255]),
-            label: None,
+
             size: 24.0,
         }];
 
