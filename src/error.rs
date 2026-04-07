@@ -166,3 +166,132 @@ impl IntoResponse for TileServerError {
 }
 
 pub type Result<T> = std::result::Result<T, TileServerError>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_source_not_found_display() {
+        let err = TileServerError::SourceNotFound("osm".to_string());
+        assert_eq!(err.to_string(), "source not found: osm");
+    }
+
+    #[test]
+    fn test_tile_not_found_display() {
+        let err = TileServerError::TileNotFound {
+            z: 14,
+            x: 100,
+            y: 200,
+        };
+        assert_eq!(err.to_string(), "tile not found: z=14, x=100, y=200");
+    }
+
+    #[test]
+    fn test_invalid_coordinates_display() {
+        let err = TileServerError::InvalidCoordinates { z: 1, x: 5, y: 5 };
+        assert_eq!(err.to_string(), "invalid tile coordinates: z=1, x=5, y=5");
+    }
+
+    #[test]
+    fn test_invalid_tile_request_display() {
+        let err = TileServerError::InvalidTileRequest;
+        assert_eq!(err.to_string(), "invalid tile request format");
+    }
+
+    #[test]
+    fn test_style_not_found_display() {
+        let err = TileServerError::StyleNotFound("bright".to_string());
+        assert_eq!(err.to_string(), "style not found: bright");
+    }
+
+    #[test]
+    fn test_config_error_display() {
+        let err = TileServerError::ConfigError("bad toml".to_string());
+        assert_eq!(err.to_string(), "configuration error: bad toml");
+    }
+
+    #[test]
+    fn test_upload_too_large_display() {
+        let err = TileServerError::UploadTooLarge;
+        assert_eq!(err.to_string(), "file too large");
+    }
+
+    #[test]
+    fn test_transcode_unsupported_display() {
+        let err = TileServerError::TranscodeUnsupported {
+            from: "mlt".to_string(),
+            to: "geojson".to_string(),
+        };
+        assert_eq!(err.to_string(), "transcoding not supported: mlt -> geojson");
+    }
+
+    #[test]
+    fn test_from_io_error() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "gone");
+        let err: TileServerError = io_err.into();
+        assert!(matches!(err, TileServerError::FileError(_)));
+    }
+
+    #[test]
+    fn test_from_anyhow_error() {
+        let anyhow_err = anyhow::anyhow!("something went wrong");
+        let err: TileServerError = anyhow_err.into();
+        assert!(matches!(err, TileServerError::Internal(_)));
+    }
+
+    #[test]
+    fn test_source_not_found_status_code() {
+        let err = TileServerError::SourceNotFound("x".to_string());
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn test_invalid_coordinates_status_code() {
+        let err = TileServerError::InvalidCoordinates { z: 0, x: 0, y: 0 };
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn test_upload_too_large_status_code() {
+        let err = TileServerError::UploadTooLarge;
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    }
+
+    #[test]
+    fn test_file_error_status_code() {
+        let err = TileServerError::FileError(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "denied",
+        ));
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn test_transcode_unsupported_status_code() {
+        let err = TileServerError::TranscodeUnsupported {
+            from: "a".to_string(),
+            to: "b".to_string(),
+        };
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn test_upload_error_status_code() {
+        let err = TileServerError::UploadError("bad file".to_string());
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn test_render_error_status_code() {
+        let err = TileServerError::RenderError("renderer crashed".to_string());
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+}

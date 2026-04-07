@@ -1,0 +1,75 @@
+name: 'Coverage (Rust)'
+
+on:
+  workflow_call:
+
+env:
+  CARGO_TERM_COLOR: always
+  CI: 1
+
+jobs:
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: coverage
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Clean coverage artifacts
+        run: cargo llvm-cov clean --workspace
+
+      - name: Coverage — postgres + mlt
+        run: |
+          cargo llvm-cov \
+            --no-report \
+            --lib \
+            --no-default-features \
+            --features "postgres,mlt"
+
+      - name: Coverage — duckdb
+        run: |
+          cargo llvm-cov \
+            --no-report \
+            --lib \
+            --no-default-features \
+            --features "duckdb"
+
+      - name: Coverage — geoparquet
+        run: |
+          cargo llvm-cov \
+            --no-report \
+            --lib \
+            --no-default-features \
+            --features "geoparquet"
+
+      - name: Generate merged coverage report
+        run: |
+          cargo llvm-cov report \
+            --codecov \
+            --output-path codecov.json \
+            --ignore-filename-regex "(vendor|build\.rs)"
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: codecov.json
+          flags: unittests
+          name: tileserver-rs
+          fail_ci_if_error: false

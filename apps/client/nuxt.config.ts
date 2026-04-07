@@ -141,6 +141,19 @@ export default defineNuxtConfig({
   },
 
   vite: {
+    build: {
+      rollupOptions: {
+        external: [
+          '@developmentseed/geotiff',
+          '@developmentseed/deck.gl-geotiff',
+          '@developmentseed/deck.gl-raster',
+          '@geoql/maplibre-gl-starfield',
+          'maplibre-gl-lidar',
+          'maplibre-gl-wind',
+          'three',
+        ],
+      },
+    },
     optimizeDeps: {
       include: ['maplibre-gl', '@geoql/v-maplibre', '@mlc-ai/web-llm'],
     },

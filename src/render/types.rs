@@ -381,3 +381,293 @@ impl RenderOptions {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_image_format_from_str_png() {
+        assert_eq!(ImageFormat::from_str("png"), Ok(ImageFormat::Png));
+    }
+
+    #[test]
+    fn test_image_format_from_str_jpg() {
+        assert_eq!(ImageFormat::from_str("jpg"), Ok(ImageFormat::Jpeg));
+    }
+
+    #[test]
+    fn test_image_format_from_str_jpeg() {
+        assert_eq!(ImageFormat::from_str("jpeg"), Ok(ImageFormat::Jpeg));
+    }
+
+    #[test]
+    fn test_image_format_from_str_webp() {
+        assert_eq!(ImageFormat::from_str("webp"), Ok(ImageFormat::Webp));
+    }
+
+    #[test]
+    fn test_image_format_from_str_case_insensitive() {
+        assert_eq!(ImageFormat::from_str("PNG"), Ok(ImageFormat::Png));
+        assert_eq!(ImageFormat::from_str("WEBP"), Ok(ImageFormat::Webp));
+    }
+
+    #[test]
+    fn test_image_format_from_str_invalid() {
+        assert!(ImageFormat::from_str("bmp").is_err());
+        assert!(ImageFormat::from_str("gif").is_err());
+    }
+
+    #[test]
+    fn test_image_format_content_type_png() {
+        assert_eq!(ImageFormat::Png.content_type(), "image/png");
+    }
+
+    #[test]
+    fn test_image_format_content_type_jpeg() {
+        assert_eq!(ImageFormat::Jpeg.content_type(), "image/jpeg");
+    }
+
+    #[test]
+    fn test_image_format_content_type_webp() {
+        assert_eq!(ImageFormat::Webp.content_type(), "image/webp");
+    }
+
+    #[test]
+    fn test_static_type_auto() {
+        let st = StaticType::from_str("auto").unwrap();
+        assert!(matches!(st, StaticType::Auto));
+    }
+
+    #[test]
+    fn test_static_type_center() {
+        let st = StaticType::from_str("-122.4,37.8,12").unwrap();
+        match st {
+            StaticType::Center {
+                lon,
+                lat,
+                zoom,
+                bearing,
+                pitch,
+            } => {
+                assert!((lon - (-122.4)).abs() < 0.001);
+                assert!((lat - 37.8).abs() < 0.001);
+                assert!((zoom - 12.0).abs() < 0.001);
+                assert!(bearing.is_none());
+                assert!(pitch.is_none());
+            }
+            _ => panic!("expected Center"),
+        }
+    }
+
+    #[test]
+    fn test_static_type_center_with_bearing() {
+        let st = StaticType::from_str("-122.4,37.8,12@45").unwrap();
+        match st {
+            StaticType::Center { bearing, pitch, .. } => {
+                assert_eq!(bearing, Some(45.0));
+                assert!(pitch.is_none());
+            }
+            _ => panic!("expected Center"),
+        }
+    }
+
+    #[test]
+    fn test_static_type_center_bearing_pitch_ambiguous_with_bbox() {
+        // "-122.4,37.8,12@45,60" has 4 comma-separated parts.
+        // The parser's 4-part bbox branch runs first and cannot parse
+        // "12@45" as f64, so this input returns an error.
+        // This documents the current parser limitation.
+        let result = StaticType::from_str("-122.4,37.8,12@45,60");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_static_type_bounding_box() {
+        let st = StaticType::from_str("-123,37,-122,38").unwrap();
+        match st {
+            StaticType::BoundingBox {
+                min_lon,
+                min_lat,
+                max_lon,
+                max_lat,
+            } => {
+                assert!((min_lon - (-123.0)).abs() < 0.001);
+                assert!((min_lat - 37.0).abs() < 0.001);
+                assert!((max_lon - (-122.0)).abs() < 0.001);
+                assert!((max_lat - 38.0).abs() < 0.001);
+            }
+            _ => panic!("expected BoundingBox"),
+        }
+    }
+
+    #[test]
+    fn test_static_type_invalid() {
+        let result = StaticType::from_str("garbage");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_render_options_for_tile_dimensions() {
+        let opts = RenderOptions::for_tile(
+            "style1".to_string(),
+            "{}".to_string(),
+            0,
+            0,
+            0,
+            1,
+            ImageFormat::Png,
+        );
+        assert_eq!(opts.width, 512);
+        assert_eq!(opts.height, 512);
+        assert_eq!(opts.scale, 1);
+        assert_eq!(opts.bearing, 0.0);
+        assert_eq!(opts.pitch, 0.0);
+        assert!(matches!(opts.format, ImageFormat::Png));
+    }
+
+    #[test]
+    fn test_render_options_for_tile_z0_center() {
+        let opts = RenderOptions::for_tile(
+            "s".to_string(),
+            "{}".to_string(),
+            0,
+            0,
+            0,
+            1,
+            ImageFormat::Png,
+        );
+        assert!((opts.lon - (-180.0)).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_render_options_for_static_zero_dimension_rejected() {
+        let result = RenderOptions::for_static(
+            "s".to_string(),
+            "{}".to_string(),
+            StaticType::Center {
+                lon: 0.0,
+                lat: 0.0,
+                zoom: 1.0,
+                bearing: None,
+                pitch: None,
+            },
+            0,
+            100,
+            1,
+            ImageFormat::Png,
+            StaticQueryParams::default(),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_render_options_for_static_oversized_rejected() {
+        let result = RenderOptions::for_static(
+            "s".to_string(),
+            "{}".to_string(),
+            StaticType::Center {
+                lon: 0.0,
+                lat: 0.0,
+                zoom: 1.0,
+                bearing: None,
+                pitch: None,
+            },
+            5000,
+            100,
+            1,
+            ImageFormat::Png,
+            StaticQueryParams::default(),
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("maximum"));
+    }
+
+    #[test]
+    fn test_render_options_for_static_scale_zero_rejected() {
+        let result = RenderOptions::for_static(
+            "s".to_string(),
+            "{}".to_string(),
+            StaticType::Center {
+                lon: 0.0,
+                lat: 0.0,
+                zoom: 1.0,
+                bearing: None,
+                pitch: None,
+            },
+            100,
+            100,
+            0,
+            ImageFormat::Png,
+            StaticQueryParams::default(),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_render_options_for_static_scale_too_high_rejected() {
+        let result = RenderOptions::for_static(
+            "s".to_string(),
+            "{}".to_string(),
+            StaticType::Center {
+                lon: 0.0,
+                lat: 0.0,
+                zoom: 1.0,
+                bearing: None,
+                pitch: None,
+            },
+            100,
+            100,
+            5,
+            ImageFormat::Png,
+            StaticQueryParams::default(),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_render_options_for_static_valid() {
+        let result = RenderOptions::for_static(
+            "s".to_string(),
+            "{}".to_string(),
+            StaticType::Center {
+                lon: -122.4,
+                lat: 37.8,
+                zoom: 10.0,
+                bearing: Some(45.0),
+                pitch: Some(30.0),
+            },
+            800,
+            600,
+            2,
+            ImageFormat::Webp,
+            StaticQueryParams::default(),
+        );
+        let opts = result.unwrap();
+        assert_eq!(opts.width, 800);
+        assert_eq!(opts.height, 600);
+        assert_eq!(opts.scale, 2);
+        assert!((opts.lon - (-122.4)).abs() < 0.001);
+        assert!((opts.lat - 37.8).abs() < 0.001);
+        assert!((opts.bearing - 45.0).abs() < 0.001);
+        assert!((opts.pitch - 30.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_static_query_params_defaults() {
+        let p = StaticQueryParams::default();
+        assert!(p.path.is_none());
+        assert!(p.marker.is_none());
+        assert!(p.geojson.is_none());
+        assert!(!p.latlng);
+        assert!(p.padding.is_none());
+        assert!(p.maxzoom.is_none());
+    }
+
+    #[test]
+    fn test_max_constants() {
+        assert_eq!(MAX_IMAGE_DIMENSION, 4096);
+        assert_eq!(MAX_SCALE_FACTOR, 4);
+    }
+}

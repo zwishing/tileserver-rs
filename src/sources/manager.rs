@@ -488,3 +488,225 @@ impl Default for SourceManager {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sources::{TileCompression, TileData, TileFormat, TileMetadata, TileSource};
+    use async_trait::async_trait;
+    use bytes::Bytes;
+
+    /// A trivial in-memory tile source for unit tests.
+    struct MockSource {
+        meta: TileMetadata,
+        tile: Option<TileData>,
+    }
+
+    impl MockSource {
+        fn new(id: &str) -> Self {
+            Self {
+                meta: TileMetadata {
+                    id: id.to_string(),
+                    name: id.to_string(),
+                    description: None,
+                    attribution: None,
+                    format: TileFormat::Pbf,
+                    minzoom: 0,
+                    maxzoom: 14,
+                    bounds: None,
+                    center: None,
+                    vector_layers: None,
+                },
+                tile: Some(TileData {
+                    data: Bytes::from_static(b"mock-tile-data"),
+                    format: TileFormat::Pbf,
+                    compression: TileCompression::None,
+                }),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl TileSource for MockSource {
+        async fn get_tile(
+            &self,
+            _z: u8,
+            _x: u32,
+            _y: u32,
+        ) -> crate::error::Result<Option<TileData>> {
+            Ok(self.tile.clone())
+        }
+        fn metadata(&self) -> &TileMetadata {
+            &self.meta
+        }
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+    }
+
+    #[test]
+    fn test_source_manager_new_is_empty() {
+        let mgr = SourceManager::new();
+        assert!(mgr.is_empty());
+        assert_eq!(mgr.len(), 0);
+    }
+
+    #[test]
+    fn test_source_manager_default_is_empty() {
+        let mgr = SourceManager::default();
+        assert!(mgr.is_empty());
+    }
+
+    #[test]
+    fn test_source_manager_get_returns_none_for_unknown() {
+        let mgr = SourceManager::new();
+        assert!(mgr.get("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_source_manager_exists_returns_false_for_unknown() {
+        let mgr = SourceManager::new();
+        assert!(!mgr.exists("nonexistent"));
+    }
+
+    #[test]
+    fn test_source_manager_from_sources() {
+        let mut map = HashMap::new();
+        map.insert(
+            "src-a".to_string(),
+            Arc::new(MockSource::new("src-a")) as Arc<dyn TileSource>,
+        );
+        map.insert(
+            "src-b".to_string(),
+            Arc::new(MockSource::new("src-b")) as Arc<dyn TileSource>,
+        );
+
+        let mgr = SourceManager::from_sources(map);
+        assert_eq!(mgr.len(), 2);
+        assert!(mgr.exists("src-a"));
+        assert!(mgr.exists("src-b"));
+        assert!(!mgr.exists("src-c"));
+    }
+
+    #[test]
+    fn test_source_manager_ids() {
+        let mut map = HashMap::new();
+        map.insert(
+            "alpha".to_string(),
+            Arc::new(MockSource::new("alpha")) as Arc<dyn TileSource>,
+        );
+        map.insert(
+            "beta".to_string(),
+            Arc::new(MockSource::new("beta")) as Arc<dyn TileSource>,
+        );
+
+        let mgr = SourceManager::from_sources(map);
+        let mut ids = mgr.ids();
+        ids.sort();
+        assert_eq!(ids, vec!["alpha", "beta"]);
+    }
+
+    #[test]
+    fn test_source_manager_all_metadata() {
+        let mut map = HashMap::new();
+        map.insert(
+            "x".to_string(),
+            Arc::new(MockSource::new("x")) as Arc<dyn TileSource>,
+        );
+
+        let mgr = SourceManager::from_sources(map);
+        let metas = mgr.all_metadata();
+        assert_eq!(metas.len(), 1);
+        assert_eq!(metas[0].id, "x");
+    }
+
+    #[test]
+    fn test_source_manager_remove_source() {
+        let mut map = HashMap::new();
+        map.insert(
+            "rem".to_string(),
+            Arc::new(MockSource::new("rem")) as Arc<dyn TileSource>,
+        );
+
+        let mut mgr = SourceManager::from_sources(map);
+        assert!(mgr.exists("rem"));
+        assert!(mgr.remove_source("rem"));
+        assert!(!mgr.exists("rem"));
+        assert!(!mgr.remove_source("rem")); // second remove returns false
+    }
+
+    #[test]
+    fn test_source_manager_clone_sources() {
+        let mut map = HashMap::new();
+        map.insert(
+            "c".to_string(),
+            Arc::new(MockSource::new("c")) as Arc<dyn TileSource>,
+        );
+
+        let mgr = SourceManager::from_sources(map);
+        let cloned = mgr.clone_sources();
+        assert_eq!(cloned.len(), 1);
+        assert!(cloned.contains_key("c"));
+    }
+
+    #[test]
+    fn test_source_manager_with_cache() {
+        let mgr = SourceManager::new();
+        assert!(mgr.cache().is_none());
+
+        let cache = Arc::new(crate::cache::TileCache::new(1, 60));
+        let mgr = mgr.with_cache(cache);
+        assert!(mgr.cache().is_some());
+    }
+
+    #[tokio::test]
+    async fn test_source_manager_get_tile_no_cache() {
+        let mut map = HashMap::new();
+        map.insert(
+            "src".to_string(),
+            Arc::new(MockSource::new("src")) as Arc<dyn TileSource>,
+        );
+        let mgr = SourceManager::from_sources(map);
+
+        let tile = mgr.get_tile("src", 0, 0, 0).await.unwrap();
+        assert!(tile.is_some());
+        assert_eq!(tile.unwrap().data.as_ref(), b"mock-tile-data");
+    }
+
+    #[tokio::test]
+    async fn test_source_manager_get_tile_source_not_found() {
+        let mgr = SourceManager::new();
+        let result = mgr.get_tile("missing", 0, 0, 0).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(
+            err,
+            crate::error::TileServerError::SourceNotFound(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_source_manager_get_tile_with_cache() {
+        let mut map = HashMap::new();
+        map.insert(
+            "cached".to_string(),
+            Arc::new(MockSource::new("cached")) as Arc<dyn TileSource>,
+        );
+        let cache = Arc::new(crate::cache::TileCache::new(1, 3600));
+        let mgr = SourceManager::from_sources(map).with_cache(cache.clone());
+
+        // First call populates cache
+        let tile1 = mgr.get_tile("cached", 1, 2, 3).await.unwrap();
+        assert!(tile1.is_some());
+
+        // Verify it's in the cache now
+        let key = crate::cache::TileCacheKey {
+            source_id: "cached".into(),
+            z: 1,
+            x: 2,
+            y: 3,
+        };
+        let cached = cache.get(&key).await;
+        assert!(cached.is_some());
+    }
+}

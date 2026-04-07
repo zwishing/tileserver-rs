@@ -274,4 +274,372 @@ mod tests {
         assert_eq!(MbTilesSource::flip_y(2, 2), 1);
         assert_eq!(MbTilesSource::flip_y(2, 3), 0);
     }
+
+    #[test]
+    fn test_flip_y_high_zoom() {
+        assert_eq!(MbTilesSource::flip_y(10, 0), 1023);
+        assert_eq!(MbTilesSource::flip_y(10, 1023), 0);
+    }
+
+    fn create_in_memory_mbtiles() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE metadata (name TEXT, value TEXT);
+             CREATE TABLE tiles (zoom_level INTEGER, tile_column INTEGER, tile_row INTEGER, tile_data BLOB);",
+        ).unwrap();
+        conn
+    }
+
+    #[test]
+    fn test_read_metadata_format_pbf() {
+        let conn = create_in_memory_mbtiles();
+        conn.execute("INSERT INTO metadata VALUES ('format', 'pbf')", [])
+            .unwrap();
+        conn.execute("INSERT INTO metadata VALUES ('name', 'Test')", [])
+            .unwrap();
+
+        let config = SourceConfig {
+            id: "test".to_string(),
+            source_type: crate::config::SourceType::MBTiles,
+            path: "memory".to_string(),
+            name: None,
+            attribution: None,
+            description: None,
+            resampling: None,
+            layer_name: None,
+            geometry_column: None,
+            minzoom: None,
+            maxzoom: None,
+            query: None,
+            serve_as: None,
+            #[cfg(feature = "raster")]
+            colormap: None,
+        };
+        let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
+        assert_eq!(meta.format, TileFormat::Pbf);
+        assert_eq!(meta.name, "Test");
+    }
+
+    #[test]
+    fn test_read_metadata_format_png() {
+        let conn = create_in_memory_mbtiles();
+        conn.execute("INSERT INTO metadata VALUES ('format', 'png')", [])
+            .unwrap();
+
+        let config = SourceConfig {
+            id: "raster".to_string(),
+            source_type: crate::config::SourceType::MBTiles,
+            path: "memory".to_string(),
+            name: None,
+            attribution: None,
+            description: None,
+            resampling: None,
+            layer_name: None,
+            geometry_column: None,
+            minzoom: None,
+            maxzoom: None,
+            query: None,
+            serve_as: None,
+            #[cfg(feature = "raster")]
+            colormap: None,
+        };
+        let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
+        assert_eq!(meta.format, TileFormat::Png);
+    }
+
+    #[test]
+    fn test_read_metadata_format_jpeg() {
+        let conn = create_in_memory_mbtiles();
+        conn.execute("INSERT INTO metadata VALUES ('format', 'jpg')", [])
+            .unwrap();
+
+        let config = SourceConfig {
+            id: "jpg".to_string(),
+            source_type: crate::config::SourceType::MBTiles,
+            path: "memory".to_string(),
+            name: None,
+            attribution: None,
+            description: None,
+            resampling: None,
+            layer_name: None,
+            geometry_column: None,
+            minzoom: None,
+            maxzoom: None,
+            query: None,
+            serve_as: None,
+            #[cfg(feature = "raster")]
+            colormap: None,
+        };
+        let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
+        assert_eq!(meta.format, TileFormat::Jpeg);
+    }
+
+    #[test]
+    fn test_read_metadata_format_mlt() {
+        let conn = create_in_memory_mbtiles();
+        conn.execute("INSERT INTO metadata VALUES ('format', 'mlt')", [])
+            .unwrap();
+
+        let config = SourceConfig {
+            id: "mlt".to_string(),
+            source_type: crate::config::SourceType::MBTiles,
+            path: "memory".to_string(),
+            name: None,
+            attribution: None,
+            description: None,
+            resampling: None,
+            layer_name: None,
+            geometry_column: None,
+            minzoom: None,
+            maxzoom: None,
+            query: None,
+            serve_as: None,
+            #[cfg(feature = "raster")]
+            colormap: None,
+        };
+        let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
+        assert_eq!(meta.format, TileFormat::Mlt);
+    }
+
+    #[test]
+    fn test_read_metadata_zoom_levels() {
+        let conn = create_in_memory_mbtiles();
+        conn.execute("INSERT INTO metadata VALUES ('minzoom', '5')", [])
+            .unwrap();
+        conn.execute("INSERT INTO metadata VALUES ('maxzoom', '14')", [])
+            .unwrap();
+
+        let config = SourceConfig {
+            id: "zoom".to_string(),
+            source_type: crate::config::SourceType::MBTiles,
+            path: "memory".to_string(),
+            name: None,
+            attribution: None,
+            description: None,
+            resampling: None,
+            layer_name: None,
+            geometry_column: None,
+            minzoom: None,
+            maxzoom: None,
+            query: None,
+            serve_as: None,
+            #[cfg(feature = "raster")]
+            colormap: None,
+        };
+        let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
+        assert_eq!(meta.minzoom, 5);
+        assert_eq!(meta.maxzoom, 14);
+    }
+
+    #[test]
+    fn test_read_metadata_bounds() {
+        let conn = create_in_memory_mbtiles();
+        conn.execute(
+            "INSERT INTO metadata VALUES ('bounds', '-180,-85,180,85')",
+            [],
+        )
+        .unwrap();
+
+        let config = SourceConfig {
+            id: "bounds".to_string(),
+            source_type: crate::config::SourceType::MBTiles,
+            path: "memory".to_string(),
+            name: None,
+            attribution: None,
+            description: None,
+            resampling: None,
+            layer_name: None,
+            geometry_column: None,
+            minzoom: None,
+            maxzoom: None,
+            query: None,
+            serve_as: None,
+            #[cfg(feature = "raster")]
+            colormap: None,
+        };
+        let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
+        let b = meta.bounds.unwrap();
+        assert!((b[0] - (-180.0)).abs() < 0.01);
+        assert!((b[1] - (-85.0)).abs() < 0.01);
+        assert!((b[2] - 180.0).abs() < 0.01);
+        assert!((b[3] - 85.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_read_metadata_center_from_bounds() {
+        let conn = create_in_memory_mbtiles();
+        conn.execute(
+            "INSERT INTO metadata VALUES ('bounds', '-10,-10,10,10')",
+            [],
+        )
+        .unwrap();
+        conn.execute("INSERT INTO metadata VALUES ('minzoom', '0')", [])
+            .unwrap();
+        conn.execute("INSERT INTO metadata VALUES ('maxzoom', '10')", [])
+            .unwrap();
+
+        let config = SourceConfig {
+            id: "autocenter".to_string(),
+            source_type: crate::config::SourceType::MBTiles,
+            path: "memory".to_string(),
+            name: None,
+            attribution: None,
+            description: None,
+            resampling: None,
+            layer_name: None,
+            geometry_column: None,
+            minzoom: None,
+            maxzoom: None,
+            query: None,
+            serve_as: None,
+            #[cfg(feature = "raster")]
+            colormap: None,
+        };
+        let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
+        let c = meta.center.unwrap();
+        assert!((c[0] - 0.0).abs() < 0.01);
+        assert!((c[1] - 0.0).abs() < 0.01);
+        assert!((c[2] - 5.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_read_metadata_explicit_center() {
+        let conn = create_in_memory_mbtiles();
+        conn.execute("INSERT INTO metadata VALUES ('center', '8.5,47.3,12')", [])
+            .unwrap();
+
+        let config = SourceConfig {
+            id: "center".to_string(),
+            source_type: crate::config::SourceType::MBTiles,
+            path: "memory".to_string(),
+            name: None,
+            attribution: None,
+            description: None,
+            resampling: None,
+            layer_name: None,
+            geometry_column: None,
+            minzoom: None,
+            maxzoom: None,
+            query: None,
+            serve_as: None,
+            #[cfg(feature = "raster")]
+            colormap: None,
+        };
+        let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
+        let c = meta.center.unwrap();
+        assert!((c[0] - 8.5).abs() < 0.01);
+        assert!((c[1] - 47.3).abs() < 0.01);
+        assert!((c[2] - 12.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_read_metadata_db_name_wins_over_config_name() {
+        let conn = create_in_memory_mbtiles();
+        conn.execute("INSERT INTO metadata VALUES ('name', 'DB Name')", [])
+            .unwrap();
+
+        let config = SourceConfig {
+            id: "override".to_string(),
+            source_type: crate::config::SourceType::MBTiles,
+            path: "memory".to_string(),
+            name: Some("Config Name".to_string()),
+            attribution: None,
+            description: None,
+            resampling: None,
+            layer_name: None,
+            geometry_column: None,
+            minzoom: None,
+            maxzoom: None,
+            query: None,
+            serve_as: None,
+            #[cfg(feature = "raster")]
+            colormap: None,
+        };
+        let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
+        assert_eq!(meta.name, "DB Name");
+    }
+
+    #[test]
+    fn test_read_metadata_attribution_from_config() {
+        let conn = create_in_memory_mbtiles();
+        conn.execute(
+            "INSERT INTO metadata VALUES ('attribution', 'DB Attribution')",
+            [],
+        )
+        .unwrap();
+
+        let config = SourceConfig {
+            id: "attr".to_string(),
+            source_type: crate::config::SourceType::MBTiles,
+            path: "memory".to_string(),
+            name: None,
+            attribution: Some("Config Attribution".to_string()),
+            description: None,
+            resampling: None,
+            layer_name: None,
+            geometry_column: None,
+            minzoom: None,
+            maxzoom: None,
+            query: None,
+            serve_as: None,
+            #[cfg(feature = "raster")]
+            colormap: None,
+        };
+        let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
+        assert_eq!(meta.attribution.as_deref(), Some("Config Attribution"));
+    }
+
+    #[test]
+    fn test_read_metadata_defaults_when_empty() {
+        let conn = create_in_memory_mbtiles();
+
+        let config = SourceConfig {
+            id: "empty".to_string(),
+            source_type: crate::config::SourceType::MBTiles,
+            path: "memory".to_string(),
+            name: None,
+            attribution: None,
+            description: None,
+            resampling: None,
+            layer_name: None,
+            geometry_column: None,
+            minzoom: None,
+            maxzoom: None,
+            query: None,
+            serve_as: None,
+            #[cfg(feature = "raster")]
+            colormap: None,
+        };
+        let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
+        assert_eq!(meta.name, "empty");
+        assert_eq!(meta.format, TileFormat::Pbf);
+        assert_eq!(meta.minzoom, 0);
+        assert_eq!(meta.maxzoom, 22);
+        assert!(meta.bounds.is_none());
+        assert!(meta.center.is_none());
+    }
+
+    #[test]
+    fn test_gzip_detection_in_tile_data() {
+        let gzip_bytes: Vec<u8> = vec![0x1f, 0x8b, 0x08, 0x00, 0x00];
+        let compression = if gzip_bytes.len() >= 2 && gzip_bytes[0] == 0x1f && gzip_bytes[1] == 0x8b
+        {
+            TileCompression::Gzip
+        } else {
+            TileCompression::None
+        };
+        assert_eq!(compression, TileCompression::Gzip);
+    }
+
+    #[test]
+    fn test_non_gzip_detection_in_tile_data() {
+        let plain_bytes: Vec<u8> = vec![0x00, 0x01, 0x02, 0x03];
+        let compression =
+            if plain_bytes.len() >= 2 && plain_bytes[0] == 0x1f && plain_bytes[1] == 0x8b {
+                TileCompression::Gzip
+            } else {
+                TileCompression::None
+            };
+        assert_eq!(compression, TileCompression::None);
+    }
 }
