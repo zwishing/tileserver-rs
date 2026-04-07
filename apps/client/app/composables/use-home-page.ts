@@ -90,13 +90,7 @@ export function useHomePage() {
   const stylesOpen = ref(true);
   const dataOpen = ref(true);
 
-  // Base URL for XYZ templates
-  const baseUrl = computed(() => {
-    if (import.meta.client) {
-      return window.location.origin;
-    }
-    return '';
-  });
+  const baseUrl = computed(() => useRequestURL().origin);
 
   return {
     // Theme

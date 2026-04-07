@@ -17,6 +17,7 @@ import {
 } from '~/lib/auto-style';
 import { useUploadFileMutation } from '~/utils/api/upload/use-upload-file.mutation';
 import { useDeleteUploadMutation } from '~/utils/api/upload/use-delete-upload.mutation';
+import { fetchDataSource } from '~/utils/api/data';
 
 /**
  * Composable for drag-and-drop geospatial file visualization.
@@ -105,8 +106,7 @@ export function useFileDrop(mapRef: ShallowRef<Map | null>) {
 
     const response = await uploadMutation.mutateAsync(file);
 
-    // Fetch the TileJSON to get bounds, vector_layers, etc.
-    const tileJson = await $fetch<Data>(`/data/${response.source_id}.json`);
+    const tileJson = await fetchDataSource(response.source_id);
 
     const color = nextOverlayColor();
     const sourceId = `overlay-${response.source_id}`;

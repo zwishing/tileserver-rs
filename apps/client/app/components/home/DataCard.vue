@@ -1,7 +1,6 @@
 <script setup lang="ts">
-  import { Check, Copy, Layers } from 'lucide-vue-next';
+  import { Layers } from 'lucide-vue-next';
   import { motion } from 'motion-v';
-
   import type { Data } from '~/types/data';
 
   const props = defineProps<{
@@ -17,16 +16,12 @@
     copyUrl: [url: string];
   }>();
 
-  const xyzUrl = computed(
-    () => `${props.baseUrl}/data/${props.source.id}/{z}/{x}/{y}.pbf`,
-  );
-
   function handleToggleXyz() {
     emit('toggleXyz', props.source.id);
   }
 
-  function handleCopyUrl() {
-    emit('copyUrl', xyzUrl.value);
+  function handleServiceCopyUrl(url: string) {
+    emit('copyUrl', url);
   }
 </script>
 
@@ -74,46 +69,14 @@
           </Button>
         </div>
 
-        <!-- Service links (vector sources only) -->
-        <template v-if="source.vector_layers?.length">
-          <div class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-            <span class="text-muted-foreground">Services:</span>
-            <a
-              :href="`/data/${source.id}.json`"
-              target="_blank"
-              class="text-primary hover:underline"
-              >TileJSON</a
-            >
-            <span class="text-muted-foreground/30">•</span>
-            <button
-              class="text-primary hover:underline"
-              @click="handleToggleXyz"
-            >
-              XYZ URL
-            </button>
-          </div>
-
-          <div
-            v-if="isXyzExpanded"
-            class="mt-2 flex items-center gap-2 rounded-lg bg-muted/50 p-2"
-          >
-            <code class="flex-1 truncate text-xs text-muted-foreground">{{
-              xyzUrl
-            }}</code>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="size-7 shrink-0 rounded-lg"
-              @click="handleCopyUrl"
-            >
-              <Check
-                v-if="copiedUrl === xyzUrl"
-                class="size-3.5 text-green-500"
-              />
-              <Copy v-else class="size-3.5" />
-            </Button>
-          </div>
-        </template>
+        <HomeDataCardServices
+          :source="source"
+          :base-url="baseUrl"
+          :is-xyz-expanded="isXyzExpanded"
+          :copied-url="copiedUrl"
+          @toggle-xyz="handleToggleXyz"
+          @copy-url="handleServiceCopyUrl"
+        />
       </div>
     </div>
   </motion.div>
