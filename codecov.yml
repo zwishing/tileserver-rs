@@ -1,0 +1,24 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+        if_not_found: success
+    patch:
+      default:
+        target: 70%
+        threshold: 5%
+        if_not_found: success
+
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: false
+
+ignore:
+  - "crates/mbgl-sys/vendor/**"
+  - "crates/mbgl-sys/cpp/**"
+  - "**/tests/**"
+  - "**/benches/**"
+  - "apps/**"

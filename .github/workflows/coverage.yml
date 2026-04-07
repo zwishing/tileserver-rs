@@ -1,0 +1,64 @@
+name: Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  CI: 1
+
+jobs:
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: coverage
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Clean coverage artifacts
+        run: cargo llvm-cov clean --workspace
+
+      # Run coverage with features that don't need system libs
+      - name: Coverage — postgres + mlt features
+        run: |
+          cargo llvm-cov \
+            --no-report \
+            --lib \
+            --features "postgres,mlt" \
+            --ignore-filename-regex "(vendor|build\.rs)"
+
+      # Generate merged report in Codecov format (region-level coverage)
+      - name: Generate coverage report
+        run: |
+          cargo llvm-cov report \
+            --codecov \
+            --output-path codecov.json \
+            --ignore-filename-regex "(vendor|build\.rs)"
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: codecov.json
+          flags: unittests
+          name: tileserver-rs
+          fail_ci_if_error: false

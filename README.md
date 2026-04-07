@@ -2,6 +2,7 @@
 
 [![CI Pipeline](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/pipeline.yml/badge.svg)](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/pipeline.yml)
 [![Docker](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/release-docker.yml/badge.svg)](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/release-docker.yml)
+[![Coverage](https://img.shields.io/codecov/c/github/vinayakkulkarni/tileserver-rs?style=flat-square&logo=codecov)](https://codecov.io/gh/vinayakkulkarni/tileserver-rs)
 [![mbgl-sys on crates.io](https://img.shields.io/crates/v/mbgl-sys.svg)](https://crates.io/crates/mbgl-sys)
 [![mbgl-sys on docs.rs](https://docs.rs/mbgl-sys/badge.svg)](https://docs.rs/mbgl-sys)
 
