@@ -1,10 +1,7 @@
-name: Coverage
+name: 'Coverage (Rust)'
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_call:
 
 env:
   CARGO_TERM_COLOR: always
@@ -37,8 +34,7 @@ jobs:
       - name: Clean coverage artifacts
         run: cargo llvm-cov clean --workspace
 
-      # Run coverage with features that don't need system libs
-      - name: Coverage — postgres + mlt features
+      - name: Run coverage
         run: |
           cargo llvm-cov \
             --no-report \
@@ -47,7 +43,6 @@ jobs:
             --features "postgres,mlt" \
             --ignore-filename-regex "(vendor|build\.rs)"
 
-      # Generate merged report in Codecov format (region-level coverage)
       - name: Generate coverage report
         run: |
           cargo llvm-cov report \
