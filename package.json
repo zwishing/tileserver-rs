@@ -52,8 +52,8 @@
         "@luma.gl/engine": "~9.2.6",
         "maplibre-gl-inspect": "^0.0.8",
         "@maplibre/mlt": "^1.1.8",
-        "@tanstack/query-db-collection": "^1.0.33",
-        "@tanstack/vue-db": "^0.0.113",
+        "@tanstack/query-db-collection": "^1.0.35",
+        "@tanstack/vue-db": "^0.0.115",
         "@tanstack/vue-query": "^5.96.2",
         "@tanstack/ai": "^0.10.0",
         "@tanstack/ai-vue": "^0.6.12",
@@ -73,7 +73,7 @@
       "marketing": {
         "@nuxtjs/plausible": "^3.0.2",
         "ogl": "^1.0.11",
-        "wrangler": "^4.80.0"
+        "wrangler": "^4.81.0"
       }
     }
   },
