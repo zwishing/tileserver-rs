@@ -11,7 +11,7 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v6
@@ -34,7 +34,7 @@ jobs:
       - name: Clean coverage artifacts
         run: cargo llvm-cov clean --workspace
 
-      - name: Run coverage
+      - name: Coverage — postgres + mlt
         run: |
           cargo llvm-cov \
             --no-report \
@@ -43,7 +43,34 @@ jobs:
             --features "postgres,mlt" \
             --ignore-filename-regex "(vendor|build\.rs)"
 
-      - name: Generate coverage report
+      - name: Coverage — duckdb
+        run: |
+          cargo llvm-cov \
+            --no-report \
+            --lib \
+            --no-default-features \
+            --features "duckdb" \
+            --ignore-filename-regex "(vendor|build\.rs)"
+
+      - name: Coverage — geoparquet
+        run: |
+          cargo llvm-cov \
+            --no-report \
+            --lib \
+            --no-default-features \
+            --features "geoparquet" \
+            --ignore-filename-regex "(vendor|build\.rs)"
+
+      - name: Coverage — http
+        run: |
+          cargo llvm-cov \
+            --no-report \
+            --lib \
+            --no-default-features \
+            --features "http" \
+            --ignore-filename-regex "(vendor|build\.rs)"
+
+      - name: Generate merged coverage report
         run: |
           cargo llvm-cov report \
             --codecov \
