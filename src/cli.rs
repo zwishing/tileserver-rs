@@ -163,7 +163,7 @@ mod tests {
 
     #[test]
     fn test_cli_invalid_port_rejected() {
-        let result = Cli::try_parse_from(&["tileserver-rs", "--port", "not-a-number"]);
+        let result = Cli::try_parse_from(["tileserver-rs", "--port", "not-a-number"]);
         assert!(result.is_err());
     }
 }
