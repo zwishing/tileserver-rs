@@ -43,6 +43,7 @@ jobs:
           cargo llvm-cov \
             --no-report \
             --lib \
+            --no-default-features \
             --features "postgres,mlt" \
             --ignore-filename-regex "(vendor|build\.rs)"
 
