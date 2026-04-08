@@ -51,7 +51,7 @@ jobs:
 
       - name: Download pre-built MapLibre Native
         run: |
-          MBGL_VERSION=$(grep '^version' crates/mbgl-sys/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          MBGL_VERSION=$(jq -r '.["crates/mbgl-sys"]' .release-please-manifest.json)
           URL="https://github.com/${{ github.repository }}/releases/download/mbgl-sys-v${MBGL_VERSION}/mbgl-native-aarch64-apple-darwin.tar.gz"
           echo "Downloading mbgl-sys v${MBGL_VERSION} for aarch64-apple-darwin..."
 
