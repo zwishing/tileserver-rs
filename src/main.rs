@@ -6,11 +6,12 @@ use axum::{
         HeaderValue, Method,
         header::{ACCEPT, CONTENT_TYPE},
     },
+    response::IntoResponse,
 };
 #[cfg(feature = "frontend")]
 use axum::{
     http::{HeaderMap, StatusCode, Uri, header::CACHE_CONTROL},
-    response::{Html, IntoResponse},
+    response::Html,
 };
 #[cfg(feature = "frontend")]
 use rust_embed::Embed;
