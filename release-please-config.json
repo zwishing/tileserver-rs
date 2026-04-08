@@ -1,5 +1,11 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "plugins": [
+    {
+      "type": "cargo-workspace",
+      "merge": false
+    }
+  ],
   "packages": {
     ".": {
       "release-type": "rust",
@@ -19,17 +25,14 @@
       ]
     },
     "crates/mbgl-sys": {
-      "release-type": "simple",
+      "release-type": "rust",
       "component": "mbgl-sys",
       "include-component-in-tag": true,
       "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
       "draft": false,
-      "prerelease": false,
-      "extra-files": [
-        "Cargo.toml"
-      ]
+      "prerelease": false
     }
   },
   "changelog-sections": [
