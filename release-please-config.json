@@ -17,16 +17,6 @@
       "exclude-paths": [
         "crates/mbgl-sys"
       ]
-    },
-    "crates/mbgl-sys": {
-      "release-type": "rust",
-      "component": "mbgl-sys",
-      "include-component-in-tag": true,
-      "changelog-path": "CHANGELOG.md",
-      "bump-minor-pre-major": true,
-      "bump-patch-for-minor-pre-major": true,
-      "draft": false,
-      "prerelease": false
     }
   },
   "changelog-sections": [
