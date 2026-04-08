@@ -18,8 +18,18 @@ RUN MBGL_VERSION=$(grep 'mbgl-sys' /tmp/release-manifest.json | sed 's/.*: *"\(.
       arm64) MBGL_TARGET="aarch64-unknown-linux-gnu" ;; \
       *) echo "Unsupported arch: $TARGETARCH" && exit 1 ;; \
     esac && \
+    URL="https://github.com/vinayakkulkarni/tileserver-rs/releases/download/mbgl-sys-v${MBGL_VERSION}/mbgl-native-${MBGL_TARGET}.tar.gz" && \
     echo "Downloading mbgl-sys v${MBGL_VERSION} for ${MBGL_TARGET}..." && \
-    curl -fSL "https://github.com/vinayakkulkarni/tileserver-rs/releases/download/mbgl-sys-v${MBGL_VERSION}/mbgl-native-${MBGL_TARGET}.tar.gz" | tar xz
+    MAX_RETRIES=5 && DELAY=60 && \
+    for i in $(seq 1 $MAX_RETRIES); do \
+      if curl -fSL "$URL" | tar xz; then \
+        echo "Download successful" && exit 0; \
+      fi; \
+      if [ "$i" -lt "$MAX_RETRIES" ]; then \
+        echo "Attempt $i/$MAX_RETRIES failed, waiting ${DELAY}s..." && sleep $DELAY; \
+      fi; \
+    done && \
+    echo "Failed to download native binaries after $MAX_RETRIES attempts" && exit 1
 
 # =============================================================================
 # Stage 2: Build Nuxt frontend (SPA) - skipped for headless builds
