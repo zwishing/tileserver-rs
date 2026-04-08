@@ -31,9 +31,36 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  check-assets:
+    name: Verify mbgl-sys assets exist
+    if: github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore(main)')
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          sparse-checkout: .release-please-manifest.json
+
+      - name: Check mbgl-sys release assets
+        run: |
+          MBGL_VERSION=$(jq -r '.["crates/mbgl-sys"]' .release-please-manifest.json)
+          for TARGET in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu; do
+            URL="https://github.com/${{ github.repository }}/releases/download/mbgl-sys-v${MBGL_VERSION}/mbgl-native-${TARGET}.tar.gz"
+            STATUS=$(curl -sI -o /dev/null -w '%{http_code}' "$URL")
+            if [ "$STATUS" != "200" ] && [ "$STATUS" != "302" ]; then
+              echo "mbgl-sys v${MBGL_VERSION} asset not found for ${TARGET} (HTTP ${STATUS})"
+              echo "build-mbgl-native.yml is likely still building — this run will be retried via workflow_dispatch after assets are uploaded"
+              exit 1
+            fi
+            echo "mbgl-sys v${MBGL_VERSION} asset for ${TARGET}: OK"
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build:
     name: Build ${{ matrix.platform }} (${{ matrix.variant }})
-    if: github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore(main)')
+    needs: [check-assets]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     permissions:
