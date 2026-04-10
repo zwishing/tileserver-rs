@@ -24,7 +24,7 @@
         <div class="flex-1">
           <span class="font-medium">API Documentation</span>
           <p class="text-xs text-muted-foreground">
-            OpenAPI 3.1 specification with Swagger UI
+            OpenAPI 3.1 specification with Scalar
           </p>
         </div>
         <ChevronRight class="size-4 text-muted-foreground" />
