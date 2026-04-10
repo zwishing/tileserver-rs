@@ -33,13 +33,13 @@
         "@nuxt/eslint": "^1.15.2",
         "@nuxt/eslint-config": "^1.15.2",
         "@tailwindcss/postcss": "^4.2.2",
-        "@types/node": "^25.5.2",
+        "@types/node": "^25.6.0",
         "eslint": "^10.2.0",
-        "eslint-plugin-better-tailwindcss": "^4.3.2",
+        "eslint-plugin-better-tailwindcss": "^4.4.0",
         "eslint-plugin-oxlint": "^1.59.0",
         "shadcn-nuxt": "^2.5.3",
         "tailwindcss": "^4.2.2",
-        "vite": "^8.0.7"
+        "vite": "^8.0.8"
       },
       "client": {
         "@deck.gl/aggregation-layers": "^9.2.11",
@@ -54,17 +54,17 @@
         "@maplibre/mlt": "^1.1.8",
         "@tanstack/query-db-collection": "^1.0.35",
         "@tanstack/vue-db": "^0.0.115",
-        "@tanstack/vue-query": "^5.96.2",
-        "@tanstack/ai": "^0.10.0",
-        "@tanstack/ai-vue": "^0.6.12",
+        "@tanstack/vue-query": "^5.97.0",
+        "@tanstack/ai": "^0.10.1",
+        "@tanstack/ai-vue": "^0.6.13",
         "@mlc-ai/web-llm": "^0.2.82",
-        "markstream-vue": "^0.0.11",
+        "markstream-vue": "^0.0.12",
         "zod": "^4.3.6",
         "@tmcw/togeojson": "^7.1.2",
         "destr": "^2.0.5",
         "nuxt-workers": "^0.1.0",
         "papaparse": "^5.5.3",
-        "pmtiles": "^4.4.0",
+        "pmtiles": "^4.4.1",
         "shpjs": "^6.2.0",
         "@types/geojson": "^7946.0.16",
         "@types/papaparse": "^5.5.2",
@@ -73,7 +73,7 @@
       "marketing": {
         "@nuxtjs/plausible": "^3.0.2",
         "ogl": "^1.0.11",
-        "wrangler": "^4.81.0"
+        "wrangler": "^4.81.1"
       }
     }
   },
