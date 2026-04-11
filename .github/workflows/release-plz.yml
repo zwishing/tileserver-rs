@@ -30,7 +30,7 @@ jobs:
         with:
           command: release-pr
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT }}
+          GITHUB_TOKEN: ${{ secrets.TILESERVER_RS_RELEASE_PAT }}
 
   # Job 2: When a Release PR is merged, create tags + GitHub Releases + publish crates
   # With release_always = false, this only acts when the triggering commit
@@ -58,4 +58,4 @@ jobs:
         with:
           command: release
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT }}
+          GITHUB_TOKEN: ${{ secrets.TILESERVER_RS_RELEASE_PAT }}
