@@ -10,10 +10,8 @@ on:
   # Also trigger when any release workflow completes - will check if all assets exist
   workflow_run:
     workflows:
-      - "Release (macOS ARM64)"
-      - "Release (macOS AMD64)"
-      - "Release (Linux AMD64)"
-      - "Release (Linux ARM64)"
+      - "Release macOS Binaries"
+      - "Release Linux Binaries"
     types:
       - completed
 

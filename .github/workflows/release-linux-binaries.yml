@@ -1,6 +1,8 @@
-name: "Release (Linux)"
+name: "Release Linux Binaries"
 
 on:
+  push:
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
@@ -92,7 +94,7 @@ jobs:
 
       - name: Download pre-built MapLibre Native
         run: |
-          MBGL_VERSION=$(jq -r '.["crates/mbgl-sys"]' .release-please-manifest.json)
+          MBGL_VERSION=$(grep '^version' crates/mbgl-sys/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
           URL="https://github.com/${{ github.repository }}/releases/download/mbgl-sys-v${MBGL_VERSION}/mbgl-native-${{ matrix.target }}.tar.gz"
           echo "Downloading mbgl-sys v${MBGL_VERSION} for ${{ matrix.target }}..."
 

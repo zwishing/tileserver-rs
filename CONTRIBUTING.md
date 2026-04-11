@@ -4,22 +4,32 @@ Thank you for your interest in contributing to tileserver-rs! This document prov
 
 ## Table of Contents
 
-- [Code of Conduct](#code-of-conduct)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Cloning the Repository](#cloning-the-repository)
-  - [Setting Up MapLibre Native](#setting-up-maplibre-native)
-- [Development Workflow](#development-workflow)
-  - [Git Workflow](#git-workflow)
-  - [Working with the Submodule](#working-with-the-submodule)
-  - [Running Tests](#running-tests)
-  - [Code Style](#code-style)
-- [Submitting Changes](#submitting-changes)
-  - [Commit Messages](#commit-messages)
-  - [Pull Requests](#pull-requests)
-- [Release Process](#release-process)
-- [Project Structure](#project-structure)
-- [Need Help?](#need-help)
+- [Contributing to tileserver-rs](#contributing-to-tileserver-rs)
+  - [Table of Contents](#table-of-contents)
+  - [Code of Conduct](#code-of-conduct)
+  - [Getting Started](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Cloning the Repository](#cloning-the-repository)
+    - [Setting Up MapLibre Native](#setting-up-maplibre-native)
+  - [Development Workflow](#development-workflow)
+    - [Git Workflow](#git-workflow)
+    - [Working with the Submodule](#working-with-the-submodule)
+      - [After Cloning](#after-cloning)
+      - [After Pulling Changes](#after-pulling-changes)
+      - [Updating the Submodule to a New Version](#updating-the-submodule-to-a-new-version)
+      - [Common Submodule Issues](#common-submodule-issues)
+    - [Running Tests](#running-tests)
+    - [Code Style](#code-style)
+  - [Submitting Changes](#submitting-changes)
+    - [Commit Messages](#commit-messages)
+    - [Pull Requests](#pull-requests)
+  - [Release Process](#release-process)
+    - [How It Works](#how-it-works)
+    - [Version Bumping Rules](#version-bumping-rules)
+    - [Manual Release (if needed)](#manual-release-if-needed)
+    - [Release Artifacts](#release-artifacts)
+  - [Project Structure](#project-structure)
+  - [Need Help?](#need-help)
 
 ## Code of Conduct
 
@@ -270,21 +280,21 @@ chore(deps): upgrade axum to 0.8
 
 ## Release Process
 
-This project uses [Release Please](https://github.com/googleapis/release-please) for automated releases. You don't need to manually bump versions or write changelogs.
+This project uses [release-plz](https://release-plz.dev/) for automated releases. You don't need to manually bump versions or write changelogs.
 
 ### How It Works
 
 1. **Commit with conventional messages** - Use `feat:`, `fix:`, `docs:`, etc.
-2. **Release Please creates a PR** - After merging to `main`, Release Please automatically creates/updates a Release PR with:
+2. **release-plz creates a Release PR** - After merging to `main`, release-plz automatically creates/updates a Release PR with:
    - Version bump in `Cargo.toml`
    - Auto-generated `CHANGELOG.md`
-   - Updated versions in `apps/client/package.json` and `homebrew/Formula/tileserver-rs.rb`
-3. **Merge the Release PR** - When ready to release, merge the Release PR (use **regular merge**, not squash)
-4. **Automated release** - Merging triggers:
-   - GitHub Release creation with changelog
+3. **Merge the Release PR** - When ready to release, merge the Release PR
+4. **Tags trigger builds** - Merging creates tags (`v*`), which trigger:
+   - Linux binary builds (amd64 + arm64, full + headless)
    - macOS ARM64 binary build
-   - Docker image build and push
+   - Docker image build and push (multi-arch)
    - Homebrew formula update
+   - crates.io publish for `mbgl-sys`
 
 ### Version Bumping Rules
 
@@ -296,19 +306,21 @@ This project uses [Release Please](https://github.com/googleapis/release-please)
 
 ### Manual Release (if needed)
 
-For maintainers who need to trigger a release manually:
+For maintainers who need to trigger a release workflow manually:
 
 ```bash
-# Trigger macOS ARM64 build for a specific tag
-gh workflow run release-macos-arm64.yml --ref v0.2.0 -f version=v0.2.0
+gh workflow run release-macos-binaries.yml -f tag=v2.25.0
+gh workflow run release-linux-binaries.yml -f tag=v2.25.0
+gh workflow run release-docker-images.yml -f tag=v2.25.0
 ```
 
 ### Release Artifacts
 
 Each release produces:
 - **GitHub Release** - Changelog and release notes
-- **macOS ARM64 binary** - `tileserver-rs-macos-arm64.tar.gz`
-- **Docker image** - `ghcr.io/vinayakkulkarni/tileserver-rs:v0.x.x`
+- **macOS ARM64 binary** - `tileserver-rs-aarch64-apple-darwin.tar.gz`
+- **Linux binaries** - Full and headless variants for x86_64 and aarch64
+- **Docker image** - `ghcr.io/vinayakkulkarni/tileserver-rs` (multi-arch `linux/amd64` + `linux/arm64`)
 - **Homebrew formula** - Auto-updated in `homebrew/Formula/tileserver-rs.rb`
 
 ## Project Structure

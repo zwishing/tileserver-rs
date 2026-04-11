@@ -1,0 +1,22 @@
+[workspace]
+# PR-gated: release-plz only creates releases when you merge the Release PR
+release_always = false
+# mbgl-sys uses FFI/C++ — cargo-semver-checks produces false positives
+semver_check = false
+
+# tileserver-rs: binary crate, GitHub Release only (no crates.io)
+[[package]]
+name = "tileserver-rs"
+publish = false
+git_release_enable = true
+git_tag_name = "v{{ version }}"
+git_release_name = "v{{ version }}"
+
+# mbgl-sys: FFI crate, publishes to crates.io
+[[package]]
+name = "mbgl-sys"
+publish = true
+git_release_enable = true
+git_tag_name = "mbgl-sys-v{{ version }}"
+git_release_name = "mbgl-sys v{{ version }}"
+publish_no_verify = true # C++ deps not available during cargo publish

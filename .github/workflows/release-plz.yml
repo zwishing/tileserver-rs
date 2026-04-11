@@ -1,0 +1,61 @@
+name: Release-plz
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  # Job 1: Create/update the Release PR with version bumps + changelog
+  release-pr:
+    name: Create Release PR
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'vinayakkulkarni'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run release-plz release-pr
+        uses: release-plz/action@v0.5
+        with:
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT }}
+
+  # Job 2: When a Release PR is merged, create tags + GitHub Releases + publish crates
+  # With release_always = false, this only acts when the triggering commit
+  # comes from a merged release-plz PR. Otherwise it's a no-op.
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'vinayakkulkarni'
+    permissions:
+      contents: write
+      pull-requests: read
+      id-token: write # OIDC trusted publishing for crates.io
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run release-plz release
+        uses: release-plz/action@v0.5
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT }}

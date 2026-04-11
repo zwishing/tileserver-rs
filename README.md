@@ -1,7 +1,7 @@
 # tileserver-rs 🦀
 
 [![CI Pipeline](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/pipeline.yml/badge.svg)](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/pipeline.yml)
-[![Docker](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/release-docker.yml/badge.svg)](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/release-docker.yml)
+[![Docker](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/release-docker-images.yml/badge.svg)](https://github.com/vinayakkulkarni/tileserver-rs/actions/workflows/release-docker-images.yml)
 [![Coverage](https://img.shields.io/codecov/c/github/vinayakkulkarni/tileserver-rs?style=flat-square&logo=codecov)](https://codecov.io/gh/vinayakkulkarni/tileserver-rs)
 [![mbgl-sys on crates.io](https://img.shields.io/crates/v/mbgl-sys.svg)](https://crates.io/crates/mbgl-sys)
 [![mbgl-sys on docs.rs](https://docs.rs/mbgl-sys/badge.svg)](https://docs.rs/mbgl-sys)
@@ -509,12 +509,12 @@ Deployments are triggered on push to `main` when files in `marketing/` change.
 
 ## Releases
 
-This project uses [Release Please](https://github.com/googleapis/release-please) for automated releases. The release process is fully automated based on [Conventional Commits](https://www.conventionalcommits.org/).
+This project uses [release-plz](https://release-plz.ieni.dev/) for automated releases based on [Conventional Commits](https://www.conventionalcommits.org/).
 
 **How it works:**
-1. Commits to `main` with conventional commit messages (`feat:`, `fix:`, etc.) trigger Release Please
-2. Release Please creates/updates a **Release PR** with version bumps and changelog
-3. Merging the Release PR creates a GitHub Release and triggers platform builds
+1. Commits to `main` with conventional commit messages (`feat:`, `fix:`, etc.) trigger release-plz to create/update a **Release PR**
+2. The Release PR contains version bumps in `Cargo.toml` and changelog updates
+3. Merging the Release PR creates GitHub Releases with tags, which trigger platform builds
 
 **Version bumping:**
 - `feat:` commits → minor version (0.1.0 → 0.2.0)
@@ -524,7 +524,6 @@ This project uses [Release Please](https://github.com/googleapis/release-please)
 **Release artifacts:**
 - GitHub Release with changelog
 - macOS ARM64 binary (`.tar.gz`)
-- macOS AMD64 (Intel) binary (`.tar.gz`)
 - Linux x86_64 + ARM64 binaries — full (with MapLibre Native) and headless variants
 - Docker image (`ghcr.io/vinayakkulkarni/tileserver-rs`) — multi-arch `linux/amd64` + `linux/arm64`
 - Homebrew formula auto-update

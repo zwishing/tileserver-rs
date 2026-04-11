@@ -1,20 +1,8 @@
-name: 'Release (Docker)'
+name: "Release Docker Images"
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - 'src/**'
-      - 'apps/client/**'
-      - 'crates/mbgl-sys/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'Dockerfile'
-      - 'compose.yml'
-      - 'package.json'
-      - 'bun.lock'
-      - '.github/workflows/release-docker.yml'
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
@@ -23,7 +11,7 @@ on:
         type: string
 
 concurrency:
-  group: release-docker-${{ github.ref }}
+  group: release-docker-images-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -33,18 +21,18 @@ env:
 jobs:
   check-assets:
     name: Verify mbgl-sys assets exist
-    if: github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore(main)')
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
-          sparse-checkout: .release-please-manifest.json
+          sparse-checkout: crates/mbgl-sys/Cargo.toml
 
       - name: Check mbgl-sys release assets
         run: |
-          MBGL_VERSION=$(jq -r '.["crates/mbgl-sys"]' .release-please-manifest.json)
+          MBGL_VERSION=$(grep '^version' crates/mbgl-sys/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
           for TARGET in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu; do
             URL="https://github.com/${{ github.repository }}/releases/download/mbgl-sys-v${MBGL_VERSION}/mbgl-native-${TARGET}.tar.gz"
             STATUS=$(curl -sI -o /dev/null -w '%{http_code}' "$URL")

@@ -250,13 +250,13 @@ jobs:
           TAG="${{ steps.tag.outputs.tag }}"
           echo "Dispatching release builds for $TAG..."
 
-          gh workflow run release-docker.yml --repo "${{ github.repository }}" -f tag="$TAG"
-          echo "✅ Dispatched release-docker.yml"
+          gh workflow run release-docker-images.yml --repo "${{ github.repository }}" -f tag="$TAG"
+          echo "✅ Dispatched release-docker-images.yml"
 
-          gh workflow run release-linux.yml --repo "${{ github.repository }}" -f tag="$TAG"
-          echo "✅ Dispatched release-linux.yml"
+          gh workflow run release-linux-binaries.yml --repo "${{ github.repository }}" -f tag="$TAG"
+          echo "✅ Dispatched release-linux-binaries.yml"
 
-          gh workflow run release-macos-arm64.yml --repo "${{ github.repository }}" -f tag="$TAG"
-          echo "✅ Dispatched release-macos-arm64.yml"
+          gh workflow run release-macos-binaries.yml --repo "${{ github.repository }}" -f tag="$TAG"
+          echo "✅ Dispatched release-macos-binaries.yml"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

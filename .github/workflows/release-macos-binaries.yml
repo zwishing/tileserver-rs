@@ -1,6 +1,8 @@
-name: "Release (macOS ARM64)"
+name: "Release macOS Binaries"
 
 on:
+  push:
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
@@ -14,9 +16,20 @@ env:
 
 jobs:
   build:
-    name: Build macOS ARM64
+    name: Build macOS ${{ matrix.arch }}
     runs-on: macos-14
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            target: aarch64-apple-darwin
+            # AMD64 disabled — Intel macOS runners retired, cross-compile complex
+            # Uncomment when solution found:
+            # - arch: amd64
+            #   target: x86_64-apple-darwin
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -44,16 +57,16 @@ jobs:
       - name: Install Rust (stable)
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin
+          targets: ${{ matrix.target }}
 
       - name: Install build dependencies
         run: brew install libuv pkg-config gdal
 
       - name: Download pre-built MapLibre Native
         run: |
-          MBGL_VERSION=$(jq -r '.["crates/mbgl-sys"]' .release-please-manifest.json)
-          URL="https://github.com/${{ github.repository }}/releases/download/mbgl-sys-v${MBGL_VERSION}/mbgl-native-aarch64-apple-darwin.tar.gz"
-          echo "Downloading mbgl-sys v${MBGL_VERSION} for aarch64-apple-darwin..."
+          MBGL_VERSION=$(grep '^version' crates/mbgl-sys/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          URL="https://github.com/${{ github.repository }}/releases/download/mbgl-sys-v${MBGL_VERSION}/mbgl-native-${{ matrix.target }}.tar.gz"
+          echo "Downloading mbgl-sys v${MBGL_VERSION} for ${{ matrix.target }}..."
 
           MAX_RETRIES=5
           DELAY=60
@@ -74,7 +87,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          key: macos-arm64
+          key: macos-${{ matrix.arch }}
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -88,26 +101,26 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=8192'
 
       - name: Build Rust binary
-        run: cargo build --release --target aarch64-apple-darwin --features frontend
+        run: cargo build --release --target ${{ matrix.target }} --features frontend
         env:
           MBGL_SYS_LIB_DIR: ${{ github.workspace }}/lib
 
       - name: Prepare release
         run: |
           mkdir -p dist
-          cp target/aarch64-apple-darwin/release/tileserver-rs dist/tileserver-rs
+          cp target/${{ matrix.target }}/release/tileserver-rs dist/tileserver-rs
           chmod +x dist/tileserver-rs
           cd dist
-          tar -czvf tileserver-rs-aarch64-apple-darwin.tar.gz tileserver-rs
-          shasum -a 256 tileserver-rs-aarch64-apple-darwin.tar.gz > tileserver-rs-aarch64-apple-darwin.tar.gz.sha256
+          tar -czvf tileserver-rs-${{ matrix.target }}.tar.gz tileserver-rs
+          shasum -a 256 tileserver-rs-${{ matrix.target }}.tar.gz > tileserver-rs-${{ matrix.target }}.tar.gz.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: tileserver-rs-aarch64-apple-darwin
+          name: tileserver-rs-${{ matrix.target }}
           path: |
-            dist/tileserver-rs-aarch64-apple-darwin.tar.gz
-            dist/tileserver-rs-aarch64-apple-darwin.tar.gz.sha256
+            dist/tileserver-rs-${{ matrix.target }}.tar.gz
+            dist/tileserver-rs-${{ matrix.target }}.tar.gz.sha256
           retention-days: 30
 
       - name: Upload to release
@@ -115,11 +128,9 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           files: |
-            dist/tileserver-rs-aarch64-apple-darwin.tar.gz
-            dist/tileserver-rs-aarch64-apple-darwin.tar.gz.sha256
+            dist/tileserver-rs-${{ matrix.target }}.tar.gz
+            dist/tileserver-rs-${{ matrix.target }}.tar.gz.sha256
           draft: false
           prerelease: ${{ contains(github.event.inputs.tag || github.ref_name, '-alpha') || contains(github.event.inputs.tag || github.ref_name, '-beta') || contains(github.event.inputs.tag || github.ref_name, '-rc') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-
