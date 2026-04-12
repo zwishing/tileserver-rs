@@ -97,6 +97,10 @@ postgres-types   = { version = "0.2.13", features = ["derive"] }
 semver           = "1.0.28"
 moka             = { version = "0.12.15", features = ["future"] }
 
+# OGC API (optional, used with postgres)
+ogcapi-types     = { version = "0.3.0", features = ["features", "common"] }
+geojson          = "1.0.0"
+
 # GeoParquet (optional)
 parquet          = { version = "58", default-features = false, features = ["arrow", "zstd", "snap", "lz4", "async"] }
 arrow-array      = "58"
@@ -210,6 +214,8 @@ tokio-postgres   = { workspace = true, optional = true }
 postgres-types   = { workspace = true, optional = true }
 semver           = { workspace = true, optional = true }
 moka             = { workspace = true }
+ogcapi-types     = { workspace = true, optional = true }
+geojson          = { workspace = true, optional = true }
 
 # Cloud object storage (S3/Azure/GCS)
 object_store     = { workspace = true, optional = true }
@@ -228,7 +234,7 @@ duckdb           = { workspace = true, optional = true }
 [features]
 default = ["postgres", "raster", "mlt", "cloud"]
 frontend = ["rust-embed"]
-postgres = ["deadpool-postgres", "tokio-postgres", "postgres-types", "semver"]
+postgres = ["deadpool-postgres", "tokio-postgres", "postgres-types", "semver", "dep:ogcapi-types", "dep:geojson"]
 postgres-integration = ["postgres"]
 raster = ["gdal"]
 cloud = ["object_store", "url"]

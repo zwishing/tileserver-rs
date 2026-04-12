@@ -127,6 +127,182 @@ impl PostgresTableSource {
         &self.tile_query
     }
 
+    #[must_use]
+    pub fn table_info(&self) -> &TableInfo {
+        &self.table_info
+    }
+
+    #[must_use]
+    pub fn pool(&self) -> &Arc<PostgresPool> {
+        &self.pool
+    }
+
+    pub async fn query_features_geojson(
+        &self,
+        bbox: Option<[f64; 4]>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<serde_json::Value>, i64)> {
+        let conn = self.pool.get().await?;
+        let info = &self.table_info;
+
+        let id_expr = info
+            .id_column
+            .as_ref()
+            .map(|col| format!(r#""{col}"::text AS __ogc_fid"#))
+            .unwrap_or_else(|| "ctid::text AS __ogc_fid".to_string());
+
+        let geom_expr = if info.srid == 4326 {
+            format!(
+                r#"ST_AsGeoJSON("{}")::jsonb AS __ogc_geom"#,
+                info.geometry_column
+            )
+        } else {
+            format!(
+                r#"ST_AsGeoJSON(ST_Transform("{}", 4326))::jsonb AS __ogc_geom"#,
+                info.geometry_column
+            )
+        };
+
+        let prop_cols: Vec<String> = info
+            .properties
+            .iter()
+            .map(|p| format!(r#""{p}""#))
+            .collect();
+        let prop_select = if prop_cols.is_empty() {
+            String::new()
+        } else {
+            format!(", {}", prop_cols.join(", "))
+        };
+
+        let mut where_clauses = Vec::new();
+        let mut param_idx = 1u32;
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
+
+        if let Some(bb) = bbox {
+            let envelope = if info.srid == 4326 {
+                format!(
+                    "ST_MakeEnvelope(${}, ${}, ${}, ${}, 4326)",
+                    param_idx,
+                    param_idx + 1,
+                    param_idx + 2,
+                    param_idx + 3
+                )
+            } else {
+                format!(
+                    "ST_Transform(ST_MakeEnvelope(${}, ${}, ${}, ${}, 4326), {})",
+                    param_idx,
+                    param_idx + 1,
+                    param_idx + 2,
+                    param_idx + 3,
+                    info.srid
+                )
+            };
+            where_clauses.push(format!(r#""{}" && {}"#, info.geometry_column, envelope));
+            params.push(Box::new(bb[0]));
+            params.push(Box::new(bb[1]));
+            params.push(Box::new(bb[2]));
+            params.push(Box::new(bb[3]));
+            param_idx += 4;
+        }
+
+        let where_sql = if where_clauses.is_empty() {
+            String::new()
+        } else {
+            format!("WHERE {}", where_clauses.join(" AND "))
+        };
+
+        let count_sql = format!(
+            r#"SELECT COUNT(*)::bigint FROM "{}"."{}" {}"#,
+            info.schema, info.table, where_sql
+        );
+
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
+
+        let count_row = conn
+            .query_one(&count_sql, &param_refs)
+            .await
+            .map_err(|e| TileServerError::PostgresError(format!("count query failed: {e}")))?;
+        let total_count: i64 = count_row.get(0);
+
+        let data_sql = format!(
+            r#"SELECT {id_expr}, {geom_expr}{prop_select} FROM "{}"."{}" {where_sql} LIMIT ${param_idx} OFFSET ${}"#,
+            info.schema,
+            info.table,
+            param_idx + 1
+        );
+        params.push(Box::new(limit));
+        params.push(Box::new(offset));
+
+        let param_refs2: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
+
+        let rows = conn
+            .query(&data_sql, &param_refs2)
+            .await
+            .map_err(|e| TileServerError::PostgresError(format!("features query failed: {e}")))?;
+
+        let features: Vec<serde_json::Value> = rows
+            .iter()
+            .map(|row| {
+                let fid: String = row.get("__ogc_fid");
+                let geom: serde_json::Value = row.get("__ogc_geom");
+
+                let mut properties = serde_json::Map::new();
+                for prop in &info.properties {
+                    if let Ok(val) = row.try_get::<_, Option<String>>(prop.as_str()) {
+                        properties.insert(
+                            prop.clone(),
+                            val.map_or(serde_json::Value::Null, serde_json::Value::String),
+                        );
+                    } else if let Ok(val) = row.try_get::<_, Option<i32>>(prop.as_str()) {
+                        properties.insert(
+                            prop.clone(),
+                            val.map_or(serde_json::Value::Null, |v| {
+                                serde_json::Value::Number(v.into())
+                            }),
+                        );
+                    } else if let Ok(val) = row.try_get::<_, Option<i64>>(prop.as_str()) {
+                        properties.insert(
+                            prop.clone(),
+                            val.map_or(serde_json::Value::Null, |v| {
+                                serde_json::Value::Number(v.into())
+                            }),
+                        );
+                    } else if let Ok(val) = row.try_get::<_, Option<f64>>(prop.as_str()) {
+                        properties.insert(
+                            prop.clone(),
+                            val.map_or(serde_json::Value::Null, |v| serde_json::json!(v)),
+                        );
+                    } else if let Ok(val) = row.try_get::<_, Option<bool>>(prop.as_str()) {
+                        properties.insert(
+                            prop.clone(),
+                            val.map_or(serde_json::Value::Null, serde_json::Value::Bool),
+                        );
+                    } else if let Ok(val) =
+                        row.try_get::<_, Option<serde_json::Value>>(prop.as_str())
+                    {
+                        properties.insert(prop.clone(), val.unwrap_or(serde_json::Value::Null));
+                    }
+                }
+
+                serde_json::json!({
+                    "type": "Feature",
+                    "id": fid,
+                    "geometry": geom,
+                    "properties": properties
+                })
+            })
+            .collect();
+
+        Ok((features, total_count))
+    }
+
     async fn discover_table(
         conn: &deadpool_postgres::Object,
         config: &PostgresTableConfig,

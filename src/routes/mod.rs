@@ -6,6 +6,8 @@
 mod data;
 mod files;
 mod fonts;
+#[cfg(feature = "postgres")]
+pub(crate) mod ogc;
 mod render;
 mod spatial;
 mod styles;
@@ -100,11 +102,28 @@ pub fn api_router(state: SharedState) -> Router {
             get(spatial::get_spatial_stats),
         )
         .route("/api/spatial/query", post(spatial::post_spatial_query))
+        .merge(ogc_router())
         .with_state(state)
 }
 
 async fn health_check() -> (StatusCode, &'static str) {
     (StatusCode::OK, "OK")
+}
+
+#[cfg(feature = "postgres")]
+fn ogc_router() -> Router<SharedState> {
+    Router::new()
+        .route("/ogc", get(ogc::landing_page))
+        .route("/ogc/conformance", get(ogc::conformance))
+        .route("/ogc/collections", get(ogc::collections))
+        .route("/ogc/collections/{id}", get(ogc::collection))
+        .route("/ogc/collections/{id}/items", get(ogc::items))
+        .route("/ogc/collections/{id}/items/{fid}", get(ogc::feature))
+}
+
+#[cfg(not(feature = "postgres"))]
+fn ogc_router() -> Router<SharedState> {
+    Router::new()
 }
 
 /// Get combined TileJSON array for all data sources and styles

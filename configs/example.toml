@@ -329,6 +329,21 @@ ttl_seconds = 3600
 # buffer = 64      # Tile buffer in pixels (default: 64)
 
 # ============================================================================
+# OGC API FEATURES (auto-enabled for postgres table sources)
+# ============================================================================
+# PostGIS table sources automatically expose OGC API Features endpoints:
+#   GET /ogc                              - Landing page
+#   GET /ogc/conformance                  - Conformance classes
+#   GET /ogc/collections                  - List all table collections
+#   GET /ogc/collections/{id}             - Single collection metadata
+#   GET /ogc/collections/{id}/items       - GeoJSON FeatureCollection (supports bbox, limit, offset)
+#   GET /ogc/collections/{id}/items/{fid} - Single GeoJSON Feature
+#
+# QGIS: Add a WFS/OGC API layer pointing to http://localhost:8080/ogc
+# ArcGIS: Add an OGC API Features connection
+# No additional configuration needed — enabled when postgres tables are configured.
+
+# ============================================================================
 # MAP STYLES
 # ============================================================================
 # Map styles
