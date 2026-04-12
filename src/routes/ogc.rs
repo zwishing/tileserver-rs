@@ -17,30 +17,45 @@ use crate::error::TileServerError;
 use crate::reload::SharedState;
 use crate::sources::postgres::PostgresTableSource;
 
+/// Default number of features returned per page when no `limit` query parameter is provided.
 const OGC_FEATURES_LIMIT_DEFAULT: i64 = 10;
+/// Maximum allowed `limit` value; requests exceeding this are clamped.
 const OGC_FEATURES_LIMIT_MAX: i64 = 10_000;
 
+/// Query parameters for the OGC API Features `/items` endpoint.
+///
+/// Supports bbox spatial filtering, limit/offset pagination, and an optional
+/// datetime filter (currently unused).
 #[derive(Debug, Deserialize)]
 pub(crate) struct ItemsQueryParams {
+    /// Comma-separated bounding box: `minx,miny,maxx,maxy`.
     #[serde(default)]
     bbox: Option<String>,
+    /// Maximum number of features to return (clamped to [`OGC_FEATURES_LIMIT_MAX`]).
     #[serde(default = "default_limit")]
     limit: i64,
+    /// Number of features to skip for pagination.
     #[serde(default)]
     offset: i64,
+    /// ISO 8601 datetime filter (reserved for future use).
     #[allow(dead_code)]
     #[serde(default)]
     datetime: Option<String>,
 }
 
+/// Returns the default page size for feature queries.
+#[must_use]
 fn default_limit() -> i64 {
     OGC_FEATURES_LIMIT_DEFAULT
 }
 
+/// Extracts the configured base URL from application state.
+#[must_use]
 fn build_base_url(state: &crate::reload::AppState) -> String {
     state.base_url.clone()
 }
 
+/// OGC API landing page returning service metadata and navigation links.
 pub(crate) async fn landing_page(State(shared): State<SharedState>) -> impl IntoResponse {
     let state = shared.load();
     let base = build_base_url(&state);
@@ -79,6 +94,7 @@ pub(crate) async fn landing_page(State(shared): State<SharedState>) -> impl Into
     Json(landing)
 }
 
+/// OGC API conformance declaration listing supported specification classes.
 pub(crate) async fn conformance() -> impl IntoResponse {
     let body = serde_json::json!({
         "conformsTo": [
@@ -90,6 +106,7 @@ pub(crate) async fn conformance() -> impl IntoResponse {
     Json(body)
 }
 
+/// Lists all OGC feature collections backed by `PostgresTableSource` sources.
 pub(crate) async fn collections(State(shared): State<SharedState>) -> impl IntoResponse {
     let state = shared.load();
     let base = build_base_url(&state);
@@ -121,6 +138,13 @@ pub(crate) async fn collections(State(shared): State<SharedState>) -> impl IntoR
     }))
 }
 
+/// Returns metadata for a single OGC feature collection.
+///
+/// # Errors
+///
+/// Returns [`TileServerError::SourceNotFound`] if the collection id does not
+/// match any loaded source, or [`TileServerError::NotFound`] if the source
+/// is not a `PostgresTableSource`.
 pub(crate) async fn collection(
     State(shared): State<SharedState>,
     Path(collection_id): Path<String>,
@@ -147,6 +171,13 @@ pub(crate) async fn collection(
     Ok(Json(body))
 }
 
+/// Returns a paginated GeoJSON `FeatureCollection` for the given collection.
+///
+/// # Errors
+///
+/// Returns [`TileServerError::SourceNotFound`] if the collection does not exist,
+/// [`TileServerError::NotFound`] if the source is not a `PostgresTableSource`,
+/// or [`TileServerError::InvalidTileRequest`] if the bbox parameter is malformed.
 pub(crate) async fn items(
     State(shared): State<SharedState>,
     Path(collection_id): Path<String>,
@@ -213,6 +244,14 @@ pub(crate) async fn items(
         .into_response())
 }
 
+/// Returns a single GeoJSON `Feature` by id from the given collection.
+///
+/// # Errors
+///
+/// Returns [`TileServerError::SourceNotFound`] if the collection does not exist,
+/// [`TileServerError::NotFound`] if the source is not a `PostgresTableSource`
+/// or if the feature id is not found, or [`TileServerError::PostgresError`] on
+/// database failures.
 pub(crate) async fn feature(
     State(shared): State<SharedState>,
     Path((collection_id, feature_id)): Path<(String, String)>,
@@ -337,6 +376,8 @@ pub(crate) async fn feature(
         .into_response())
 }
 
+/// Builds an OGC collection JSON object from tile source metadata.
+#[must_use]
 fn build_collection_json(meta: &crate::sources::TileMetadata, base_url: &str) -> serde_json::Value {
     let mut extent = serde_json::Map::new();
     if let Some(bounds) = meta.bounds {
@@ -375,6 +416,12 @@ fn build_collection_json(meta: &crate::sources::TileMetadata, base_url: &str) ->
     })
 }
 
+/// Parses a comma-separated bbox string into `[minx, miny, maxx, maxy]`.
+///
+/// # Errors
+///
+/// Returns [`TileServerError::InvalidTileRequest`] if the string does not
+/// contain exactly four valid floats or if the coordinates are inverted.
 fn parse_bbox(bbox_str: Option<&str>) -> Result<Option<[f64; 4]>, TileServerError> {
     let Some(s) = bbox_str else {
         return Ok(None);
@@ -735,7 +782,7 @@ mod tests {
 
     #[test]
     fn landing_page_link_types() {
-        let links = vec![
+        let links = [
             OgcLink {
                 href: "http://localhost".to_string(),
                 rel: "self".to_string(),
