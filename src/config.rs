@@ -277,10 +277,16 @@ pub struct SourceConfig {
     #[serde(default)]
     pub colormap: Option<ColorMapConfig>,
     /// Provider-specific options for cloud object storage (S3/Azure/GCS).
-    /// Keys are passed directly to `object_store::parse_url_opts()`.
-    /// E.g., `aws_region`, `aws_access_key_id`, `azure_storage_account_name`.
     #[serde(default)]
     pub options: Option<std::collections::HashMap<String, String>>,
+    #[serde(default)]
+    pub collection: Option<String>,
+    #[serde(default = "default_stac_asset_role")]
+    pub asset_role: String,
+    #[serde(default)]
+    pub dynamic: bool,
+    #[serde(default = "default_stac_max_items")]
+    pub max_items: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -299,6 +305,16 @@ pub enum SourceType {
     GeoParquet,
     #[cfg(feature = "duckdb")]
     DuckDB,
+    #[cfg(feature = "stac")]
+    Stac,
+}
+
+fn default_stac_asset_role() -> String {
+    "visual".to_string()
+}
+
+fn default_stac_max_items() -> usize {
+    100
 }
 
 #[non_exhaustive]

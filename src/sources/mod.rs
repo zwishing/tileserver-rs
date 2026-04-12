@@ -14,6 +14,8 @@ pub mod mbtiles;
 pub mod pmtiles;
 #[cfg(feature = "postgres")]
 pub mod postgres;
+#[cfg(feature = "stac")]
+pub mod stac;
 
 pub use manager::SourceManager;
 

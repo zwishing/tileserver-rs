@@ -51,7 +51,7 @@ mlt-core         = { version = "0.6.0" }
 rusqlite         = { version = "0.39.0", features = ["bundled"] }
 
 # HTTP client
-reqwest          = { version = "0.13.2", default-features = false, features = ["rustls"] }
+reqwest          = { version = "0.13.2", default-features = false, features = ["rustls", "json"] }
 
 # Cryptography / hashing
 sha2             = "0.11.0"
@@ -106,6 +106,8 @@ geo              = "0.32"
 
 # DuckDB (optional)
 duckdb           = { version = "1.10501.0", features = ["bundled"] }
+
+stac             = "0.17.0"
 
 # FFI
 libc             = "0.2"
@@ -225,6 +227,8 @@ geo              = { workspace = true, optional = true }
 # DuckDB support (optional)
 duckdb           = { workspace = true, optional = true }
 
+stac             = { workspace = true, optional = true }
+
 [features]
 default = ["postgres", "raster", "mlt", "cloud"]
 frontend = ["rust-embed"]
@@ -235,6 +239,7 @@ cloud = ["object_store", "url"]
 mlt = ["mlt-core", "dep:prost", "geo-types"]
 geoparquet = ["dep:parquet", "dep:arrow-array", "dep:arrow-schema", "dep:arrow-cast", "dep:geo", "dep:prost"]
 duckdb = ["dep:duckdb", "dep:prost"]
+stac = ["dep:stac", "raster"]
 
 [dev-dependencies]
 tower            = { workspace = true }

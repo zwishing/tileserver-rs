@@ -81,6 +81,10 @@ pub enum TileServerError {
     #[error("DuckDB error: {0}")]
     DuckDbError(String),
 
+    #[cfg(feature = "stac")]
+    #[error("stac error: {0}")]
+    StacError(String),
+
     #[error("upload error: {0}")]
     UploadError(String),
 
@@ -153,6 +157,8 @@ impl IntoResponse for TileServerError {
             TileServerError::DuckDbError(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
             }
+            #[cfg(feature = "stac")]
+            TileServerError::StacError(_) => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
             TileServerError::UploadError(_) => (StatusCode::BAD_REQUEST, self.to_string()),
             TileServerError::UploadTooLarge => (StatusCode::PAYLOAD_TOO_LARGE, self.to_string()),
             TileServerError::Internal(_) => (
