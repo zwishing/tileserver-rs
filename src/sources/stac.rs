@@ -1,3 +1,8 @@
+//! STAC catalog-driven COG discovery and tile serving.
+//!
+//! This module implements a tile source that discovers Cloud-Optimized GeoTIFF
+//! (COG) assets from STAC API catalogs and serves them as raster tiles.
+
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -8,17 +13,29 @@ use crate::error::{Result, TileServerError};
 use crate::sources::cog::CogSource;
 use crate::sources::{TileData, TileFormat, TileMetadata, TileSource};
 
+/// MIME type for Cloud-Optimized GeoTIFF files.
 const COG_MIME_TYPE: &str = "image/tiff; application=geotiff; profile=cloud-optimized";
+
+/// MIME type prefix for standard GeoTIFF files.
 const GEOTIFF_MIME_TYPE: &str = "image/tiff";
 
+/// A discovered COG asset from a STAC catalog item.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StacAsset {
+    /// Unique identifier from the STAC item.
     pub id: String,
+    /// URL to the COG file.
     pub href: String,
+    /// Bounding box as `[west, south, east, north]`.
     pub bbox: [f64; 4],
+    /// Human-readable title of the asset.
     pub title: String,
 }
 
+/// A tile source backed by STAC API catalog discovery.
+///
+/// Queries a STAC API for items in a collection, extracts COG asset URLs,
+/// and delegates tile serving to an underlying [`CogSource`].
 pub struct StacSource {
     id: String,
     metadata: TileMetadata,
@@ -27,6 +44,17 @@ pub struct StacSource {
 }
 
 impl StacSource {
+    /// Create a new STAC source from configuration.
+    ///
+    /// Discovers COG assets from the configured STAC API endpoint and
+    /// initializes a [`CogSource`] for the first discovered asset.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TileServerError::StacError`] if:
+    /// - The `collection` field is missing from config
+    /// - The STAC API request fails or returns invalid JSON
+    /// - No features are found in the STAC response
     pub async fn new(config: &SourceConfig) -> Result<Self> {
         let api_url = &config.path;
         let collection = config.collection.as_deref().ok_or_else(|| {
@@ -102,11 +130,13 @@ impl StacSource {
         })
     }
 
+    /// Returns the list of discovered STAC assets.
     #[must_use]
     pub fn discovered_assets(&self) -> &[StacAsset] {
         &self.discovered_assets
     }
 
+    /// Returns the source identifier.
     #[must_use]
     pub fn id(&self) -> &str {
         &self.id
@@ -133,6 +163,15 @@ impl TileSource for StacSource {
     }
 }
 
+/// Discover COG assets from a STAC API catalog.
+///
+/// Sends a POST search request to the STAC API and extracts COG assets
+/// from the returned item collection.
+///
+/// # Errors
+///
+/// Returns [`TileServerError::StacError`] if the HTTP request fails,
+/// the response status is non-2xx, or the response JSON is malformed.
 pub async fn discover_assets(
     api_url: &str,
     collection: &str,
@@ -155,11 +194,11 @@ pub async fn discover_assets(
         .json(&search_body)
         .send()
         .await
-        .map_err(|e| TileServerError::StacError(format!("STAC API search failed: {e}")))?;
+        .map_err(|e| TileServerError::StacError(format!("stac api search failed: {e}")))?;
 
     if !response.status().is_success() {
         return Err(TileServerError::StacError(format!(
-            "STAC API returned status {}",
+            "stac api returned status {}",
             response.status()
         )));
     }
@@ -167,17 +206,23 @@ pub async fn discover_assets(
     let body: serde_json::Value = response
         .json()
         .await
-        .map_err(|e| TileServerError::StacError(format!("failed to parse STAC response: {e}")))?;
+        .map_err(|e| TileServerError::StacError(format!("failed to parse stac response: {e}")))?;
 
     extract_assets_from_item_collection(&body, asset_role)
 }
 
+/// Build the STAC API search endpoint URL from a base API URL.
 #[must_use]
 pub fn build_search_url(api_url: &str) -> String {
     let base = api_url.trim_end_matches('/');
     format!("{base}/search")
 }
 
+/// Extract COG assets from a STAC item collection JSON response.
+///
+/// # Errors
+///
+/// Returns [`TileServerError::StacError`] if the `features` array is missing.
 pub fn extract_assets_from_item_collection(
     body: &serde_json::Value,
     asset_role: &str,
@@ -186,7 +231,7 @@ pub fn extract_assets_from_item_collection(
         .get("features")
         .and_then(|f| f.as_array())
         .ok_or_else(|| {
-            TileServerError::StacError("STAC response missing 'features' array".to_string())
+            TileServerError::StacError("stac response missing 'features' array".to_string())
         })?;
 
     let mut assets = Vec::with_capacity(features.len());
@@ -200,6 +245,7 @@ pub fn extract_assets_from_item_collection(
     Ok(assets)
 }
 
+/// Extract a single COG asset from a STAC item, first by role then by MIME type.
 pub fn extract_cog_asset_from_item(
     item: &serde_json::Value,
     asset_role: &str,
@@ -278,6 +324,7 @@ fn extract_bbox(item: &serde_json::Value) -> Option<[f64; 4]> {
     ])
 }
 
+/// Compute the merged bounding box across all assets.
 #[must_use]
 pub fn compute_merged_bounds(assets: &[StacAsset]) -> Option<[f64; 4]> {
     if assets.is_empty() {
@@ -295,11 +342,13 @@ pub fn compute_merged_bounds(assets: &[StacAsset]) -> Option<[f64; 4]> {
     Some(merged)
 }
 
+/// Returns `true` if the MIME type indicates a COG or GeoTIFF file.
 #[must_use]
 pub fn is_cog_mime_type(mime: &str) -> bool {
     mime == COG_MIME_TYPE || mime.starts_with(GEOTIFF_MIME_TYPE)
 }
 
+/// Returns `true` if the URL uses an HTTP(S) scheme (likely a STAC API endpoint).
 #[must_use]
 pub fn is_stac_api_url(url: &str) -> bool {
     url.starts_with("http://") || url.starts_with("https://")
