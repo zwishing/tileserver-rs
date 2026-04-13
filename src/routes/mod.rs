@@ -38,7 +38,7 @@ pub(crate) struct RasterTileJson {
 #[derive(serde::Serialize)]
 #[serde(untagged)]
 enum IndexEntry {
-    Data(TileJson),
+    Data(Box<TileJson>),
     Style(RasterTileJson),
 }
 
@@ -122,9 +122,9 @@ async fn get_index_json(
         .unwrap_or_default();
 
     for metadata in state.sources.all_metadata() {
-        entries.push(IndexEntry::Data(
+        entries.push(IndexEntry::Data(Box::new(
             metadata.to_tilejson_with_key(&state.base_url, query.key.as_deref()),
-        ));
+        )));
     }
 
     for style in state.styles.all() {
