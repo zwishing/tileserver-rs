@@ -782,4 +782,160 @@ mod tests {
         assert!(!query.contains(r#""name""#));
         assert!(!query.contains(r#""id"::bigint"#));
     }
+
+    #[test]
+    fn test_build_tile_query_no_id_with_properties() {
+        let mut table_info = make_table_info();
+        table_info.id_column = None;
+        let mut config = make_config();
+        config.id_column = None;
+        let query = PostgresTableSource::build_tile_query(&table_info, &config, false);
+
+        assert!(query.contains(r#""name""#));
+        assert!(query.contains(r#""category""#));
+        assert!(!query.contains(r#"::bigint"#));
+    }
+
+    #[test]
+    fn test_build_tile_query_srid_4326_with_margin_contains_extent() {
+        let table_info = make_table_info();
+        let config = make_config();
+        let query = PostgresTableSource::build_tile_query(&table_info, &config, true);
+
+        assert!(query.contains("4096"));
+        assert!(query.contains("64"));
+        assert!(query.contains("ST_AsMVTGeom"));
+    }
+
+    #[test]
+    fn test_build_tile_query_custom_extent_and_buffer() {
+        let table_info = make_table_info();
+        let mut config = make_config();
+        config.extent = 512;
+        config.buffer = 32;
+        let query = PostgresTableSource::build_tile_query(&table_info, &config, false);
+
+        assert!(query.contains("ST_AsMVT(tile, 'test_layer', 512, 'geom')"));
+        assert!(query.contains("512"));
+    }
+
+    #[test]
+    fn test_build_tile_query_srid_2056() {
+        let mut table_info = make_table_info();
+        table_info.srid = 2056;
+        let config = make_config();
+        let query = PostgresTableSource::build_tile_query(&table_info, &config, false);
+
+        assert!(query.contains("ST_Transform(ST_TileEnvelope($1, $2, $3), 2056)"));
+    }
+
+    #[test]
+    fn test_build_tile_query_3857_with_margin() {
+        let mut table_info = make_table_info();
+        table_info.srid = 3857;
+        let config = make_config();
+        let query = PostgresTableSource::build_tile_query(&table_info, &config, true);
+
+        assert!(query.contains("margin =>"));
+        assert!(query.contains(r#""geom" && ST_TileEnvelope($1, $2, $3, margin =>"#));
+    }
+
+    #[test]
+    fn test_table_info_geometry_type_stored() {
+        let info = make_table_info();
+        assert_eq!(info.geometry_type, "POINT");
+    }
+
+    #[test]
+    fn test_table_info_has_spatial_index_true() {
+        let info = make_table_info();
+        assert!(info.has_spatial_index);
+    }
+
+    #[test]
+    fn test_table_info_no_spatial_index() {
+        let mut info = make_table_info();
+        info.has_spatial_index = false;
+        assert!(!info.has_spatial_index);
+    }
+
+    #[test]
+    fn test_table_info_bounds_present() {
+        let info = make_table_info();
+        assert_eq!(info.bounds, Some([8.0, 47.0, 9.0, 48.0]));
+    }
+
+    #[test]
+    fn test_table_info_no_bounds() {
+        let mut info = make_table_info();
+        info.bounds = None;
+        assert!(info.bounds.is_none());
+    }
+
+    #[test]
+    fn test_table_info_no_id_column() {
+        let mut info = make_table_info();
+        info.id_column = None;
+        assert!(info.id_column.is_none());
+    }
+
+    #[test]
+    fn test_table_info_empty_properties() {
+        let mut info = make_table_info();
+        info.properties = vec![];
+        assert!(info.properties.is_empty());
+    }
+
+    #[test]
+    fn test_table_info_polygon_geometry_type() {
+        let mut info = make_table_info();
+        info.geometry_type = "MULTIPOLYGON".to_string();
+        assert_eq!(info.geometry_type, "MULTIPOLYGON");
+    }
+
+    #[test]
+    fn test_table_info_debug_format() {
+        let info = make_table_info();
+        let debug = format!("{:?}", info);
+        assert!(debug.contains("public"));
+        assert!(debug.contains("points"));
+        assert!(debug.contains("geom"));
+    }
+
+    #[test]
+    fn test_table_info_clone() {
+        let info = make_table_info();
+        let cloned = info.clone();
+        assert_eq!(cloned.schema, info.schema);
+        assert_eq!(cloned.table, info.table);
+        assert_eq!(cloned.srid, info.srid);
+        assert_eq!(cloned.geometry_column, info.geometry_column);
+    }
+
+    #[test]
+    fn test_build_tile_query_layer_name_matches_config_id() {
+        let table_info = make_table_info();
+        let config = make_config();
+        let query = PostgresTableSource::build_tile_query(&table_info, &config, false);
+
+        assert!(query.contains("ST_AsMVT(tile, 'test_layer',"));
+    }
+
+    #[test]
+    fn test_build_tile_query_references_correct_schema_table() {
+        let table_info = make_table_info();
+        let config = make_config();
+        let query = PostgresTableSource::build_tile_query(&table_info, &config, false);
+
+        assert!(query.contains(r#"FROM "public"."points""#));
+    }
+
+    #[test]
+    fn test_build_tile_query_geom_is_not_null_filter() {
+        let table_info = make_table_info();
+        let config = make_config();
+        let query = PostgresTableSource::build_tile_query(&table_info, &config, false);
+
+        assert!(query.contains("WHERE geom IS NOT NULL"));
+    }
 }

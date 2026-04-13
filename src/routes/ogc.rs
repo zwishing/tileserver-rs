@@ -889,4 +889,453 @@ mod tests {
         assert!((result[0] - (-122.5)).abs() < f64::EPSILON);
         assert!((result[1] - 37.5).abs() < f64::EPSILON);
     }
+
+    #[test]
+    fn build_base_url_returns_state_base_url() {
+        let state = make_test_app_state(crate::sources::SourceManager::new());
+        let base = build_base_url(&state);
+        assert_eq!(base, "http://localhost:8080");
+    }
+
+    #[test]
+    fn build_collection_json_description_null_when_none() {
+        let meta = crate::sources::TileMetadata {
+            id: "no_desc".to_string(),
+            name: "No Desc".to_string(),
+            description: None,
+            attribution: None,
+            format: crate::sources::TileFormat::Pbf,
+            minzoom: 0,
+            maxzoom: 14,
+            bounds: None,
+            center: None,
+            vector_layers: None,
+        };
+        let json = build_collection_json(&meta, "http://localhost");
+        assert!(json["description"].is_null());
+    }
+
+    #[test]
+    fn build_collection_json_self_link_title_matches_name() {
+        let meta = crate::sources::TileMetadata {
+            id: "rivers".to_string(),
+            name: "World Rivers".to_string(),
+            description: None,
+            attribution: None,
+            format: crate::sources::TileFormat::Pbf,
+            minzoom: 0,
+            maxzoom: 14,
+            bounds: None,
+            center: None,
+            vector_layers: None,
+        };
+        let json = build_collection_json(&meta, "http://localhost");
+        let links = json["links"].as_array().unwrap();
+        assert_eq!(links[0]["title"], "World Rivers");
+        assert_eq!(links[1]["title"], "World Rivers items");
+    }
+
+    #[test]
+    fn items_query_params_with_datetime() {
+        let params: ItemsQueryParams =
+            serde_json::from_str(r#"{"datetime":"2024-01-01T00:00:00Z"}"#).unwrap();
+        assert_eq!(params.datetime.as_deref(), Some("2024-01-01T00:00:00Z"));
+    }
+
+    #[test]
+    fn items_query_params_with_zero_limit() {
+        let params: ItemsQueryParams = serde_json::from_str(r#"{"limit":0}"#).unwrap();
+        assert_eq!(params.limit, 0);
+        let clamped = params.limit.clamp(1, OGC_FEATURES_LIMIT_MAX);
+        assert_eq!(clamped, 1);
+    }
+
+    #[test]
+    fn items_query_params_negative_offset_clamped() {
+        let params: ItemsQueryParams = serde_json::from_str(r#"{"offset":-50}"#).unwrap();
+        let clamped = params.offset.max(0);
+        assert_eq!(clamped, 0);
+    }
+
+    #[test]
+    fn parse_bbox_large_negative_values() {
+        let result = parse_bbox(Some("-179.999,-89.999,179.999,89.999"))
+            .unwrap()
+            .unwrap();
+        assert!((result[0] - (-179.999)).abs() < 1e-6);
+        assert!((result[3] - 89.999).abs() < 1e-6);
+    }
+
+    #[test]
+    fn parse_bbox_single_comma_only_fails() {
+        assert!(parse_bbox(Some(",")).is_err());
+    }
+
+    #[test]
+    fn parse_bbox_with_trailing_comma_fails() {
+        assert!(parse_bbox(Some("-10,-20,30,40,")).is_err());
+    }
+
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use axum::Router;
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
+
+    use crate::reload::{AppState, ReloadController, ReloadMeta, RuntimeSettings, SharedState};
+    use crate::sources::SourceManager;
+    use crate::styles::StyleManager;
+
+    fn make_test_app_state(source_manager: SourceManager) -> AppState {
+        AppState {
+            sources: Arc::new(source_manager),
+            styles: Arc::new(StyleManager::new()),
+            renderer: None,
+            base_url: "http://localhost:8080".to_string(),
+            render_base_url: "http://localhost:8080".to_string(),
+            ui_enabled: false,
+            fonts_dir: None,
+            files_dir: None,
+            upload_dir: None,
+        }
+    }
+
+    fn make_test_shared_state(source_manager: SourceManager) -> SharedState {
+        let state = make_test_app_state(source_manager);
+        let meta = ReloadMeta {
+            config_hash: "test".to_string(),
+            loaded_at_unix: 0,
+            loaded_sources: 0,
+            loaded_styles: 0,
+            renderer_enabled: false,
+        };
+        let runtime = RuntimeSettings {
+            ui_enabled: false,
+            runtime_host: "127.0.0.1".to_string(),
+            runtime_port: 8080,
+            public_url_override: None,
+        };
+        let controller = Arc::new(ReloadController::new(state, meta, None, runtime));
+        SharedState::new(controller)
+    }
+
+    fn ogc_test_router(shared: SharedState) -> Router {
+        Router::new()
+            .route("/ogc", axum::routing::get(landing_page))
+            .route("/ogc/conformance", axum::routing::get(conformance))
+            .route("/ogc/collections", axum::routing::get(collections))
+            .route("/ogc/collections/{id}", axum::routing::get(collection))
+            .route("/ogc/collections/{id}/items", axum::routing::get(items))
+            .route(
+                "/ogc/collections/{id}/items/{fid}",
+                axum::routing::get(feature),
+            )
+            .with_state(shared)
+    }
+
+    #[tokio::test]
+    async fn test_landing_page_returns_links() {
+        let shared = make_test_shared_state(SourceManager::new());
+        let app = ogc_test_router(shared);
+
+        let resp = app
+            .oneshot(Request::builder().uri("/ogc").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(json["title"], "tileserver-rs OGC API");
+        let links = json["links"].as_array().unwrap();
+        assert_eq!(links.len(), 4);
+        assert!(links.iter().any(|l| l["rel"] == "self"));
+        assert!(links.iter().any(|l| l["rel"] == "conformance"));
+        assert!(links.iter().any(|l| l["rel"] == "data"));
+        assert!(links.iter().any(|l| l["rel"] == "service-desc"));
+    }
+
+    #[tokio::test]
+    async fn test_landing_page_self_link_uses_base_url() {
+        let shared = make_test_shared_state(SourceManager::new());
+        let app = ogc_test_router(shared);
+
+        let resp = app
+            .oneshot(Request::builder().uri("/ogc").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let self_link = json["links"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|l| l["rel"] == "self")
+            .unwrap();
+        assert_eq!(self_link["href"], "http://localhost:8080");
+    }
+
+    #[tokio::test]
+    async fn test_conformance_handler_returns_classes() {
+        let shared = make_test_shared_state(SourceManager::new());
+        let app = ogc_test_router(shared);
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/ogc/conformance")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let conforms = json["conformsTo"].as_array().unwrap();
+        assert_eq!(conforms.len(), 3);
+        assert!(
+            conforms
+                .iter()
+                .any(|v| v.as_str().unwrap().contains("conf/core"))
+        );
+        assert!(
+            conforms
+                .iter()
+                .any(|v| v.as_str().unwrap().contains("conf/geojson"))
+        );
+    }
+
+    #[tokio::test]
+    async fn test_collections_empty_when_no_table_sources() {
+        let mut sources_map: HashMap<String, Arc<dyn crate::sources::TileSource>> = HashMap::new();
+        sources_map.insert(
+            "pmtiles_src".to_string(),
+            Arc::new(MockTileSource::new("pmtiles_src")),
+        );
+        let mgr = SourceManager::from_sources(sources_map);
+        let shared = make_test_shared_state(mgr);
+        let app = ogc_test_router(shared);
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/ogc/collections")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(json["collections"].as_array().unwrap().is_empty());
+        assert!(
+            json["links"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|l| l["rel"] == "self")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_collections_with_no_sources() {
+        let shared = make_test_shared_state(SourceManager::new());
+        let app = ogc_test_router(shared);
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/ogc/collections")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(json["collections"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_collection_source_not_found() {
+        let shared = make_test_shared_state(SourceManager::new());
+        let app = ogc_test_router(shared);
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/ogc/collections/nonexistent")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_collection_not_a_table_source() {
+        let mut sources_map: HashMap<String, Arc<dyn crate::sources::TileSource>> = HashMap::new();
+        sources_map.insert(
+            "pmtiles_src".to_string(),
+            Arc::new(MockTileSource::new("pmtiles_src")),
+        );
+        let mgr = SourceManager::from_sources(sources_map);
+        let shared = make_test_shared_state(mgr);
+        let app = ogc_test_router(shared);
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/ogc/collections/pmtiles_src")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_items_source_not_found() {
+        let shared = make_test_shared_state(SourceManager::new());
+        let app = ogc_test_router(shared);
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/ogc/collections/nonexistent/items")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_items_not_a_table_source() {
+        let mut sources_map: HashMap<String, Arc<dyn crate::sources::TileSource>> = HashMap::new();
+        sources_map.insert("mock".to_string(), Arc::new(MockTileSource::new("mock")));
+        let mgr = SourceManager::from_sources(sources_map);
+        let shared = make_test_shared_state(mgr);
+        let app = ogc_test_router(shared);
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/ogc/collections/mock/items")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_feature_source_not_found() {
+        let shared = make_test_shared_state(SourceManager::new());
+        let app = ogc_test_router(shared);
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/ogc/collections/nonexistent/items/1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_feature_not_a_table_source() {
+        let mut sources_map: HashMap<String, Arc<dyn crate::sources::TileSource>> = HashMap::new();
+        sources_map.insert("mock".to_string(), Arc::new(MockTileSource::new("mock")));
+        let mgr = SourceManager::from_sources(sources_map);
+        let shared = make_test_shared_state(mgr);
+        let app = ogc_test_router(shared);
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/ogc/collections/mock/items/42")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    struct MockTileSource {
+        meta: crate::sources::TileMetadata,
+    }
+
+    impl MockTileSource {
+        fn new(id: &str) -> Self {
+            Self {
+                meta: crate::sources::TileMetadata {
+                    id: id.to_string(),
+                    name: id.to_string(),
+                    description: None,
+                    attribution: None,
+                    format: crate::sources::TileFormat::Pbf,
+                    minzoom: 0,
+                    maxzoom: 14,
+                    bounds: None,
+                    center: None,
+                    vector_layers: None,
+                },
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl crate::sources::TileSource for MockTileSource {
+        async fn get_tile(
+            &self,
+            _z: u8,
+            _x: u32,
+            _y: u32,
+        ) -> crate::error::Result<Option<crate::sources::TileData>> {
+            Ok(None)
+        }
+
+        fn metadata(&self) -> &crate::sources::TileMetadata {
+            &self.meta
+        }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+    }
 }
