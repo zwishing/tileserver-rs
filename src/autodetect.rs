@@ -398,4 +398,16 @@ mod tests {
         assert!(ids.contains("tiles-pmtiles") || ids.contains("tiles-mbtiles"));
         assert!(!report.conflicts.is_empty());
     }
+
+    #[test]
+    #[cfg(feature = "stac")]
+    fn test_source_type_suffix_stac() {
+        assert_eq!(source_type_suffix(&SourceType::Stac), "stac");
+    }
+
+    #[test]
+    fn test_source_type_suffix_known_types() {
+        assert_eq!(source_type_suffix(&SourceType::PMTiles), "pmtiles");
+        assert_eq!(source_type_suffix(&SourceType::MBTiles), "mbtiles");
+    }
 }

@@ -344,4 +344,10 @@ mod tests {
         let st = detect_source_type("buildings.parquet").unwrap();
         assert!(matches!(st, SourceType::GeoParquet));
     }
+
+    #[test]
+    #[cfg(feature = "stac")]
+    fn test_source_type_label_stac() {
+        assert_eq!(source_type_label(&SourceType::Stac), "stac");
+    }
 }
