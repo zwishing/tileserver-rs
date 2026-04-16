@@ -565,22 +565,26 @@ async fn render_single_asset(
     }
 }
 
-/// Phase 3 mosaic: paint the highest-priority asset as the base and
-/// layer subsequent assets on top where the base returned no pixels.
+/// Phase 3 mosaic: composite multiple COG renders into a single tile.
 ///
-/// This implementation uses "first non-empty wins" semantics:
-/// - Render each candidate in priority order (first asset returned by STAC
-///   wins; callers should provide items sorted by temporal/cloud-cover rank).
-/// - If a candidate returns bytes, those pixels are composited over the
-///   current mosaic output using straight-alpha `image::imageops::overlay`.
-/// - Stop early as soon as a fully-opaque tile is produced (no further
-///   candidates can contribute pixels).
+/// Priority semantics: the **first** asset returned by STAC is the
+/// highest-priority contributor and must appear on top of the final
+/// image (STAC `/search` results are typically ranked newest-first /
+/// best-cloud-cover-first, and consumers expect to see those pixels).
+///
+/// Strategy:
+/// 1. Render all candidates.
+/// 2. Start from the **lowest-priority** asset as the canvas.
+/// 3. Overlay each higher-priority asset on top using straight-alpha
+///    `image::imageops::overlay` so the top-priority asset's opaque
+///    pixels win where it has coverage and lower-priority pixels fill
+///    in the transparent gaps.
+/// 4. Skip assets that fail to render or decode; a single bad COG does
+///    not blank the tile.
 ///
 /// # Errors
 ///
-/// Returns [`TileServerError::StacError`] when all candidates fail or the
-/// PNG re-encode panics. Individual asset failures are logged and skipped
-/// so a single bad COG does not blank the tile.
+/// Returns [`TileServerError::StacError`] when the PNG re-encode fails.
 async fn composite_mosaic(
     assets: &[StacAsset],
     template: &SourceConfig,
@@ -590,7 +594,7 @@ async fn composite_mosaic(
 ) -> Result<Option<TileData>> {
     use image::RgbaImage;
 
-    let mut canvas: Option<RgbaImage> = None;
+    let mut layers: Vec<RgbaImage> = Vec::with_capacity(assets.len());
 
     for asset in assets {
         let tile = match render_single_asset(asset, template, z, x, y).await? {
@@ -598,33 +602,24 @@ async fn composite_mosaic(
             None => continue,
         };
 
-        let img = match image::load_from_memory(&tile.data) {
-            Ok(i) => i.into_rgba8(),
+        match image::load_from_memory(&tile.data) {
+            Ok(i) => layers.push(i.into_rgba8()),
             Err(e) => {
                 tracing::warn!(asset_id = %asset.id, error = %e, "mosaic: failed to decode");
-                continue;
             }
-        };
-
-        match canvas {
-            None => canvas = Some(img),
-            Some(ref mut base) => {
-                image::imageops::overlay(base, &img, 0, 0);
-            }
-        }
-
-        if canvas
-            .as_ref()
-            .is_some_and(|c| c.pixels().all(|p| p.0[3] == 255))
-        {
-            break;
         }
     }
 
-    let final_img = match canvas {
-        Some(c) => c,
-        None => return Ok(None),
-    };
+    if layers.is_empty() {
+        return Ok(None);
+    }
+
+    let mut canvas = layers.pop().expect("layers non-empty");
+    while let Some(upper) = layers.pop() {
+        image::imageops::overlay(&mut canvas, &upper, 0, 0);
+    }
+
+    let final_img = canvas;
 
     let mut buf = Vec::with_capacity(final_img.len());
     image::DynamicImage::ImageRgba8(final_img)
