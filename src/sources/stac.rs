@@ -6,7 +6,6 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 use crate::config::SourceConfig;
 use crate::error::{Result, TileServerError};
@@ -35,12 +34,31 @@ pub struct StacAsset {
 /// A tile source backed by STAC API catalog discovery.
 ///
 /// Queries a STAC API for items in a collection, extracts COG asset URLs,
-/// and delegates tile serving to an underlying [`CogSource`].
+/// and delegates tile serving to either the first-asset [`CogSource`] (Phase 1)
+/// or a dynamic per-tile bbox-search path (Phase 2/3, when `dynamic=true`).
 pub struct StacSource {
     id: String,
     metadata: TileMetadata,
-    cog_source: Arc<Mutex<Option<CogSource>>>,
+    cog_source: Option<Arc<CogSource>>,
     discovered_assets: Vec<StacAsset>,
+    /// Phase 2/3: dynamic per-tile discovery config (populated when
+    /// `dynamic=true` in [`SourceConfig`]).
+    dynamic: Option<DynamicConfig>,
+}
+
+/// Configuration needed to re-query STAC for each incoming tile (Phase 2+).
+#[derive(Clone)]
+struct DynamicConfig {
+    /// STAC API root URL (same as static path).
+    api_url: String,
+    /// Collection id to search within.
+    collection: String,
+    /// Asset role used to pick the COG asset out of returned items.
+    asset_role: String,
+    /// Upper bound on items inspected per tile.
+    max_items: usize,
+    /// Base SourceConfig cloned into each ad-hoc [`CogSource`].
+    template: SourceConfig,
 }
 
 impl StacSource {
@@ -96,7 +114,7 @@ impl StacSource {
             };
 
             match CogSource::from_file(&cog_config).await {
-                Ok(source) => Some(source),
+                Ok(source) => Some(Arc::new(source)),
                 Err(e) => {
                     tracing::warn!(
                         "failed to create CogSource for first STAC asset {}: {e}",
@@ -105,6 +123,18 @@ impl StacSource {
                     None
                 }
             }
+        } else {
+            None
+        };
+
+        let dynamic = if config.dynamic {
+            Some(DynamicConfig {
+                api_url: api_url.to_string(),
+                collection: collection.to_string(),
+                asset_role: asset_role.to_string(),
+                max_items,
+                template: config.clone(),
+            })
         } else {
             None
         };
@@ -125,8 +155,9 @@ impl StacSource {
         Ok(Self {
             id: config.id.clone(),
             metadata,
-            cog_source: Arc::new(Mutex::new(cog_source)),
+            cog_source,
             discovered_assets: assets,
+            dynamic,
         })
     }
 
@@ -146,11 +177,12 @@ impl StacSource {
 #[async_trait]
 impl TileSource for StacSource {
     async fn get_tile(&self, z: u8, x: u32, y: u32) -> Result<Option<TileData>> {
-        let guard = self.cog_source.lock().await;
-        if let Some(ref cog) = *guard {
-            cog.get_tile(z, x, y).await
-        } else {
-            Ok(None)
+        if let Some(ref dyn_cfg) = self.dynamic {
+            return self.get_tile_dynamic(dyn_cfg, z, x, y).await;
+        }
+        match self.cog_source.as_ref() {
+            Some(cog) => cog.get_tile(z, x, y).await,
+            None => Ok(None),
         }
     }
 
@@ -160,6 +192,52 @@ impl TileSource for StacSource {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+impl StacSource {
+    /// Phase 2/3: resolve a single tile via dynamic STAC bbox-search.
+    ///
+    /// 1. Convert XYZ to a WGS-84 bbox.
+    /// 2. POST `/search` with `bbox` + `collections` + `limit` to find
+    ///    items whose footprints intersect the tile.
+    /// 3. If the result set contains exactly one item, render directly
+    ///    from its COG (Phase 2).
+    /// 4. Otherwise composite the top-N candidates into a single tile
+    ///    by rendering each and painting them in order (Phase 3 mosaic).
+    async fn get_tile_dynamic(
+        &self,
+        cfg: &DynamicConfig,
+        z: u8,
+        x: u32,
+        y: u32,
+    ) -> Result<Option<TileData>> {
+        let bbox = tile_to_wgs84_bbox(z, x, y);
+        let assets = match discover_assets_by_bbox(
+            &cfg.api_url,
+            &cfg.collection,
+            &cfg.asset_role,
+            cfg.max_items,
+            bbox,
+        )
+        .await
+        {
+            Ok(a) => a,
+            Err(e) => {
+                tracing::warn!(error = %e, z, x, y, "STAC bbox search failed; returning empty tile");
+                return Ok(None);
+            }
+        };
+
+        if assets.is_empty() {
+            return Ok(None);
+        }
+
+        if assets.len() == 1 {
+            return render_single_asset(&assets[0], &cfg.template, z, x, y).await;
+        }
+
+        composite_mosaic(&assets, &cfg.template, z, x, y).await
     }
 }
 
@@ -311,17 +389,31 @@ fn find_asset_by_cog_mime(
     None
 }
 
+/// Extract a 2D WGS-84 bounding box from a STAC item, collapsing 3D bboxes.
+///
+/// Per STAC spec §7.9.3 a `bbox` is a JSON array of either 4 or 6 numbers.
+/// The 6-element form is `[west, south, min_elev, east, north, max_elev]`;
+/// only indices 0, 1, 3, 4 carry the 2D footprint (the middle pair is
+/// elevation). Naïvely treating every `bbox[2]` as `east` silently flips
+/// footprints when items carry elevation metadata — rendering tiles in
+/// the wrong location.
 fn extract_bbox(item: &serde_json::Value) -> Option<[f64; 4]> {
     let bbox = item.get("bbox")?.as_array()?;
-    if bbox.len() < 4 {
-        return None;
+    match bbox.len() {
+        4 => Some([
+            bbox[0].as_f64()?,
+            bbox[1].as_f64()?,
+            bbox[2].as_f64()?,
+            bbox[3].as_f64()?,
+        ]),
+        6 => Some([
+            bbox[0].as_f64()?,
+            bbox[1].as_f64()?,
+            bbox[3].as_f64()?,
+            bbox[4].as_f64()?,
+        ]),
+        _ => None,
     }
-    Some([
-        bbox[0].as_f64()?,
-        bbox[1].as_f64()?,
-        bbox[2].as_f64()?,
-        bbox[3].as_f64()?,
-    ])
 }
 
 /// Compute the merged bounding box across all assets.
@@ -352,6 +444,198 @@ pub fn is_cog_mime_type(mime: &str) -> bool {
 #[must_use]
 pub fn is_stac_api_url(url: &str) -> bool {
     url.starts_with("http://") || url.starts_with("https://")
+}
+
+/// Convert an XYZ tile to its WGS-84 bounding box `[west, south, east, north]`.
+///
+/// Uses the standard Web Mercator tile→lonlat conversion. The result is the
+/// geographic extent covered by a single tile, suitable for STAC bbox search
+/// which expects WGS-84.
+#[must_use]
+pub fn tile_to_wgs84_bbox(z: u8, x: u32, y: u32) -> [f64; 4] {
+    let n = 2f64.powi(i32::from(z));
+    let lon_west = f64::from(x) / n * 360.0 - 180.0;
+    let lon_east = f64::from(x + 1) / n * 360.0 - 180.0;
+    let lat_north = (std::f64::consts::PI * (1.0 - 2.0 * f64::from(y) / n))
+        .sinh()
+        .atan()
+        .to_degrees();
+    let lat_south = (std::f64::consts::PI * (1.0 - 2.0 * f64::from(y + 1) / n))
+        .sinh()
+        .atan()
+        .to_degrees();
+    [lon_west, lat_south, lon_east, lat_north]
+}
+
+/// Phase 2: search the STAC API for items intersecting a bbox.
+///
+/// Same wire format as [`discover_assets`] but injects `bbox` and drops
+/// the `limit` if the caller wants unbounded results.
+///
+/// # Errors
+///
+/// Returns [`TileServerError::StacError`] on HTTP or JSON failure.
+pub async fn discover_assets_by_bbox(
+    api_url: &str,
+    collection: &str,
+    asset_role: &str,
+    max_items: usize,
+    bbox: [f64; 4],
+) -> Result<Vec<StacAsset>> {
+    let search_url = build_search_url(api_url);
+    let client = reqwest::Client::builder()
+        .user_agent("tileserver-rs/stac")
+        .build()
+        .map_err(|e| TileServerError::StacError(format!("failed to create HTTP client: {e}")))?;
+
+    let search_body = serde_json::json!({
+        "collections": [collection],
+        "bbox": bbox,
+        "limit": max_items
+    });
+
+    let response = client
+        .post(&search_url)
+        .json(&search_body)
+        .send()
+        .await
+        .map_err(|e| TileServerError::StacError(format!("stac bbox search failed: {e}")))?;
+
+    if !response.status().is_success() {
+        return Err(TileServerError::StacError(format!(
+            "stac api returned status {}",
+            response.status()
+        )));
+    }
+
+    let body: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| TileServerError::StacError(format!("failed to parse stac response: {e}")))?;
+
+    extract_assets_from_item_collection(&body, asset_role)
+}
+
+/// Phase 2 single-asset rendering: construct a one-shot [`CogSource`]
+/// pointed at `asset.href`, render the tile, and drop the source.
+///
+/// The `template` SourceConfig provides shared config (colormap, resampling,
+/// etc.) so per-tile renders match the catalog-wide style.
+async fn render_single_asset(
+    asset: &StacAsset,
+    template: &SourceConfig,
+    z: u8,
+    x: u32,
+    y: u32,
+) -> Result<Option<TileData>> {
+    let cfg = SourceConfig {
+        id: template.id.clone(),
+        source_type: crate::config::SourceType::Cog,
+        path: asset.href.clone(),
+        name: template.name.clone(),
+        attribution: template.attribution.clone(),
+        description: template.description.clone(),
+        resampling: template.resampling,
+        layer_name: None,
+        geometry_column: None,
+        query: None,
+        minzoom: template.minzoom,
+        maxzoom: template.maxzoom,
+        serve_as: None,
+        #[cfg(feature = "raster")]
+        colormap: template.colormap.clone(),
+        options: None,
+        collection: None,
+        asset_role: template.asset_role.clone(),
+        dynamic: false,
+        max_items: template.max_items,
+    };
+
+    match CogSource::from_file(&cfg).await {
+        Ok(src) => src.get_tile(z, x, y).await,
+        Err(e) => {
+            tracing::warn!(
+                asset_id = %asset.id,
+                href = %asset.href,
+                error = %e,
+                "failed to load STAC asset for single-tile render"
+            );
+            Ok(None)
+        }
+    }
+}
+
+/// Phase 3 mosaic: paint the highest-priority asset as the base and
+/// layer subsequent assets on top where the base returned no pixels.
+///
+/// This implementation uses "first non-empty wins" semantics:
+/// - Render each candidate in priority order (first asset returned by STAC
+///   wins; callers should provide items sorted by temporal/cloud-cover rank).
+/// - If a candidate returns bytes, those pixels are composited over the
+///   current mosaic output using straight-alpha `image::imageops::overlay`.
+/// - Stop early as soon as a fully-opaque tile is produced (no further
+///   candidates can contribute pixels).
+///
+/// # Errors
+///
+/// Returns [`TileServerError::StacError`] when all candidates fail or the
+/// PNG re-encode panics. Individual asset failures are logged and skipped
+/// so a single bad COG does not blank the tile.
+async fn composite_mosaic(
+    assets: &[StacAsset],
+    template: &SourceConfig,
+    z: u8,
+    x: u32,
+    y: u32,
+) -> Result<Option<TileData>> {
+    use image::RgbaImage;
+
+    let mut canvas: Option<RgbaImage> = None;
+
+    for asset in assets {
+        let tile = match render_single_asset(asset, template, z, x, y).await? {
+            Some(t) => t,
+            None => continue,
+        };
+
+        let img = match image::load_from_memory(&tile.data) {
+            Ok(i) => i.into_rgba8(),
+            Err(e) => {
+                tracing::warn!(asset_id = %asset.id, error = %e, "mosaic: failed to decode");
+                continue;
+            }
+        };
+
+        match canvas {
+            None => canvas = Some(img),
+            Some(ref mut base) => {
+                image::imageops::overlay(base, &img, 0, 0);
+            }
+        }
+
+        if canvas
+            .as_ref()
+            .is_some_and(|c| c.pixels().all(|p| p.0[3] == 255))
+        {
+            break;
+        }
+    }
+
+    let final_img = match canvas {
+        Some(c) => c,
+        None => return Ok(None),
+    };
+
+    let mut buf = Vec::with_capacity(final_img.len());
+    image::DynamicImage::ImageRgba8(final_img)
+        .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
+        .map_err(|e| TileServerError::StacError(format!("mosaic PNG encode failed: {e}")))?;
+
+    Ok(Some(TileData {
+        data: buf.into(),
+        format: TileFormat::Png,
+        compression: crate::sources::TileCompression::None,
+    }))
 }
 
 #[cfg(test)]
@@ -421,9 +705,35 @@ mod tests {
 
     #[test]
     fn test_extract_bbox_6_element() {
+        // STAC 3D bbox: [west, south, min_elev, east, north, max_elev].
+        // We must collapse to the 2D footprint (indices 0, 1, 3, 4), NOT
+        // treat elevation as east — which would silently mis-place tiles.
         let item = serde_json::json!({"bbox": [-122.5, 37.0, 0.0, -122.0, 37.5, 100.0]});
         let bbox = extract_bbox(&item).unwrap();
-        assert_eq!(bbox, [-122.5, 37.0, 0.0, -122.0]);
+        assert_eq!(bbox, [-122.5, 37.0, -122.0, 37.5]);
+    }
+
+    #[test]
+    fn test_extract_bbox_5_element_rejected() {
+        let item = serde_json::json!({"bbox": [-122.5, 37.0, 0.0, -122.0, 37.5]});
+        assert!(extract_bbox(&item).is_none());
+    }
+
+    #[test]
+    fn test_tile_to_wgs84_bbox_z0_covers_world() {
+        let b = tile_to_wgs84_bbox(0, 0, 0);
+        assert!((b[0] - -180.0).abs() < 1e-6);
+        assert!((b[2] - 180.0).abs() < 1e-6);
+        assert!((b[1] - -85.051_128).abs() < 1e-3);
+        assert!((b[3] - 85.051_128).abs() < 1e-3);
+    }
+
+    #[test]
+    fn test_tile_to_wgs84_bbox_z1_nw_quadrant() {
+        let b = tile_to_wgs84_bbox(1, 0, 0);
+        assert!((b[0] - -180.0).abs() < 1e-6);
+        assert!((b[2] - 0.0).abs() < 1e-6);
+        assert!(b[1] < b[3]);
     }
 
     #[test]
