@@ -21,6 +21,7 @@ import {
   FileSpreadsheet,
   Braces,
   Timer,
+  Satellite,
 } from 'lucide-vue-next';
 import type {
   Feature,
@@ -146,6 +147,12 @@ export function useMarketingPage() {
       title: 'Configurable Caching',
       description:
         'Per-source cache control headers with configurable max-age, stale-while-revalidate, and CDN-friendly strategies for optimal tile delivery.',
+    },
+    {
+      icon: Satellite,
+      title: 'STAC Catalog Sources',
+      description:
+        'Point at any STAC API (Element84, Planetary Computer, USGS) and serve COGs as tiles. Phase 1 static, Phase 2 dynamic per-tile bbox search, Phase 3 multi-asset mosaic compositing.',
     },
   ];
 
