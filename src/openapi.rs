@@ -61,6 +61,10 @@ use utoipa::OpenApi;
         ogc_collection,
         ogc_items,
         ogc_feature,
+        ogc_create_item,
+        ogc_replace_item,
+        ogc_update_item,
+        ogc_delete_item,
     ),
     components(schemas(
         TileJSON,
@@ -925,6 +929,85 @@ pub async fn ogc_items() {}
     )
 )]
 pub async fn ogc_feature() {}
+
+/// Create a new feature (OGC API Features Part 4 Transactions)
+///
+/// Requires `writable = true` on the target table in config.toml.
+#[utoipa::path(
+    post,
+    path = "/ogc/collections/{id}/items",
+    tag = "OGC",
+    params(
+        ("id" = String, Path, description = "Collection id")
+    ),
+    request_body(content = OgcFeature, content_type = "application/geo+json"),
+    responses(
+        (status = 201, description = "Feature created; Location header contains the new /items/{fid} URL"),
+        (status = 400, description = "Invalid GeoJSON payload", body = ApiError),
+        (status = 405, description = "Collection is not writable", body = ApiError)
+    )
+)]
+pub async fn ogc_create_item() {}
+
+/// Replace a feature (PUT semantics — OGC API Features Part 4)
+///
+/// All configured property columns are overwritten; missing properties are
+/// set to NULL. Requires `writable = true`.
+#[utoipa::path(
+    put,
+    path = "/ogc/collections/{id}/items/{fid}",
+    tag = "OGC",
+    params(
+        ("id" = String, Path, description = "Collection id"),
+        ("fid" = String, Path, description = "Feature id")
+    ),
+    request_body(content = OgcFeature, content_type = "application/geo+json"),
+    responses(
+        (status = 204, description = "Feature replaced"),
+        (status = 400, description = "Invalid GeoJSON payload", body = ApiError),
+        (status = 404, description = "Feature not found", body = ApiError),
+        (status = 405, description = "Collection is not writable", body = ApiError)
+    )
+)]
+pub async fn ogc_replace_item() {}
+
+/// Merge-update a feature (PATCH / RFC 7396 — OGC API Features Part 4)
+///
+/// Only fields present in the payload are touched. Requires `writable = true`.
+#[utoipa::path(
+    patch,
+    path = "/ogc/collections/{id}/items/{fid}",
+    tag = "OGC",
+    params(
+        ("id" = String, Path, description = "Collection id"),
+        ("fid" = String, Path, description = "Feature id")
+    ),
+    request_body(content = OgcFeature, content_type = "application/merge-patch+json"),
+    responses(
+        (status = 204, description = "Feature updated"),
+        (status = 400, description = "Invalid payload", body = ApiError),
+        (status = 404, description = "Feature not found", body = ApiError),
+        (status = 405, description = "Collection is not writable", body = ApiError)
+    )
+)]
+pub async fn ogc_update_item() {}
+
+/// Delete a feature (OGC API Features Part 4 Transactions)
+#[utoipa::path(
+    delete,
+    path = "/ogc/collections/{id}/items/{fid}",
+    tag = "OGC",
+    params(
+        ("id" = String, Path, description = "Collection id"),
+        ("fid" = String, Path, description = "Feature id")
+    ),
+    responses(
+        (status = 204, description = "Feature deleted"),
+        (status = 404, description = "Feature not found", body = ApiError),
+        (status = 405, description = "Collection is not writable", body = ApiError)
+    )
+)]
+pub async fn ogc_delete_item() {}
 
 #[cfg(test)]
 mod tests {

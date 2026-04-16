@@ -121,8 +121,17 @@ fn ogc_router() -> Router<SharedState> {
         .route("/ogc/conformance", get(ogc::conformance))
         .route("/ogc/collections", get(ogc::collections))
         .route("/ogc/collections/{id}", get(ogc::collection))
-        .route("/ogc/collections/{id}/items", get(ogc::items))
-        .route("/ogc/collections/{id}/items/{fid}", get(ogc::feature))
+        .route(
+            "/ogc/collections/{id}/items",
+            get(ogc::items).post(ogc::create_item),
+        )
+        .route(
+            "/ogc/collections/{id}/items/{fid}",
+            get(ogc::feature)
+                .put(ogc::replace_item)
+                .patch(ogc::update_item)
+                .delete(ogc::delete_item),
+        )
 }
 
 #[cfg(not(feature = "postgres"))]

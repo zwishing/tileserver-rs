@@ -24,6 +24,7 @@ table = "cities"
 geometry_column = "geom"
 id_column = "id"
 srid = 4326
+writable = true
 
 [[postgres.tables]]
 id = "countries"

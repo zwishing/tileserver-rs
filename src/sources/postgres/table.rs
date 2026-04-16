@@ -50,12 +50,13 @@ pub struct TableInfo {
     pub table: String,
     pub geometry_column: String,
     pub srid: i32,
-    #[allow(dead_code)] // Populated during introspection; reserved for geometry-type validation
     pub geometry_type: String,
     pub id_column: Option<String>,
     pub properties: Vec<String>,
     pub bounds: Option<[f64; 4]>,
     pub has_spatial_index: bool,
+    /// Whether this table opts in to OGC API Features Part 4 transactions.
+    pub writable: bool,
 }
 
 #[derive(Clone)]
@@ -458,7 +459,228 @@ impl PostgresTableSource {
             properties,
             bounds,
             has_spatial_index,
+            writable: config.writable,
         })
+    }
+
+    /// Inserts a new feature into the underlying PostGIS table.
+    ///
+    /// Uses parameterised `INSERT` — geometry is bound via
+    /// `ST_GeomFromGeoJSON($N)::geometry(SRID)` so user-supplied GeoJSON is
+    /// parsed by PostGIS and cannot leak into surrounding SQL. Properties are
+    /// bound as `jsonb` values and cast by PostgreSQL to the destination
+    /// column types. Returns the new feature id as text (or the ctid if the
+    /// table has no configured id column).
+    ///
+    /// # Errors
+    ///
+    /// - [`TileServerError::MethodNotAllowed`] if the table is not marked
+    ///   `writable = true` in the config.
+    /// - [`TileServerError::InvalidTileRequest`] if the feature is missing a
+    ///   geometry or properties shape.
+    /// - [`TileServerError::PostgresError`] if the INSERT fails (bad CRS,
+    ///   constraint violation, etc.).
+    pub async fn insert_feature(
+        &self,
+        geometry: &serde_json::Value,
+        properties: &serde_json::Map<String, serde_json::Value>,
+    ) -> Result<String> {
+        let info = &self.table_info;
+        if !info.writable {
+            return Err(TileServerError::MethodNotAllowed(format!(
+                "collection '{}.{}' is read-only; set writable = true in config to enable transactions",
+                info.schema, info.table
+            )));
+        }
+
+        let geom_json = geometry.to_string();
+
+        let mut columns: Vec<String> = Vec::with_capacity(info.properties.len() + 1);
+        let mut placeholders: Vec<String> = Vec::with_capacity(info.properties.len() + 1);
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> =
+            Vec::with_capacity(info.properties.len() + 1);
+
+        columns.push(format!(r#""{}""#, info.geometry_column));
+        placeholders.push(format!("ST_SetSRID(ST_GeomFromGeoJSON($1), {})", info.srid));
+        params.push(Box::new(geom_json));
+
+        let mut idx: u32 = 2;
+        for prop in &info.properties {
+            if let Some(value) = properties.get(prop) {
+                columns.push(format!(r#""{prop}""#));
+                placeholders.push(format!("(${idx}::jsonb)#>>'{{}}'"));
+                params.push(Box::new(value.to_string()));
+                idx += 1;
+            }
+        }
+
+        let id_col = info.id_column.as_deref().unwrap_or("ctid");
+        let sql = format!(
+            r#"INSERT INTO "{}"."{}" ({}) VALUES ({}) RETURNING "{}"::text"#,
+            info.schema,
+            info.table,
+            columns.join(", "),
+            placeholders.join(", "),
+            id_col
+        );
+
+        let conn = self.pool.get().await?;
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
+        let row = conn
+            .query_one(&sql, &param_refs)
+            .await
+            .map_err(|e| TileServerError::PostgresError(format!("insert_feature failed: {e}")))?;
+        Ok(row.get::<_, String>(0))
+    }
+
+    /// Replaces a feature (PUT semantics): geometry + all configured property
+    /// columns are overwritten. Missing properties in the payload are set to
+    /// NULL — this is the `api-parse-dont-validate` contract of PUT.
+    ///
+    /// # Errors
+    ///
+    /// See [`Self::insert_feature`]. Additionally returns
+    /// [`TileServerError::NotFound`] if no row matches `feature_id`.
+    pub async fn replace_feature(
+        &self,
+        feature_id: &str,
+        geometry: &serde_json::Value,
+        properties: &serde_json::Map<String, serde_json::Value>,
+    ) -> Result<()> {
+        self.write_feature(
+            feature_id,
+            Some(geometry),
+            properties,
+            /* partial */ false,
+        )
+        .await
+    }
+
+    /// Updates a feature in place (PATCH semantics, RFC 7396 merge): only
+    /// properties/geometry present in the payload are touched; everything
+    /// else is preserved.
+    ///
+    /// # Errors
+    ///
+    /// See [`Self::insert_feature`]. Returns [`TileServerError::NotFound`]
+    /// if no row matches `feature_id`.
+    pub async fn patch_feature(
+        &self,
+        feature_id: &str,
+        geometry: Option<&serde_json::Value>,
+        properties: &serde_json::Map<String, serde_json::Value>,
+    ) -> Result<()> {
+        self.write_feature(feature_id, geometry, properties, /* partial */ true)
+            .await
+    }
+
+    async fn write_feature(
+        &self,
+        feature_id: &str,
+        geometry: Option<&serde_json::Value>,
+        properties: &serde_json::Map<String, serde_json::Value>,
+        partial: bool,
+    ) -> Result<()> {
+        let info = &self.table_info;
+        if !info.writable {
+            return Err(TileServerError::MethodNotAllowed(format!(
+                "collection '{}.{}' is read-only",
+                info.schema, info.table
+            )));
+        }
+
+        let mut assignments: Vec<String> = Vec::new();
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
+        let mut idx: u32 = 1;
+
+        if let Some(geom) = geometry {
+            assignments.push(format!(
+                r#""{}" = ST_SetSRID(ST_GeomFromGeoJSON(${idx}), {})"#,
+                info.geometry_column, info.srid
+            ));
+            params.push(Box::new(geom.to_string()));
+            idx += 1;
+        }
+
+        for prop in &info.properties {
+            match properties.get(prop) {
+                Some(value) => {
+                    assignments.push(format!(r#""{prop}" = (${idx}::jsonb)#>>'{{}}'"#));
+                    params.push(Box::new(value.to_string()));
+                    idx += 1;
+                }
+                None if !partial => {
+                    assignments.push(format!(r#""{prop}" = NULL"#));
+                }
+                None => {}
+            }
+        }
+
+        if assignments.is_empty() {
+            return Err(TileServerError::InvalidTileRequest);
+        }
+
+        let id_col = info.id_column.as_deref().unwrap_or("ctid");
+        let sql = format!(
+            r#"UPDATE "{}"."{}" SET {} WHERE "{}"::text = ${idx}"#,
+            info.schema,
+            info.table,
+            assignments.join(", "),
+            id_col
+        );
+        params.push(Box::new(feature_id.to_string()));
+
+        let conn = self.pool.get().await?;
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
+
+        let rows = conn
+            .execute(&sql, &param_refs)
+            .await
+            .map_err(|e| TileServerError::PostgresError(format!("write_feature failed: {e}")))?;
+        if rows == 0 {
+            return Err(TileServerError::NotFound(format!(
+                "feature '{feature_id}' not found"
+            )));
+        }
+        Ok(())
+    }
+
+    /// Deletes a feature by id.
+    ///
+    /// # Errors
+    ///
+    /// See [`Self::insert_feature`]. Returns [`TileServerError::NotFound`]
+    /// if no row matches.
+    pub async fn delete_feature(&self, feature_id: &str) -> Result<()> {
+        let info = &self.table_info;
+        if !info.writable {
+            return Err(TileServerError::MethodNotAllowed(format!(
+                "collection '{}.{}' is read-only",
+                info.schema, info.table
+            )));
+        }
+        let id_col = info.id_column.as_deref().unwrap_or("ctid");
+        let sql = format!(
+            r#"DELETE FROM "{}"."{}" WHERE "{}"::text = $1"#,
+            info.schema, info.table, id_col
+        );
+        let conn = self.pool.get().await?;
+        let rows = conn
+            .execute(&sql, &[&feature_id])
+            .await
+            .map_err(|e| TileServerError::PostgresError(format!("delete_feature failed: {e}")))?;
+        if rows == 0 {
+            return Err(TileServerError::NotFound(format!(
+                "feature '{feature_id}' not found"
+            )));
+        }
+        Ok(())
     }
 
     async fn find_geometry_column(
@@ -815,6 +1037,7 @@ mod tests {
             properties: vec!["name".to_string(), "category".to_string()],
             bounds: Some([8.0, 47.0, 9.0, 48.0]),
             has_spatial_index: true,
+            writable: false,
         }
     }
 
@@ -835,6 +1058,7 @@ mod tests {
             extent: 4096,
             buffer: 64,
             max_features: None,
+            writable: false,
         }
     }
 

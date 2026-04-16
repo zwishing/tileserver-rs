@@ -71,6 +71,20 @@ pub(crate) struct FeatureQueryParams {
     crs: Option<String>,
 }
 
+/// GeoJSON `Feature` body accepted by Part 4 transactional endpoints.
+///
+/// The `type` field is ignored — OGC/GeoJSON strictness is relaxed here so
+/// clients that send either `"type":"Feature"` or no `type` at all work.
+/// Both fields are optional so callers can PATCH either geometry or
+/// properties alone.
+#[derive(Debug, Deserialize, Default)]
+pub(crate) struct FeaturePayload {
+    #[serde(default)]
+    geometry: Option<serde_json::Value>,
+    #[serde(default)]
+    properties: serde_json::Map<String, serde_json::Value>,
+}
+
 /// Returns the default page size for feature queries.
 #[must_use]
 fn default_limit() -> i64 {
@@ -170,6 +184,7 @@ pub(crate) async fn conformance() -> impl IntoResponse {
             ogc_filter::CONFORMANCE_FILTER,
             ogc_filter::CONFORMANCE_FEATURES_FILTER,
             ogc_filter::CONFORMANCE_QUERYABLES,
+            "http://www.opengis.net/spec/ogcapi-features-4/1.0/conf/create-replace-delete",
         ]
     });
     Json(body)
@@ -435,6 +450,132 @@ pub(crate) async fn feature(
         Json(body),
     )
         .into_response())
+}
+
+/// POST `/ogc/collections/{id}/items` — create a new feature.
+///
+/// Requires `writable = true` on the target `postgres.tables` entry in
+/// `config.toml`. Responds 201 Created with a `Location` header pointing
+/// to the new `/items/{fid}` URL.
+///
+/// # Errors
+///
+/// - [`TileServerError::SourceNotFound`] when the collection id is unknown.
+/// - [`TileServerError::NotFound`] when the source is not a PostGIS table.
+/// - [`TileServerError::MethodNotAllowed`] when the table is read-only.
+/// - [`TileServerError::InvalidTileRequest`] when the payload lacks a geometry.
+pub(crate) async fn create_item(
+    State(shared): State<SharedState>,
+    Path(collection_id): Path<String>,
+    Json(payload): Json<FeaturePayload>,
+) -> Result<Response, TileServerError> {
+    let state = shared.load();
+    let base = build_base_url(&state);
+    let table_source = resolve_table(&state, &collection_id)?;
+
+    let geom = payload
+        .geometry
+        .ok_or(TileServerError::InvalidTileRequest)?;
+
+    let new_id = table_source
+        .insert_feature(&geom, &payload.properties)
+        .await?;
+
+    let mut headers = axum::http::HeaderMap::new();
+    let location = HeaderValue::from_str(&format!(
+        "{base}/collections/{collection_id}/items/{new_id}"
+    ))
+    .map_err(|_| TileServerError::PostgresError("failed to encode Location".into()))?;
+    headers.insert(axum::http::header::LOCATION, location);
+    Ok((StatusCode::CREATED, headers).into_response())
+}
+
+/// PUT `/ogc/collections/{id}/items/{fid}` — replace a feature wholesale.
+///
+/// # Errors
+///
+/// See [`create_item`] plus [`TileServerError::NotFound`] if the feature id
+/// does not exist.
+pub(crate) async fn replace_item(
+    State(shared): State<SharedState>,
+    Path((collection_id, feature_id)): Path<(String, String)>,
+    Json(payload): Json<FeaturePayload>,
+) -> Result<Response, TileServerError> {
+    let state = shared.load();
+    let table_source = resolve_table(&state, &collection_id)?;
+
+    let geom = payload
+        .geometry
+        .ok_or(TileServerError::InvalidTileRequest)?;
+
+    table_source
+        .replace_feature(&feature_id, &geom, &payload.properties)
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+/// PATCH `/ogc/collections/{id}/items/{fid}` — merge-update a feature.
+///
+/// Only the fields present in the payload are touched; everything else is
+/// preserved (RFC 7396 merge semantics).
+///
+/// # Errors
+///
+/// See [`create_item`] plus [`TileServerError::NotFound`].
+pub(crate) async fn update_item(
+    State(shared): State<SharedState>,
+    Path((collection_id, feature_id)): Path<(String, String)>,
+    Json(payload): Json<FeaturePayload>,
+) -> Result<Response, TileServerError> {
+    let state = shared.load();
+    let table_source = resolve_table(&state, &collection_id)?;
+
+    table_source
+        .patch_feature(&feature_id, payload.geometry.as_ref(), &payload.properties)
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+/// DELETE `/ogc/collections/{id}/items/{fid}` — remove a feature.
+///
+/// # Errors
+///
+/// See [`create_item`] plus [`TileServerError::NotFound`].
+pub(crate) async fn delete_item(
+    State(shared): State<SharedState>,
+    Path((collection_id, feature_id)): Path<(String, String)>,
+) -> Result<Response, TileServerError> {
+    let state = shared.load();
+    let table_source = resolve_table(&state, &collection_id)?;
+    table_source.delete_feature(&feature_id).await?;
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+/// Looks up a collection and downcasts to `PostgresTableSource`.
+///
+/// Returning an owned clone (`PostgresTableSource: Clone`) sidesteps the
+/// lifetime problem of borrowing through an `arc_swap::Guard`. The struct
+/// is cheap to clone — it only holds `Arc`-backed pool, metadata and
+/// caches.
+fn resolve_table(
+    state: &crate::reload::AppState,
+    collection_id: &str,
+) -> Result<PostgresTableSource, TileServerError> {
+    let source = state
+        .sources
+        .get(collection_id)
+        .ok_or_else(|| TileServerError::SourceNotFound(collection_id.to_string()))?;
+    source
+        .as_any()
+        .downcast_ref::<PostgresTableSource>()
+        .cloned()
+        .ok_or_else(|| {
+            TileServerError::NotFound(format!(
+                "collection '{collection_id}' is not an OGC features source"
+            ))
+        })
 }
 
 /// Builds an OGC collection JSON object from tile source metadata.
@@ -1302,7 +1443,7 @@ mod tests {
             .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let conforms = json["conformsTo"].as_array().unwrap();
-        assert_eq!(conforms.len(), 7);
+        assert_eq!(conforms.len(), 8);
         assert!(
             conforms
                 .iter()
