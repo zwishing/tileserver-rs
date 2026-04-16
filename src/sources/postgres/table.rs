@@ -256,26 +256,39 @@ impl PostgresTableSource {
         Ok(Some((feature_id.to_string(), geom, properties)))
     }
 
-    /// Queries features as GeoJSON with OGC API Features Part 2 CRS support.
+    /// Queries features as GeoJSON with OGC API Features Part 2/3 support.
     ///
-    /// - `bbox_srid` is the EPSG code of the caller-supplied bbox (spec
-    ///   `bbox-crs`). The envelope is reprojected into the storage SRID
-    ///   inside PostGIS so spatial-index lookups stay cheap.
-    /// - `output_srid` is the EPSG code the caller wants back (spec `crs`).
-    ///   Identity transform is elided when it matches the storage SRID.
+    /// - `bbox_srid` — EPSG code of the caller-supplied bbox (spec `bbox-crs`).
+    ///   The envelope is reprojected to the storage SRID inside PostGIS so
+    ///   spatial-index lookups stay cheap.
+    /// - `output_srid` — EPSG code the caller wants back (spec `crs`). The
+    ///   identity transform is elided when it matches the storage SRID.
+    /// - `filter_sql` — pre-validated PostgreSQL `WHERE` fragment produced by
+    ///   [`crate::routes::ogc_filter::translate_filter_to_sql`]. Spliced in as
+    ///   raw SQL; the upstream CQL2 parser + `pg_escape` guarantee that
+    ///   identifiers and literals are quoted safely.
+    /// - `filter_srid` — EPSG code of geometry literals inside the filter
+    ///   (spec `filter-crs`). Currently informational; the CQL2 crate emits
+    ///   `ST_GeomFromText` / `ST_GeomFromGeoJSON` without SRID metadata, so
+    ///   callers that use a non-storage filter CRS must set the SRID on the
+    ///   geometry literal themselves (or use `bbox` as the spatial filter).
     ///
     /// # Errors
     ///
     /// Returns [`TileServerError::PostgresError`] when the pool or SQL
     /// execution fails.
+    #[allow(clippy::too_many_arguments)]
     pub async fn query_features_geojson(
         &self,
         bbox: Option<[f64; 4]>,
         bbox_srid: i32,
         output_srid: i32,
+        filter_sql: Option<&str>,
+        filter_srid: Option<i32>,
         limit: i64,
         offset: i64,
     ) -> Result<(Vec<serde_json::Value>, i64)> {
+        let _ = filter_srid;
         let conn = self.pool.get().await?;
         let info = &self.table_info;
 
@@ -331,6 +344,13 @@ impl PostgresTableSource {
             params.push(Box::new(bb[2]));
             params.push(Box::new(bb[3]));
             param_idx += 4;
+        }
+
+        if let Some(fragment) = filter_sql {
+            let trimmed = fragment.trim();
+            if !trimmed.is_empty() {
+                where_clauses.push(format!("({trimmed})"));
+            }
         }
 
         let where_sql = if where_clauses.is_empty() {

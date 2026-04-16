@@ -10,6 +10,8 @@ mod fonts;
 pub(crate) mod ogc;
 #[cfg(feature = "postgres")]
 pub(crate) mod ogc_crs;
+#[cfg(feature = "postgres")]
+pub(crate) mod ogc_filter;
 mod render;
 mod spatial;
 mod styles;

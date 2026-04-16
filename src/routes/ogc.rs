@@ -16,6 +16,7 @@ use serde::Serialize;
 use crate::error::TileServerError;
 use crate::reload::SharedState;
 use crate::routes::ogc_crs::{self, Crs};
+use crate::routes::ogc_filter;
 use crate::sources::postgres::PostgresTableSource;
 
 /// OGC `Content-Crs` response header name (Part 2).
@@ -41,6 +42,15 @@ pub(crate) struct ItemsQueryParams {
     /// CRS requested for the response geometries (OGC Features Part 2). Defaults to CRS84.
     #[serde(default)]
     crs: Option<String>,
+    /// CQL2 filter expression (OGC Features Part 3).
+    #[serde(default)]
+    filter: Option<String>,
+    /// Dialect of the `filter` parameter: `cql2-text` (default) or `cql2-json`.
+    #[serde(default, rename = "filter-lang")]
+    filter_lang: Option<String>,
+    /// CRS the spatial operands inside the filter expression are expressed in.
+    #[serde(default, rename = "filter-crs")]
+    filter_crs: Option<String>,
     /// Maximum number of features to return (clamped to [`OGC_FEATURES_LIMIT_MAX`]).
     #[serde(default = "default_limit")]
     limit: i64,
@@ -107,6 +117,7 @@ fn reject_datetime(datetime: Option<&str>) -> Result<(), TileServerError> {
 pub(crate) async fn landing_page(State(shared): State<SharedState>) -> impl IntoResponse {
     let state = shared.load();
     let base = build_base_url(&state);
+    let root = state.base_url.trim_end_matches('/').to_string();
 
     let landing = serde_json::json!({
         "title": "tileserver-rs OGC API",
@@ -131,10 +142,16 @@ pub(crate) async fn landing_page(State(shared): State<SharedState>) -> impl Into
                 "title": "feature collections"
             },
             {
-                "href": format!("{base}/_openapi"),
+                "href": format!("{root}/openapi.json"),
                 "rel": "service-desc",
+                "type": "application/vnd.oai.openapi+json;version=3.0",
+                "title": "OpenAPI 3.0 specification"
+            },
+            {
+                "href": format!("{root}/_openapi"),
+                "rel": "service-doc",
                 "type": "text/html",
-                "title": "API documentation"
+                "title": "API documentation (Scalar)"
             }
         ]
     });
@@ -150,6 +167,9 @@ pub(crate) async fn conformance() -> impl IntoResponse {
             "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/oas30",
             "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/geojson",
             ogc_crs::CONFORMANCE_CRS,
+            ogc_filter::CONFORMANCE_FILTER,
+            ogc_filter::CONFORMANCE_FEATURES_FILTER,
+            ogc_filter::CONFORMANCE_QUERYABLES,
         ]
     });
     Json(body)
@@ -264,9 +284,29 @@ pub(crate) async fn items(
         Some(raw) => ogc_crs::parse_crs(raw)?,
         None => Crs::crs84(),
     };
+    let filter_crs = match params.filter_crs.as_deref() {
+        Some(raw) => Some(ogc_crs::parse_crs(raw)?),
+        None => None,
+    };
+
+    let filter_sql = match params.filter.as_deref() {
+        Some(raw) if !raw.trim().is_empty() => Some(ogc_filter::translate_filter_to_sql(
+            raw,
+            params.filter_lang.as_deref(),
+        )?),
+        _ => None,
+    };
 
     let (features, number_matched) = table_source
-        .query_features_geojson(bbox, bbox_crs.srid(), output_crs.srid(), limit, offset)
+        .query_features_geojson(
+            bbox,
+            bbox_crs.srid(),
+            output_crs.srid(),
+            filter_sql.as_deref(),
+            filter_crs.as_ref().map(Crs::srid),
+            limit,
+            offset,
+        )
         .await?;
 
     let number_returned = features.len() as i64;
@@ -798,19 +838,21 @@ mod tests {
             "title": "tileserver-rs OGC API",
             "description": "OGC API Features access to PostGIS table sources",
             "links": [
-                {"href": "http://localhost:8080", "rel": "self", "type": "application/json"},
-                {"href": "http://localhost:8080/conformance", "rel": "conformance", "type": "application/json"},
-                {"href": "http://localhost:8080/collections", "rel": "data", "type": "application/json"},
-                {"href": "http://localhost:8080/_openapi", "rel": "service-desc", "type": "text/html"}
+                {"href": "http://localhost:8080/ogc", "rel": "self", "type": "application/json"},
+                {"href": "http://localhost:8080/ogc/conformance", "rel": "conformance", "type": "application/json"},
+                {"href": "http://localhost:8080/ogc/collections", "rel": "data", "type": "application/json"},
+                {"href": "http://localhost:8080/openapi.json", "rel": "service-desc", "type": "application/vnd.oai.openapi+json;version=3.0"},
+                {"href": "http://localhost:8080/_openapi", "rel": "service-doc", "type": "text/html"}
             ]
         });
         assert_eq!(landing["title"], "tileserver-rs OGC API");
         let links = landing["links"].as_array().unwrap();
-        assert_eq!(links.len(), 4);
+        assert_eq!(links.len(), 5);
         assert!(links.iter().any(|l| l["rel"] == "self"));
         assert!(links.iter().any(|l| l["rel"] == "conformance"));
         assert!(links.iter().any(|l| l["rel"] == "data"));
         assert!(links.iter().any(|l| l["rel"] == "service-desc"));
+        assert!(links.iter().any(|l| l["rel"] == "service-doc"));
     }
 
     #[test]
@@ -1194,11 +1236,15 @@ mod tests {
 
         assert_eq!(json["title"], "tileserver-rs OGC API");
         let links = json["links"].as_array().unwrap();
-        assert_eq!(links.len(), 4);
+        assert_eq!(links.len(), 5);
         assert!(links.iter().any(|l| l["rel"] == "self"));
         assert!(links.iter().any(|l| l["rel"] == "conformance"));
         assert!(links.iter().any(|l| l["rel"] == "data"));
-        assert!(links.iter().any(|l| l["rel"] == "service-desc"));
+        assert!(links.iter().any(|l| l["rel"] == "service-desc"
+            && l["href"].as_str().unwrap().ends_with("/openapi.json")));
+        assert!(links.iter().any(
+            |l| l["rel"] == "service-doc" && l["href"].as_str().unwrap().ends_with("/_openapi")
+        ));
     }
 
     #[tokio::test]
@@ -1256,7 +1302,7 @@ mod tests {
             .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let conforms = json["conformsTo"].as_array().unwrap();
-        assert_eq!(conforms.len(), 4);
+        assert_eq!(conforms.len(), 7);
         assert!(
             conforms
                 .iter()
