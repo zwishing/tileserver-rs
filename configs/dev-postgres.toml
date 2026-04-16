@@ -60,3 +60,8 @@ attribution = "<a href=\"https://protomaps.com\">Protomaps</a> | <a href=\"https
 id = "protomaps-light"
 path = "./data/styles/protomaps-light/style.json"
 name = "Protomaps Light"
+
+[[styles]]
+id = "postgis-collections"
+path = "./data/styles/postgis-collections/style.json"
+name = "PostGIS OGC Collections"

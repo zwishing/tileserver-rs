@@ -1,0 +1,98 @@
+{
+  "version": 8,
+  "name": "PostGIS OGC Collections",
+  "metadata": {
+    "description": "Live map of the four OGC API Features collections served from the dev PostGIS container: countries, buildings, roads, cities."
+  },
+  "sources": {
+    "protomaps": {
+      "type": "vector",
+      "url": "/data/protomaps.json"
+    },
+    "countries": { "type": "vector", "url": "/data/countries.json" },
+    "buildings": { "type": "vector", "url": "/data/buildings.json" },
+    "roads":     { "type": "vector", "url": "/data/roads.json" },
+    "cities":    { "type": "vector", "url": "/data/cities.json" }
+  },
+  "glyphs": "/fonts/{fontstack}/{range}.pbf",
+  "layers": [
+    { "id": "background", "type": "background", "paint": { "background-color": "#f4f1ea" } },
+    {
+      "id": "base-earth",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "earth",
+      "paint": { "fill-color": "#ffffff" }
+    },
+    {
+      "id": "base-landuse",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landuse",
+      "paint": { "fill-color": "#e9e6df", "fill-opacity": 0.6 }
+    },
+    {
+      "id": "countries-fill",
+      "type": "fill",
+      "source": "countries",
+      "source-layer": "countries",
+      "paint": { "fill-color": "#7ac0ff", "fill-opacity": 0.25 }
+    },
+    {
+      "id": "countries-outline",
+      "type": "line",
+      "source": "countries",
+      "source-layer": "countries",
+      "paint": { "line-color": "#1f6feb", "line-width": 1.5 }
+    },
+    {
+      "id": "buildings-fill",
+      "type": "fill",
+      "source": "buildings",
+      "source-layer": "buildings",
+      "paint": { "fill-color": "#ff8c42", "fill-opacity": 0.8, "fill-outline-color": "#8a3b00" }
+    },
+    {
+      "id": "roads-line",
+      "type": "line",
+      "source": "roads",
+      "source-layer": "roads",
+      "paint": { "line-color": "#c0392b", "line-width": 2.5 }
+    },
+    {
+      "id": "cities-circle",
+      "type": "circle",
+      "source": "cities",
+      "source-layer": "cities",
+      "paint": {
+        "circle-radius": [
+          "interpolate", ["linear"], ["zoom"],
+          2, 4,
+          6, 8,
+          10, 12
+        ],
+        "circle-color": "#1a8a1a",
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 2
+      }
+    },
+    {
+      "id": "cities-labels",
+      "type": "symbol",
+      "source": "cities",
+      "source-layer": "cities",
+      "layout": {
+        "text-field": ["get", "name"],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12,
+        "text-offset": [0, 1.2],
+        "text-anchor": "top"
+      },
+      "paint": {
+        "text-color": "#000000",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 1.5
+      }
+    }
+  ]
+}
