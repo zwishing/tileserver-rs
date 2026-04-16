@@ -11,6 +11,42 @@ use crate::sources::{TileCompression, TileData, TileFormat, TileMetadata, TileSo
 
 use super::{PostgresPool, TileCache, TileCacheKey};
 
+/// Maps a PostgreSQL `data_type` (as reported by `information_schema`) to a
+/// JSON Schema type object + a boolean indicating whether the column is
+/// safely sortable in SQL `ORDER BY` (arrays/jsonb/records are not).
+fn pg_type_to_json_schema(data_type: &str) -> (serde_json::Value, bool) {
+    let lower = data_type.to_ascii_lowercase();
+    match lower.as_str() {
+        "integer" | "bigint" | "smallint" => (serde_json::json!({"type": "integer"}), true),
+        "real" | "double precision" | "numeric" | "decimal" => {
+            (serde_json::json!({"type": "number"}), true)
+        }
+        "boolean" => (serde_json::json!({"type": "boolean"}), true),
+        "text" | "character varying" | "character" | "citext" => {
+            (serde_json::json!({"type": "string"}), true)
+        }
+        "uuid" => (
+            serde_json::json!({"type": "string", "format": "uuid"}),
+            true,
+        ),
+        "date" => (
+            serde_json::json!({"type": "string", "format": "date"}),
+            true,
+        ),
+        "timestamp with time zone" | "timestamp without time zone" => (
+            serde_json::json!({"type": "string", "format": "date-time"}),
+            true,
+        ),
+        "time with time zone" | "time without time zone" => (
+            serde_json::json!({"type": "string", "format": "time"}),
+            true,
+        ),
+        "json" | "jsonb" => (serde_json::json!({"type": "object"}), false),
+        "array" | "record" => (serde_json::json!({"type": "array"}), false),
+        _ => (serde_json::json!({"type": "string"}), false),
+    }
+}
+
 /// Extracts a single property column from a PostgreSQL row as a JSON value.
 ///
 /// Shared between `query_features_geojson` (collection listing) and
@@ -649,6 +685,52 @@ impl PostgresTableSource {
             )));
         }
         Ok(())
+    }
+
+    /// Returns the JSON-Schema descriptor for every non-geometry column on
+    /// the table, used by the OGC Features Part 5 `/queryables`, `/sortables`
+    /// and `/schema` endpoints.
+    ///
+    /// PostgreSQL types are mapped to JSON Schema primitives per the table
+    /// below. Arrays/records that don't fit are reported as `{"type":"string"}`
+    /// so QGIS still displays the column.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TileServerError::PostgresError`] when the
+    /// `information_schema.columns` introspection query fails.
+    pub async fn column_schemas(&self) -> Result<Vec<(String, serde_json::Value, bool)>> {
+        let info = &self.table_info;
+        let conn = self.pool.get().await?;
+        let query = r#"
+            SELECT column_name::text, data_type::text, is_nullable::text
+            FROM information_schema.columns
+            WHERE table_schema = $1 AND table_name = $2 AND column_name != $3
+            ORDER BY ordinal_position
+        "#;
+        let rows = conn
+            .query(query, &[&info.schema, &info.table, &info.geometry_column])
+            .await
+            .map_err(|e| TileServerError::PostgresError(format!("column_schemas failed: {e}")))?;
+
+        let mut result = Vec::with_capacity(rows.len());
+        for row in rows {
+            let name: String = row.get(0);
+            let data_type: String = row.get(1);
+            let nullable: String = row.get(2);
+            let (schema, sortable) = pg_type_to_json_schema(&data_type);
+            let mut schema = schema;
+            if let Some(obj) = schema.as_object_mut() {
+                obj.insert("title".to_string(), serde_json::Value::String(name.clone()));
+                if nullable == "YES"
+                    && let Some(serde_json::Value::String(t)) = obj.get("type").cloned()
+                {
+                    obj.insert("type".to_string(), serde_json::json!([t, "null"]));
+                }
+            }
+            result.push((name, schema, sortable));
+        }
+        Ok(result)
     }
 
     /// Deletes a feature by id.

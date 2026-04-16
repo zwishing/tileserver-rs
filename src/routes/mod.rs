@@ -132,6 +132,9 @@ fn ogc_router() -> Router<SharedState> {
                 .patch(ogc::update_item)
                 .delete(ogc::delete_item),
         )
+        .route("/ogc/collections/{id}/queryables", get(ogc::queryables))
+        .route("/ogc/collections/{id}/sortables", get(ogc::sortables))
+        .route("/ogc/collections/{id}/schema", get(ogc::schema))
 }
 
 #[cfg(not(feature = "postgres"))]

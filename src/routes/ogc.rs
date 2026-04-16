@@ -185,6 +185,7 @@ pub(crate) async fn conformance() -> impl IntoResponse {
             ogc_filter::CONFORMANCE_FEATURES_FILTER,
             ogc_filter::CONFORMANCE_QUERYABLES,
             "http://www.opengis.net/spec/ogcapi-features-4/1.0/conf/create-replace-delete",
+            "http://www.opengis.net/spec/ogcapi-features-5/1.0/conf/schemas",
         ]
     });
     Json(body)
@@ -551,6 +552,143 @@ pub(crate) async fn delete_item(
     let table_source = resolve_table(&state, &collection_id)?;
     table_source.delete_feature(&feature_id).await?;
     Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+/// GET `/ogc/collections/{id}/queryables` — filterable properties (Part 5).
+///
+/// Returns a JSON Schema document where each property key is a column name
+/// and each value is its OpenAPI type. Consumed by QGIS / tipg clients to
+/// know which CQL2 filter fields the server accepts.
+///
+/// # Errors
+///
+/// See [`feature`].
+pub(crate) async fn queryables(
+    State(shared): State<SharedState>,
+    Path(collection_id): Path<String>,
+) -> Result<Response, TileServerError> {
+    let state = shared.load();
+    let base = build_base_url(&state);
+    let table = resolve_table(&state, &collection_id)?;
+
+    let mut properties = serde_json::Map::new();
+    for (name, schema, _sortable) in table.column_schemas().await? {
+        properties.insert(name, schema);
+    }
+
+    let body = serde_json::json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": format!("{base}/collections/{collection_id}/queryables"),
+        "type": "object",
+        "title": format!("Queryables for '{collection_id}'"),
+        "properties": properties,
+        "additionalProperties": false
+    });
+    Ok((
+        StatusCode::OK,
+        [(
+            axum::http::header::CONTENT_TYPE,
+            HeaderValue::from_static("application/schema+json"),
+        )],
+        Json(body),
+    )
+        .into_response())
+}
+
+/// GET `/ogc/collections/{id}/sortables` — sortable properties (Part 5).
+///
+/// Subset of queryables excluding `jsonb`/array/record columns that have no
+/// well-defined SQL ordering. This lets clients populate sort-by dropdowns
+/// without triggering PostgreSQL `could not identify a comparison function`
+/// errors.
+///
+/// # Errors
+///
+/// See [`feature`].
+pub(crate) async fn sortables(
+    State(shared): State<SharedState>,
+    Path(collection_id): Path<String>,
+) -> Result<Response, TileServerError> {
+    let state = shared.load();
+    let base = build_base_url(&state);
+    let table = resolve_table(&state, &collection_id)?;
+
+    let mut properties = serde_json::Map::new();
+    for (name, schema, sortable) in table.column_schemas().await? {
+        if sortable {
+            properties.insert(name, schema);
+        }
+    }
+
+    let body = serde_json::json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": format!("{base}/collections/{collection_id}/sortables"),
+        "type": "object",
+        "title": format!("Sortables for '{collection_id}'"),
+        "properties": properties,
+        "additionalProperties": false
+    });
+    Ok((
+        StatusCode::OK,
+        [(
+            axum::http::header::CONTENT_TYPE,
+            HeaderValue::from_static("application/schema+json"),
+        )],
+        Json(body),
+    )
+        .into_response())
+}
+
+/// GET `/ogc/collections/{id}/schema` — full JSON Schema for the collection (Part 5).
+///
+/// Describes a single Feature document as the client will receive it:
+/// `type`, `id`, `geometry` (GeoJSON Geometry), and the `properties` object
+/// with every column typed via [`column_schemas`].
+///
+/// # Errors
+///
+/// See [`feature`].
+pub(crate) async fn schema(
+    State(shared): State<SharedState>,
+    Path(collection_id): Path<String>,
+) -> Result<Response, TileServerError> {
+    let state = shared.load();
+    let base = build_base_url(&state);
+    let table = resolve_table(&state, &collection_id)?;
+
+    let mut properties = serde_json::Map::new();
+    for (name, schema, _sortable) in table.column_schemas().await? {
+        properties.insert(name, schema);
+    }
+
+    let body = serde_json::json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": format!("{base}/collections/{collection_id}/schema"),
+        "type": "object",
+        "title": format!("Feature schema for '{collection_id}'"),
+        "required": ["type", "geometry", "properties"],
+        "properties": {
+            "type": { "type": "string", "enum": ["Feature"] },
+            "id": { "type": ["string", "integer"] },
+            "geometry": {
+                "$ref": "https://geojson.org/schema/Geometry.json"
+            },
+            "properties": {
+                "type": "object",
+                "properties": properties,
+                "additionalProperties": false
+            }
+        }
+    });
+    Ok((
+        StatusCode::OK,
+        [(
+            axum::http::header::CONTENT_TYPE,
+            HeaderValue::from_static("application/schema+json"),
+        )],
+        Json(body),
+    )
+        .into_response())
 }
 
 /// Looks up a collection and downcasts to `PostgresTableSource`.
@@ -1443,7 +1581,7 @@ mod tests {
             .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let conforms = json["conformsTo"].as_array().unwrap();
-        assert_eq!(conforms.len(), 8);
+        assert_eq!(conforms.len(), 9);
         assert!(
             conforms
                 .iter()

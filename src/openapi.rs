@@ -65,6 +65,9 @@ use utoipa::OpenApi;
         ogc_replace_item,
         ogc_update_item,
         ogc_delete_item,
+        ogc_queryables,
+        ogc_sortables,
+        ogc_schema,
     ),
     components(schemas(
         TileJSON,
@@ -1008,6 +1011,51 @@ pub async fn ogc_update_item() {}
     )
 )]
 pub async fn ogc_delete_item() {}
+
+/// Filterable properties (OGC API Features Part 5)
+///
+/// Returns a JSON Schema describing every non-geometry column that CQL2
+/// filters may reference.
+#[utoipa::path(
+    get,
+    path = "/ogc/collections/{id}/queryables",
+    tag = "OGC",
+    params(("id" = String, Path, description = "Collection id")),
+    responses(
+        (status = 200, description = "JSON Schema of queryable properties", content_type = "application/schema+json")
+    )
+)]
+pub async fn ogc_queryables() {}
+
+/// Sortable properties (OGC API Features Part 5)
+///
+/// Subset of queryables that support SQL `ORDER BY` — excludes `jsonb` and
+/// array columns that have no defined comparison function.
+#[utoipa::path(
+    get,
+    path = "/ogc/collections/{id}/sortables",
+    tag = "OGC",
+    params(("id" = String, Path, description = "Collection id")),
+    responses(
+        (status = 200, description = "JSON Schema of sortable properties", content_type = "application/schema+json")
+    )
+)]
+pub async fn ogc_sortables() {}
+
+/// Full feature schema (OGC API Features Part 5)
+///
+/// Describes the complete shape of a Feature response — type, id, geometry
+/// (referencing geojson.org Geometry schema) and properties.
+#[utoipa::path(
+    get,
+    path = "/ogc/collections/{id}/schema",
+    tag = "OGC",
+    params(("id" = String, Path, description = "Collection id")),
+    responses(
+        (status = 200, description = "JSON Schema document for a Feature", content_type = "application/schema+json")
+    )
+)]
+pub async fn ogc_schema() {}
 
 #[cfg(test)]
 mod tests {
