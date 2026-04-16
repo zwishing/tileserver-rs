@@ -331,8 +331,10 @@ impl PostgresTableSource {
     ///   identity transform is elided when it matches the storage SRID.
     /// - `filter_sql` — pre-validated PostgreSQL `WHERE` fragment produced by
     ///   [`crate::routes::ogc_filter::translate_filter_to_sql`]. Spliced in as
-    ///   raw SQL; the upstream CQL2 parser + `pg_escape` guarantee that
-    ///   identifiers and literals are quoted safely.
+    ///   raw SQL; upstream safety relies on a **property allow-list** (bare
+    ///   identifiers are only emitted for columns in `info.properties`) plus
+    ///   a round-trip canonicalisation gate that rejects trailing tokens.
+    ///   Literals are wrapped as standard CQL2 quoted strings.
     /// - `filter_srid` — EPSG code of geometry literals inside the filter
     ///   (spec `filter-crs`). Currently informational; the CQL2 crate emits
     ///   `ST_GeomFromText` / `ST_GeomFromGeoJSON` without SRID metadata, so
