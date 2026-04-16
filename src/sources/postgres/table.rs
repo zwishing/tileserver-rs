@@ -182,6 +182,11 @@ impl PostgresTableSource {
 
     /// Fetches a single feature by its OGC feature id.
     ///
+    /// `output_srid` is the EPSG code the caller wants the geometry emitted
+    /// in (OGC API Features Part 2 `crs` query parameter). Passing the
+    /// storage SRID avoids the `ST_Transform` round-trip; passing any other
+    /// SRID emits `ST_Transform("geom", $output_srid)` in the SELECT.
+    ///
     /// Delegates to the same `ST_AsGeoJSON` SQL pipeline as
     /// [`Self::query_features_geojson`] so the two handlers never drift. The
     /// returned value is `None` when no row matches the id, mapped by the
@@ -194,6 +199,7 @@ impl PostgresTableSource {
     pub async fn query_single_feature_geojson(
         &self,
         feature_id: &str,
+        output_srid: i32,
     ) -> Result<
         Option<(
             String,
@@ -206,14 +212,14 @@ impl PostgresTableSource {
 
         let id_col = info.id_column.as_deref().unwrap_or("ctid");
 
-        let geom_expr = if info.srid == 4326 {
+        let geom_expr = if info.srid == output_srid {
             format!(
                 r#"ST_AsGeoJSON("{}")::jsonb AS __ogc_geom"#,
                 info.geometry_column
             )
         } else {
             format!(
-                r#"ST_AsGeoJSON(ST_Transform("{}", 4326))::jsonb AS __ogc_geom"#,
+                r#"ST_AsGeoJSON(ST_Transform("{}", {output_srid}))::jsonb AS __ogc_geom"#,
                 info.geometry_column
             )
         };
@@ -250,9 +256,23 @@ impl PostgresTableSource {
         Ok(Some((feature_id.to_string(), geom, properties)))
     }
 
+    /// Queries features as GeoJSON with OGC API Features Part 2 CRS support.
+    ///
+    /// - `bbox_srid` is the EPSG code of the caller-supplied bbox (spec
+    ///   `bbox-crs`). The envelope is reprojected into the storage SRID
+    ///   inside PostGIS so spatial-index lookups stay cheap.
+    /// - `output_srid` is the EPSG code the caller wants back (spec `crs`).
+    ///   Identity transform is elided when it matches the storage SRID.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TileServerError::PostgresError`] when the pool or SQL
+    /// execution fails.
     pub async fn query_features_geojson(
         &self,
         bbox: Option<[f64; 4]>,
+        bbox_srid: i32,
+        output_srid: i32,
         limit: i64,
         offset: i64,
     ) -> Result<(Vec<serde_json::Value>, i64)> {
@@ -265,14 +285,14 @@ impl PostgresTableSource {
             .map(|col| format!(r#""{col}"::text AS __ogc_fid"#))
             .unwrap_or_else(|| "ctid::text AS __ogc_fid".to_string());
 
-        let geom_expr = if info.srid == 4326 {
+        let geom_expr = if info.srid == output_srid {
             format!(
                 r#"ST_AsGeoJSON("{}")::jsonb AS __ogc_geom"#,
                 info.geometry_column
             )
         } else {
             format!(
-                r#"ST_AsGeoJSON(ST_Transform("{}", 4326))::jsonb AS __ogc_geom"#,
+                r#"ST_AsGeoJSON(ST_Transform("{}", {output_srid}))::jsonb AS __ogc_geom"#,
                 info.geometry_column
             )
         };
@@ -293,23 +313,17 @@ impl PostgresTableSource {
         let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
 
         if let Some(bb) = bbox {
-            let envelope = if info.srid == 4326 {
-                format!(
-                    "ST_MakeEnvelope(${}, ${}, ${}, ${}, 4326)",
-                    param_idx,
-                    param_idx + 1,
-                    param_idx + 2,
-                    param_idx + 3
-                )
+            let make_envelope = format!(
+                "ST_MakeEnvelope(${}, ${}, ${}, ${}, {bbox_srid})",
+                param_idx,
+                param_idx + 1,
+                param_idx + 2,
+                param_idx + 3,
+            );
+            let envelope = if info.srid == bbox_srid {
+                make_envelope
             } else {
-                format!(
-                    "ST_Transform(ST_MakeEnvelope(${}, ${}, ${}, ${}, 4326), {})",
-                    param_idx,
-                    param_idx + 1,
-                    param_idx + 2,
-                    param_idx + 3,
-                    info.srid
-                )
+                format!("ST_Transform({make_envelope}, {})", info.srid)
             };
             where_clauses.push(format!(r#""{}" && {}"#, info.geometry_column, envelope));
             params.push(Box::new(bb[0]));

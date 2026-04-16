@@ -6,7 +6,7 @@
 use axum::{
     Json,
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{HeaderValue, StatusCode, header::HeaderName},
     response::{IntoResponse, Response},
 };
 use serde::Deserialize;
@@ -15,7 +15,11 @@ use serde::Serialize;
 
 use crate::error::TileServerError;
 use crate::reload::SharedState;
+use crate::routes::ogc_crs::{self, Crs};
 use crate::sources::postgres::PostgresTableSource;
+
+/// OGC `Content-Crs` response header name (Part 2).
+static CONTENT_CRS: HeaderName = HeaderName::from_static("content-crs");
 
 /// Default number of features returned per page when no `limit` query parameter is provided.
 const OGC_FEATURES_LIMIT_DEFAULT: i64 = 10;
@@ -28,9 +32,15 @@ const OGC_FEATURES_LIMIT_MAX: i64 = 10_000;
 /// datetime filter (currently unused).
 #[derive(Debug, Deserialize)]
 pub(crate) struct ItemsQueryParams {
-    /// Comma-separated bounding box: `minx,miny,maxx,maxy`.
+    /// Comma-separated bounding box: `minx,miny,maxx,maxy` (or 6-value 3D form).
     #[serde(default)]
     bbox: Option<String>,
+    /// CRS of the `bbox` parameter (OGC Features Part 2). Defaults to CRS84.
+    #[serde(default, rename = "bbox-crs")]
+    bbox_crs: Option<String>,
+    /// CRS requested for the response geometries (OGC Features Part 2). Defaults to CRS84.
+    #[serde(default)]
+    crs: Option<String>,
     /// Maximum number of features to return (clamped to [`OGC_FEATURES_LIMIT_MAX`]).
     #[serde(default = "default_limit")]
     limit: i64,
@@ -41,6 +51,14 @@ pub(crate) struct ItemsQueryParams {
     #[allow(dead_code)]
     #[serde(default)]
     datetime: Option<String>,
+}
+
+/// Query parameters for single-feature `/items/{fid}` (Part 2 `crs` param).
+#[derive(Debug, Deserialize, Default)]
+pub(crate) struct FeatureQueryParams {
+    /// CRS requested for the response geometry (OGC Features Part 2). Defaults to CRS84.
+    #[serde(default)]
+    crs: Option<String>,
 }
 
 /// Returns the default page size for feature queries.
@@ -130,7 +148,8 @@ pub(crate) async fn conformance() -> impl IntoResponse {
         "conformsTo": [
             "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core",
             "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/oas30",
-            "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/geojson"
+            "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/geojson",
+            ogc_crs::CONFORMANCE_CRS,
         ]
     });
     Json(body)
@@ -143,16 +162,15 @@ pub(crate) async fn collections(State(shared): State<SharedState>) -> impl IntoR
     let mut collections = Vec::new();
 
     for meta in state.sources.all_metadata() {
-        let source = state.sources.get(&meta.id);
-        let is_table = source
-            .map(|s| s.as_any().downcast_ref::<PostgresTableSource>().is_some())
-            .unwrap_or(false);
-
-        if !is_table {
+        let Some(source) = state.sources.get(&meta.id) else {
             continue;
-        }
+        };
+        let Some(table) = source.as_any().downcast_ref::<PostgresTableSource>() else {
+            continue;
+        };
 
-        collections.push(build_collection_json(meta, &base));
+        let storage_srid = table.table_info().srid;
+        collections.push(build_collection_json(meta, &base, storage_srid));
     }
 
     Json(serde_json::json!({
@@ -187,7 +205,7 @@ pub(crate) async fn collection(
         .get(&collection_id)
         .ok_or_else(|| TileServerError::SourceNotFound(collection_id.clone()))?;
 
-    source
+    let table_source = source
         .as_any()
         .downcast_ref::<PostgresTableSource>()
         .ok_or_else(|| {
@@ -196,8 +214,9 @@ pub(crate) async fn collection(
             ))
         })?;
 
+    let storage_srid = table_source.table_info().srid;
     let meta = source.metadata();
-    let body = build_collection_json(meta, &base);
+    let body = build_collection_json(meta, &base, storage_srid);
     Ok(Json(body))
 }
 
@@ -237,8 +256,17 @@ pub(crate) async fn items(
 
     let bbox = parse_bbox(params.bbox.as_deref())?;
 
+    let bbox_crs = match params.bbox_crs.as_deref() {
+        Some(raw) => ogc_crs::parse_crs(raw)?,
+        None => Crs::crs84(),
+    };
+    let output_crs = match params.crs.as_deref() {
+        Some(raw) => ogc_crs::parse_crs(raw)?,
+        None => Crs::crs84(),
+    };
+
     let (features, number_matched) = table_source
-        .query_features_geojson(bbox, limit, offset)
+        .query_features_geojson(bbox, bbox_crs.srid(), output_crs.srid(), limit, offset)
         .await?;
 
     let number_returned = features.len() as i64;
@@ -268,9 +296,19 @@ pub(crate) async fn items(
         "links": links
     });
 
+    let content_crs = HeaderValue::from_str(&output_crs.header_value()).map_err(|_| {
+        TileServerError::PostgresError("failed to encode Content-Crs header".into())
+    })?;
+
     Ok((
         StatusCode::OK,
-        [(axum::http::header::CONTENT_TYPE, "application/geo+json")],
+        [
+            (
+                axum::http::header::CONTENT_TYPE,
+                HeaderValue::from_static("application/geo+json"),
+            ),
+            (CONTENT_CRS.clone(), content_crs),
+        ],
         Json(body),
     )
         .into_response())
@@ -287,6 +325,7 @@ pub(crate) async fn items(
 pub(crate) async fn feature(
     State(shared): State<SharedState>,
     Path((collection_id, feature_id)): Path<(String, String)>,
+    Query(params): Query<FeatureQueryParams>,
 ) -> Result<Response, TileServerError> {
     let state = shared.load();
     let base = build_base_url(&state);
@@ -305,8 +344,13 @@ pub(crate) async fn feature(
             ))
         })?;
 
+    let output_crs = match params.crs.as_deref() {
+        Some(raw) => ogc_crs::parse_crs(raw)?,
+        None => Crs::crs84(),
+    };
+
     let (_fid, geom, properties) = table_source
-        .query_single_feature_geojson(&feature_id)
+        .query_single_feature_geojson(&feature_id, output_crs.srid())
         .await?
         .ok_or_else(|| {
             TileServerError::NotFound(format!(
@@ -335,9 +379,19 @@ pub(crate) async fn feature(
         ]
     });
 
+    let content_crs = HeaderValue::from_str(&output_crs.header_value()).map_err(|_| {
+        TileServerError::PostgresError("failed to encode Content-Crs header".into())
+    })?;
+
     Ok((
         StatusCode::OK,
-        [(axum::http::header::CONTENT_TYPE, "application/geo+json")],
+        [
+            (
+                axum::http::header::CONTENT_TYPE,
+                HeaderValue::from_static("application/geo+json"),
+            ),
+            (CONTENT_CRS.clone(), content_crs),
+        ],
         Json(body),
     )
         .into_response())
@@ -345,14 +399,18 @@ pub(crate) async fn feature(
 
 /// Builds an OGC collection JSON object from tile source metadata.
 #[must_use]
-fn build_collection_json(meta: &crate::sources::TileMetadata, base_url: &str) -> serde_json::Value {
+fn build_collection_json(
+    meta: &crate::sources::TileMetadata,
+    base_url: &str,
+    storage_srid: i32,
+) -> serde_json::Value {
     let mut extent = serde_json::Map::new();
     if let Some(bounds) = meta.bounds {
         extent.insert(
             "spatial".to_string(),
             serde_json::json!({
                 "bbox": [bounds],
-                "crs": "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
+                "crs": ogc_crs::CRS84_URI
             }),
         );
     }
@@ -363,9 +421,8 @@ fn build_collection_json(meta: &crate::sources::TileMetadata, base_url: &str) ->
         "description": meta.description,
         "extent": extent,
         "itemType": "feature",
-        "crs": [
-            "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
-        ],
+        "crs": ogc_crs::collection_supported_crs(storage_srid),
+        "storageCrs": ogc_crs::storage_crs_uri(storage_srid),
         "links": [
             {
                 "href": format!("{base_url}/collections/{}", meta.id),
@@ -529,7 +586,7 @@ mod tests {
             vector_layers: None,
         };
 
-        let json = build_collection_json(&meta, "http://localhost:8080");
+        let json = build_collection_json(&meta, "http://localhost:8080", 4326);
         assert_eq!(json["id"], "test");
         assert_eq!(json["title"], "Test Layer");
         assert_eq!(json["description"], "A test layer");
@@ -576,7 +633,7 @@ mod tests {
             vector_layers: None,
         };
 
-        let json = build_collection_json(&meta, "http://example.com");
+        let json = build_collection_json(&meta, "http://example.com", 4326);
         assert_eq!(json["id"], "no_bounds");
         assert!(json["extent"].as_object().unwrap().is_empty());
     }
@@ -596,7 +653,7 @@ mod tests {
             vector_layers: None,
         };
 
-        let json = build_collection_json(&meta, "http://host:9090");
+        let json = build_collection_json(&meta, "http://host:9090", 4326);
         let links = json["links"].as_array().unwrap();
         assert_eq!(links[0]["type"], "application/json");
         assert_eq!(links[1]["type"], "application/geo+json");
@@ -687,7 +744,7 @@ mod tests {
             center: None,
             vector_layers: None,
         };
-        let json = build_collection_json(&meta, "http://localhost");
+        let json = build_collection_json(&meta, "http://localhost", 4326);
         let crs = json["crs"].as_array().unwrap();
         assert_eq!(crs.len(), 1);
         assert!(crs[0].as_str().unwrap().contains("CRS84"));
@@ -853,7 +910,7 @@ mod tests {
             center: None,
             vector_layers: None,
         };
-        let json = build_collection_json(&meta, "http://localhost");
+        let json = build_collection_json(&meta, "http://localhost", 4326);
         assert_eq!(json["itemType"], "feature");
     }
 
@@ -896,6 +953,77 @@ mod tests {
     }
 
     #[test]
+    fn conformance_includes_part2_crs_class() {
+        let body = serde_json::json!({
+            "conformsTo": [
+                "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core",
+                "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/oas30",
+                "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/geojson",
+                ogc_crs::CONFORMANCE_CRS,
+            ]
+        });
+        let classes = body["conformsTo"].as_array().unwrap();
+        assert!(
+            classes
+                .iter()
+                .any(|c| c.as_str().unwrap().contains("features-2/1.0/conf/crs"))
+        );
+    }
+
+    #[test]
+    fn collection_json_emits_storage_crs_for_non_4326_table() {
+        let meta = crate::sources::TileMetadata {
+            id: "utm".to_string(),
+            name: "UTM Zone 32N".to_string(),
+            description: None,
+            attribution: None,
+            format: crate::sources::TileFormat::Pbf,
+            minzoom: 0,
+            maxzoom: 14,
+            bounds: None,
+            center: None,
+            vector_layers: None,
+        };
+        let json = build_collection_json(&meta, "http://localhost", 25832);
+
+        let crs_list = json["crs"].as_array().unwrap();
+        assert!(
+            crs_list
+                .iter()
+                .any(|v| v.as_str().unwrap().ends_with("/CRS84"))
+        );
+        assert!(
+            crs_list
+                .iter()
+                .any(|v| v.as_str().unwrap().ends_with("/25832"))
+        );
+
+        let storage = json["storageCrs"].as_str().unwrap();
+        assert!(storage.ends_with("/25832"));
+    }
+
+    #[test]
+    fn collection_json_emits_single_crs_for_wgs84_table() {
+        let meta = crate::sources::TileMetadata {
+            id: "cities".to_string(),
+            name: "Cities".to_string(),
+            description: None,
+            attribution: None,
+            format: crate::sources::TileFormat::Pbf,
+            minzoom: 0,
+            maxzoom: 14,
+            bounds: None,
+            center: None,
+            vector_layers: None,
+        };
+        let json = build_collection_json(&meta, "http://localhost", 4326);
+        let crs_list = json["crs"].as_array().unwrap();
+        assert_eq!(crs_list.len(), 1);
+        assert!(crs_list[0].as_str().unwrap().ends_with("/CRS84"));
+        assert_eq!(json["storageCrs"].as_str().unwrap(), ogc_crs::CRS84_URI);
+    }
+
+    #[test]
     fn build_base_url_appends_ogc_prefix() {
         let state = make_test_app_state(crate::sources::SourceManager::new());
         let base = build_base_url(&state);
@@ -924,7 +1052,7 @@ mod tests {
             center: None,
             vector_layers: None,
         };
-        let json = build_collection_json(&meta, "http://localhost");
+        let json = build_collection_json(&meta, "http://localhost", 4326);
         assert!(json["description"].is_null());
     }
 
@@ -942,7 +1070,7 @@ mod tests {
             center: None,
             vector_layers: None,
         };
-        let json = build_collection_json(&meta, "http://localhost");
+        let json = build_collection_json(&meta, "http://localhost", 4326);
         let links = json["links"].as_array().unwrap();
         assert_eq!(links[0]["title"], "World Rivers");
         assert_eq!(links[1]["title"], "World Rivers items");
@@ -1128,7 +1256,7 @@ mod tests {
             .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let conforms = json["conformsTo"].as_array().unwrap();
-        assert_eq!(conforms.len(), 3);
+        assert_eq!(conforms.len(), 4);
         assert!(
             conforms
                 .iter()
@@ -1138,6 +1266,11 @@ mod tests {
             conforms
                 .iter()
                 .any(|v| v.as_str().unwrap().contains("conf/geojson"))
+        );
+        assert!(
+            conforms
+                .iter()
+                .any(|v| v.as_str().unwrap().contains("features-2/1.0/conf/crs"))
         );
     }
 

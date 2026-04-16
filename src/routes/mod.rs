@@ -8,6 +8,8 @@ mod files;
 mod fonts;
 #[cfg(feature = "postgres")]
 pub(crate) mod ogc;
+#[cfg(feature = "postgres")]
+pub(crate) mod ogc_crs;
 mod render;
 mod spatial;
 mod styles;
