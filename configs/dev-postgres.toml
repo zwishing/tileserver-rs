@@ -24,11 +24,24 @@ attribution = "<a href=\"https://protomaps.com\">Protomaps</a> | <a href=\"https
 id = "sentinel2"
 type = "stac"
 path = "https://earth-search.aws.element84.com/v1"
-name = "Sentinel-2 L2A (Element84)"
+name = "Sentinel-2 L2A (Phase 1: static, first asset)"
 collection = "sentinel-2-l2a"
 asset_role = "visual"
 dynamic = false
 max_items = 25
+
+# Phase 2/3: dynamic per-tile bbox search + mosaic compositing.
+# Same STAC catalog but every tile request re-queries the API with
+# the tile's bounding box and composites up to 5 intersecting COGs.
+[[sources]]
+id = "sentinel2-dynamic"
+type = "stac"
+path = "https://earth-search.aws.element84.com/v1"
+name = "Sentinel-2 L2A (Phase 2/3: dynamic + mosaic)"
+collection = "sentinel-2-l2a"
+asset_role = "visual"
+dynamic = true
+max_items = 5
 
 [[styles]]
 id = "protomaps-light"
@@ -38,4 +51,9 @@ name = "Protomaps Light"
 [[styles]]
 id = "sentinel2"
 path = "./data/styles/sentinel2/style.json"
-name = "Sentinel-2 L2A Imagery"
+name = "Sentinel-2 L2A Imagery (static)"
+
+[[styles]]
+id = "sentinel2-dynamic"
+path = "./data/styles/sentinel2-dynamic/style.json"
+name = "Sentinel-2 L2A Dynamic Mosaic"
