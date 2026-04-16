@@ -4,11 +4,13 @@
 //! `WHERE` fragment. The implementation wraps the `cql2` crate but adds
 //! two defences its 0.5.3 output lacks:
 //!
-//! 1. **Identifier quoting** — `cql2::ToSqlAst::to_sql()` emits bare
-//!    property names (e.g. `name = 'Berlin'`), which would let a malicious
-//!    filter reference system tables or reserved words. We walk the AST
-//!    and wrap every `Expr::Property` in double quotes before SQL
-//!    generation. `"` inside property names is escaped to `""`.
+//! 1. **Property allow-list** — `cql2::ToSqlAst::to_sql()` emits bare
+//!    property names (e.g. `name = 'Berlin'`) with no identifier quoting,
+//!    which would let a malicious filter reference system tables or reserved
+//!    words (`pg_catalog.pg_shadow`, `current_user`). We walk the AST and
+//!    reject any `Expr::Property` whose name is not in the caller-provided
+//!    whitelist of safe column names, returning 400 Bad Request instead of
+//!    letting the query reach PostgreSQL.
 //!
 //! 2. **Round-trip safety gate** — `cql2`'s grammar is lenient enough to
 //!    silently drop trailing garbage (e.g. `name = 'x'; DROP TABLE t; --`
@@ -47,57 +49,50 @@ impl FilterLang {
     }
 }
 
-/// Recursively wraps every `Expr::Property` node in a PostgreSQL-safe
-/// double-quoted identifier before SQL generation. This is the primary
-/// SQL-injection defence — without it, a filter like
-/// `information_schema.tables = 'x'` would produce bare SQL that targets
-/// catalog tables.
-fn quote_properties(expr: Expr) -> Expr {
+/// Recursively walks the CQL2 AST and rejects any `Expr::Property` whose
+/// name is not present in `allowed`.
+///
+/// This is the primary SQL-injection defence. Because `cql2::to_sql()`
+/// emits bare identifiers (e.g. `pg_catalog.pg_shadow`), unrestricted
+/// property names could reach arbitrary catalog objects. By pre-validating
+/// against the column whitelist obtained from `PostgresTableSource`, the
+/// filter output is guaranteed to only reference user-visible columns —
+/// which in turn are safe to emit without quoting because the column
+/// discovery path already constrained them to the `table_info.properties`
+/// list (itself populated from `information_schema.columns`).
+fn verify_properties(expr: &Expr, allowed: &[String]) -> Result<(), TileServerError> {
     match expr {
-        Expr::Property { property } => Expr::Property {
-            property: format!("\"{}\"", property.replace('"', "\"\"")),
-        },
-        Expr::Operation { op, args } => Expr::Operation {
-            op,
-            args: args
-                .into_iter()
-                .map(|a| Box::new(quote_properties(*a)))
-                .collect(),
-        },
-        Expr::Interval { interval } => Expr::Interval {
-            interval: interval
-                .into_iter()
-                .map(|a| Box::new(quote_properties(*a)))
-                .collect(),
-        },
-        Expr::Timestamp { timestamp } => Expr::Timestamp {
-            timestamp: Box::new(quote_properties(*timestamp)),
-        },
-        Expr::Date { date } => Expr::Date {
-            date: Box::new(quote_properties(*date)),
-        },
-        Expr::BBox { bbox } => Expr::BBox {
-            bbox: bbox
-                .into_iter()
-                .map(|a| Box::new(quote_properties(*a)))
-                .collect(),
-        },
-        Expr::Array(items) => Expr::Array(
-            items
-                .into_iter()
-                .map(|a| Box::new(quote_properties(*a)))
-                .collect(),
-        ),
-        other => other,
+        Expr::Property { property } => {
+            if allowed.iter().any(|a| a == property) {
+                Ok(())
+            } else {
+                tracing::warn!(
+                    property = %property,
+                    "CQL2 filter referenced unknown property; rejecting to prevent SQL injection"
+                );
+                Err(TileServerError::InvalidTileRequest)
+            }
+        }
+        Expr::Operation { args, .. } => args.iter().try_for_each(|a| verify_properties(a, allowed)),
+        Expr::Interval { interval } => interval
+            .iter()
+            .try_for_each(|a| verify_properties(a, allowed)),
+        Expr::Timestamp { timestamp } => verify_properties(timestamp, allowed),
+        Expr::Date { date } => verify_properties(date, allowed),
+        Expr::BBox { bbox } => bbox.iter().try_for_each(|a| verify_properties(a, allowed)),
+        Expr::Array(items) => items.iter().try_for_each(|a| verify_properties(a, allowed)),
+        _ => Ok(()),
     }
 }
 
 /// Parses a CQL2 expression and returns a PostgreSQL-compatible SQL fragment
 /// ready to splice into a `WHERE` clause.
 ///
-/// The caller may supply `lang` to force a specific dialect, or `None` to
-/// auto-detect (leading `{` → JSON, otherwise text). Identifier quoting
-/// and the round-trip safety gate are always applied.
+/// `allowed_properties` is the whitelist of column names the filter may
+/// reference (typically `table_info.properties`). Any other property name
+/// triggers a 400.
+///
+/// `lang` picks the dialect; `None` auto-detects (leading `{` → JSON).
 ///
 /// # Errors
 ///
@@ -105,10 +100,12 @@ fn quote_properties(expr: Expr) -> Expr {
 /// - The expression does not parse as CQL2.
 /// - The re-serialisation (`to_text`) drops characters, indicating the
 ///   parser accepted a malformed input.
+/// - The filter references a property not in `allowed_properties`.
 /// - The AST cannot be translated to SQL.
 pub(crate) fn translate_filter_to_sql(
     raw: &str,
     lang: Option<&str>,
+    allowed_properties: &[String],
 ) -> Result<String, TileServerError> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
@@ -136,9 +133,9 @@ pub(crate) fn translate_filter_to_sql(
     };
 
     reject_non_roundtrip(&expr, trimmed, resolved_lang)?;
+    verify_properties(&expr, allowed_properties)?;
 
-    let quoted = quote_properties(expr);
-    quoted.to_sql().map_err(|e| {
+    expr.to_sql().map_err(|e| {
         tracing::warn!(error = %e, filter = %trimmed, "CQL2 -> SQL translation failed");
         TileServerError::InvalidTileRequest
     })
@@ -223,13 +220,23 @@ fn canonicalise_cql_text(s: &str) -> String {
 mod tests {
     use super::*;
 
+    fn allowed() -> Vec<String> {
+        vec![
+            "name".to_string(),
+            "country".to_string(),
+            "population".to_string(),
+            "is_capital".to_string(),
+            "founded_year".to_string(),
+            "iso_a2".to_string(),
+            "geom".to_string(),
+        ]
+    }
+
     #[test]
-    fn parses_basic_text_equality_and_quotes_identifier() {
-        let sql = translate_filter_to_sql("name = 'Berlin'", Some("cql2-text")).unwrap();
-        assert!(
-            sql.contains("\"name\""),
-            "missing quoted identifier in {sql}"
-        );
+    fn parses_basic_text_equality() {
+        let sql =
+            translate_filter_to_sql("name = 'Berlin'", Some("cql2-text"), &allowed()).unwrap();
+        assert!(sql.contains("name"));
         assert!(sql.contains("'Berlin'"));
         assert!(sql.contains('='));
     }
@@ -239,109 +246,116 @@ mod tests {
         let sql = translate_filter_to_sql(
             "population > 1000000 AND is_capital = true",
             Some("cql2-text"),
+            &allowed(),
         )
         .unwrap();
-        assert!(
-            sql.contains("\"population\""),
-            "missing population quote: {sql}"
-        );
+        assert!(sql.contains("population"));
         assert!(sql.contains("1000000"));
-        assert!(
-            sql.contains("\"is_capital\""),
-            "missing is_capital quote: {sql}"
-        );
+        assert!(sql.contains("is_capital"));
         assert!(sql.to_lowercase().contains("and"));
     }
 
     #[test]
     fn parses_is_null() {
-        let sql = translate_filter_to_sql("founded_year IS NULL", Some("cql2-text")).unwrap();
+        let sql =
+            translate_filter_to_sql("founded_year IS NULL", Some("cql2-text"), &allowed()).unwrap();
         assert!(sql.to_uppercase().contains("IS NULL"));
     }
 
     #[test]
     fn parses_in_operator() {
-        let sql = translate_filter_to_sql("iso_a2 IN ('US','GB','DE')", Some("cql2-text")).unwrap();
+        let sql =
+            translate_filter_to_sql("iso_a2 IN ('US','GB','DE')", Some("cql2-text"), &allowed())
+                .unwrap();
         assert!(sql.contains("'US'"));
         assert!(sql.contains("'DE'"));
-        assert!(sql.contains("\"iso_a2\""));
     }
 
     #[test]
     fn parses_between() {
-        let sql =
-            translate_filter_to_sql("population BETWEEN 1000000 AND 10000000", Some("cql2-text"))
-                .unwrap();
+        let sql = translate_filter_to_sql(
+            "population BETWEEN 1000000 AND 10000000",
+            Some("cql2-text"),
+            &allowed(),
+        )
+        .unwrap();
         assert!(sql.to_uppercase().contains("BETWEEN"));
-        assert!(sql.contains("\"population\""));
     }
 
     #[test]
-    fn parses_cql2_json_and_quotes_identifier() {
+    fn parses_cql2_json() {
         let json = r#"{"op":"=","args":[{"property":"iso_a2"},"DE"]}"#;
-        let sql = translate_filter_to_sql(json, Some("cql2-json")).unwrap();
-        assert!(sql.contains("\"iso_a2\""), "missing quote in {sql}");
+        let sql = translate_filter_to_sql(json, Some("cql2-json"), &allowed()).unwrap();
+        assert!(sql.contains("iso_a2"));
         assert!(sql.contains("'DE'"));
     }
 
     #[test]
     fn auto_detect_picks_json_on_brace() {
         let json = r#"{"op":"=","args":[{"property":"iso_a2"},"DE"]}"#;
-        let sql = translate_filter_to_sql(json, None).unwrap();
-        assert!(sql.contains("\"iso_a2\""));
+        let sql = translate_filter_to_sql(json, None, &allowed()).unwrap();
+        assert!(sql.contains("iso_a2"));
     }
 
     #[test]
     fn auto_detect_picks_text_otherwise() {
-        let sql = translate_filter_to_sql("name = 'Paris'", None).unwrap();
-        assert!(sql.contains("\"name\""));
+        let sql = translate_filter_to_sql("name = 'Paris'", None, &allowed()).unwrap();
+        assert!(sql.contains("name"));
     }
 
     #[test]
     fn rejects_empty_filter() {
-        assert!(translate_filter_to_sql("", Some("cql2-text")).is_err());
-        assert!(translate_filter_to_sql("   ", Some("cql2-text")).is_err());
+        assert!(translate_filter_to_sql("", Some("cql2-text"), &allowed()).is_err());
+        assert!(translate_filter_to_sql("   ", Some("cql2-text"), &allowed()).is_err());
     }
 
     #[test]
     fn rejects_unknown_filter_lang() {
-        assert!(translate_filter_to_sql("name = 'x'", Some("xpath")).is_err());
+        assert!(translate_filter_to_sql("name = 'x'", Some("xpath"), &allowed()).is_err());
     }
 
     #[test]
     fn accepts_legacy_cql_text_alias() {
-        let sql = translate_filter_to_sql("name = 'Paris'", Some("cql-text")).unwrap();
+        let sql = translate_filter_to_sql("name = 'Paris'", Some("cql-text"), &allowed()).unwrap();
         assert!(sql.contains("'Paris'"));
     }
 
     #[test]
     fn spatial_intersects_maps_to_st_intersects() {
-        let sql =
-            translate_filter_to_sql("S_INTERSECTS(geom, POINT(2.35 48.85))", Some("cql2-text"))
-                .unwrap();
+        let sql = translate_filter_to_sql(
+            "S_INTERSECTS(geom, POINT(2.35 48.85))",
+            Some("cql2-text"),
+            &allowed(),
+        )
+        .unwrap();
         assert!(sql.to_lowercase().contains("st_intersects"));
-        assert!(sql.contains("\"geom\""));
     }
 
     #[test]
     fn sql_injection_trailing_semicolon_is_rejected_by_roundtrip_gate() {
         let attack = "name = 'x'; DROP TABLE cities; --";
         assert!(
-            translate_filter_to_sql(attack, Some("cql2-text")).is_err(),
+            translate_filter_to_sql(attack, Some("cql2-text"), &allowed()).is_err(),
             "round-trip gate must reject trailing SQL garbage"
         );
     }
 
     #[test]
-    fn identifier_with_double_quote_is_escaped() {
-        let sql = translate_filter_to_sql(
-            r#"{"op":"=","args":[{"property":"w\"t"},"x"]}"#,
-            Some("cql2-json"),
-        )
-        .unwrap();
+    fn rejects_unknown_property() {
         assert!(
-            sql.contains(r#"""w""""t"""#),
-            "double-quote must be doubled (pg-style) inside identifier in {sql}"
+            translate_filter_to_sql("pg_catalog.pg_shadow = 'x'", Some("cql2-text"), &allowed())
+                .is_err(),
+            "catalog reference must be blocked"
         );
+        assert!(
+            translate_filter_to_sql("unknown_col = 1", Some("cql2-text"), &allowed()).is_err(),
+            "non-whitelisted column must be blocked"
+        );
+    }
+
+    #[test]
+    fn rejects_property_in_json_filter_too() {
+        let json = r#"{"op":"=","args":[{"property":"pg_shadow"},"x"]}"#;
+        assert!(translate_filter_to_sql(json, Some("cql2-json"), &allowed()).is_err());
     }
 }

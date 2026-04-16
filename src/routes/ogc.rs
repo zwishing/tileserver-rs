@@ -309,6 +309,7 @@ pub(crate) async fn items(
         Some(raw) if !raw.trim().is_empty() => Some(ogc_filter::translate_filter_to_sql(
             raw,
             params.filter_lang.as_deref(),
+            &table_source.table_info().properties,
         )?),
         _ => None,
     };

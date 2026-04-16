@@ -11,6 +11,35 @@ use crate::sources::{TileCompression, TileData, TileFormat, TileMetadata, TileSo
 
 use super::{PostgresPool, TileCache, TileCacheKey};
 
+/// Encodes a `serde_json::Value` from the client payload into a `(sql, param)`
+/// pair suitable for splicing into a parameterised `INSERT` / `UPDATE`.
+///
+/// PostgreSQL cannot implicitly cast `text` (the default `tokio-postgres`
+/// bind type for strings) to `bigint`/`bool`/`double precision`, so naïvely
+/// binding the JSON literal fails on non-text columns. We sidestep the
+/// cast issue by bind-shape — the Rust side passes the strongest matching
+/// `tokio_postgres::types::ToSql` implementation per JSON kind:
+/// - `Value::Bool`   -> `bool` (pg: `boolean`)
+/// - `Value::Number` -> text bound then cast `::numeric` in SQL so the
+///   receiving column type (bigint/int/real/double/numeric) decides the
+///   final cast — avoids the text-to-bigint and double-to-bigint errors.
+/// - everything else -> text/jsonb so arrays and objects also round-trip
+///
+/// The returned SQL fragment is the placeholder string
+/// (`$N` or `$N::text::jsonb`) to substitute into the statement.
+fn encode_property_param(
+    value: &serde_json::Value,
+    idx: u32,
+) -> (String, Box<dyn tokio_postgres::types::ToSql + Sync + Send>) {
+    match value {
+        serde_json::Value::Null => ("NULL".to_string(), Box::new(Option::<String>::None)),
+        serde_json::Value::Bool(b) => (format!("${idx}"), Box::new(*b)),
+        serde_json::Value::Number(n) => (format!("${idx}::text::numeric"), Box::new(n.to_string())),
+        serde_json::Value::String(s) => (format!("${idx}"), Box::new(s.clone())),
+        other => (format!("${idx}::jsonb"), Box::new(other.to_string())),
+    }
+}
+
 /// Maps a PostgreSQL `data_type` (as reported by `information_schema`) to a
 /// JSON Schema type object + a boolean indicating whether the column is
 /// safely sortable in SQL `ORDER BY` (arrays/jsonb/records are not).
@@ -544,8 +573,9 @@ impl PostgresTableSource {
         for prop in &info.properties {
             if let Some(value) = properties.get(prop) {
                 columns.push(format!(r#""{prop}""#));
-                placeholders.push(format!("(${idx}::jsonb)#>>'{{}}'"));
-                params.push(Box::new(value.to_string()));
+                let (sql_literal, owned_param) = encode_property_param(value, idx);
+                placeholders.push(sql_literal);
+                params.push(owned_param);
                 idx += 1;
             }
         }
@@ -644,8 +674,9 @@ impl PostgresTableSource {
         for prop in &info.properties {
             match properties.get(prop) {
                 Some(value) => {
-                    assignments.push(format!(r#""{prop}" = (${idx}::jsonb)#>>'{{}}'"#));
-                    params.push(Box::new(value.to_string()));
+                    let (sql_literal, owned_param) = encode_property_param(value, idx);
+                    assignments.push(format!(r#""{prop}" = {sql_literal}"#));
+                    params.push(owned_param);
                     idx += 1;
                 }
                 None if !partial => {
