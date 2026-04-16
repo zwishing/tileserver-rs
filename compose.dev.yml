@@ -1,0 +1,26 @@
+services:
+  postgres-dev:
+    build:
+      context: ./deploy/postgres-dev
+      dockerfile: Dockerfile
+    container_name: tileserver-rs-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tileserver
+      POSTGRES_PASSWORD: tileserver
+      POSTGRES_DB: gis
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - ./deploy/postgres-dev/init.sql:/docker-entrypoint-initdb.d/00-tileserver-rs-init.sql:ro
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tileserver -d gis"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+volumes:
+  postgres_dev_data:
+    name: tileserver-rs-postgres-dev-data

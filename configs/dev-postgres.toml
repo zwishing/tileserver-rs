@@ -1,0 +1,41 @@
+fonts = "./data/fonts"
+
+[server]
+host = "0.0.0.0"
+port = 8081
+cors_origins = ["*"]
+
+[telemetry]
+enabled = false
+
+[cache]
+enabled = true
+max_size_mb = 256
+ttl_seconds = 3600
+
+[[sources]]
+id = "protomaps"
+type = "pmtiles"
+path = "./data/tiles/protomaps-sample.pmtiles"
+name = "Protomaps Firenze Sample"
+attribution = "<a href=\"https://protomaps.com\">Protomaps</a> | <a href=\"https://openstreetmap.org/copyright\">© OpenStreetMap</a>"
+
+[[sources]]
+id = "sentinel2"
+type = "stac"
+path = "https://earth-search.aws.element84.com/v1"
+name = "Sentinel-2 L2A (Element84)"
+collection = "sentinel-2-l2a"
+asset_role = "visual"
+dynamic = false
+max_items = 25
+
+[[styles]]
+id = "protomaps-light"
+path = "./data/styles/protomaps-light/style.json"
+name = "Protomaps Light"
+
+[[styles]]
+id = "sentinel2"
+path = "./data/styles/sentinel2/style.json"
+name = "Sentinel-2 L2A Imagery"
