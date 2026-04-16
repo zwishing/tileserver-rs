@@ -11,6 +11,39 @@ use crate::sources::{TileCompression, TileData, TileFormat, TileMetadata, TileSo
 
 use super::{PostgresPool, TileCache, TileCacheKey};
 
+/// Extracts a single property column from a PostgreSQL row as a JSON value.
+///
+/// Shared between `query_features_geojson` (collection listing) and
+/// `query_single_feature_geojson` (single feature) so both paths coerce
+/// column types identically. The type-probe order prefers structured JSON
+/// first (preserves `jsonb`), then integer/float/bool/string scalars.
+/// Columns that don't match any supported type deserialize to `null`.
+fn extract_property(row: &tokio_postgres::Row, column: &str) -> serde_json::Value {
+    if let Ok(val) = row.try_get::<_, Option<serde_json::Value>>(column) {
+        return val.unwrap_or(serde_json::Value::Null);
+    }
+    if let Ok(val) = row.try_get::<_, Option<i32>>(column) {
+        return val.map_or(serde_json::Value::Null, |v| {
+            serde_json::Value::Number(v.into())
+        });
+    }
+    if let Ok(val) = row.try_get::<_, Option<i64>>(column) {
+        return val.map_or(serde_json::Value::Null, |v| {
+            serde_json::Value::Number(v.into())
+        });
+    }
+    if let Ok(val) = row.try_get::<_, Option<f64>>(column) {
+        return val.map_or(serde_json::Value::Null, |v| serde_json::json!(v));
+    }
+    if let Ok(val) = row.try_get::<_, Option<bool>>(column) {
+        return val.map_or(serde_json::Value::Null, serde_json::Value::Bool);
+    }
+    if let Ok(val) = row.try_get::<_, Option<String>>(column) {
+        return val.map_or(serde_json::Value::Null, serde_json::Value::String);
+    }
+    serde_json::Value::Null
+}
+
 #[derive(Debug, Clone)]
 pub struct TableInfo {
     pub schema: String,
@@ -76,6 +109,16 @@ impl PostgresTableSource {
             );
         }
 
+        if table_info.id_column.is_none() {
+            tracing::warn!(
+                table = %format!("{}.{}", table_info.schema, table_info.table),
+                "No id_column configured; OGC API Features will fall back to \
+                 PostgreSQL ctid as the feature identifier. ctid values are \
+                 not stable across VACUUM FULL / CLUSTER and should not be \
+                 used for bookmarkable /items/{{fid}} URLs."
+            );
+        }
+
         let tile_query = Self::build_tile_query(&table_info, config, supports_tile_margin);
 
         let bounds = config.bounds.or(table_info.bounds);
@@ -135,6 +178,76 @@ impl PostgresTableSource {
     #[must_use]
     pub fn pool(&self) -> &Arc<PostgresPool> {
         &self.pool
+    }
+
+    /// Fetches a single feature by its OGC feature id.
+    ///
+    /// Delegates to the same `ST_AsGeoJSON` SQL pipeline as
+    /// [`Self::query_features_geojson`] so the two handlers never drift. The
+    /// returned value is `None` when no row matches the id, mapped by the
+    /// caller to `404 Not Found`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TileServerError::PostgresError`] if the pool is exhausted
+    /// or the SQL query fails to execute.
+    pub async fn query_single_feature_geojson(
+        &self,
+        feature_id: &str,
+    ) -> Result<
+        Option<(
+            String,
+            serde_json::Value,
+            serde_json::Map<String, serde_json::Value>,
+        )>,
+    > {
+        let conn = self.pool.get().await?;
+        let info = &self.table_info;
+
+        let id_col = info.id_column.as_deref().unwrap_or("ctid");
+
+        let geom_expr = if info.srid == 4326 {
+            format!(
+                r#"ST_AsGeoJSON("{}")::jsonb AS __ogc_geom"#,
+                info.geometry_column
+            )
+        } else {
+            format!(
+                r#"ST_AsGeoJSON(ST_Transform("{}", 4326))::jsonb AS __ogc_geom"#,
+                info.geometry_column
+            )
+        };
+
+        let prop_cols: Vec<String> = info
+            .properties
+            .iter()
+            .map(|p| format!(r#""{p}""#))
+            .collect();
+        let prop_select = if prop_cols.is_empty() {
+            String::new()
+        } else {
+            format!(", {}", prop_cols.join(", "))
+        };
+
+        let sql = format!(
+            r#"SELECT {geom_expr}{prop_select} FROM "{}"."{}" WHERE "{}"::text = $1 LIMIT 1"#,
+            info.schema, info.table, id_col
+        );
+
+        let row = conn
+            .query_opt(&sql, &[&feature_id])
+            .await
+            .map_err(|e| TileServerError::PostgresError(format!("feature query failed: {e}")))?;
+
+        let Some(row) = row else { return Ok(None) };
+
+        let geom: serde_json::Value = row.get("__ogc_geom");
+        let mut properties = serde_json::Map::new();
+        for prop in &info.properties {
+            properties.insert(prop.clone(), extract_property(&row, prop));
+        }
+
+        Ok(Some((feature_id.to_string(), geom, properties)))
     }
 
     pub async fn query_features_geojson(
@@ -255,40 +368,7 @@ impl PostgresTableSource {
 
                 let mut properties = serde_json::Map::new();
                 for prop in &info.properties {
-                    if let Ok(val) = row.try_get::<_, Option<String>>(prop.as_str()) {
-                        properties.insert(
-                            prop.clone(),
-                            val.map_or(serde_json::Value::Null, serde_json::Value::String),
-                        );
-                    } else if let Ok(val) = row.try_get::<_, Option<i32>>(prop.as_str()) {
-                        properties.insert(
-                            prop.clone(),
-                            val.map_or(serde_json::Value::Null, |v| {
-                                serde_json::Value::Number(v.into())
-                            }),
-                        );
-                    } else if let Ok(val) = row.try_get::<_, Option<i64>>(prop.as_str()) {
-                        properties.insert(
-                            prop.clone(),
-                            val.map_or(serde_json::Value::Null, |v| {
-                                serde_json::Value::Number(v.into())
-                            }),
-                        );
-                    } else if let Ok(val) = row.try_get::<_, Option<f64>>(prop.as_str()) {
-                        properties.insert(
-                            prop.clone(),
-                            val.map_or(serde_json::Value::Null, |v| serde_json::json!(v)),
-                        );
-                    } else if let Ok(val) = row.try_get::<_, Option<bool>>(prop.as_str()) {
-                        properties.insert(
-                            prop.clone(),
-                            val.map_or(serde_json::Value::Null, serde_json::Value::Bool),
-                        );
-                    } else if let Ok(val) =
-                        row.try_get::<_, Option<serde_json::Value>>(prop.as_str())
-                    {
-                        properties.insert(prop.clone(), val.unwrap_or(serde_json::Value::Null));
-                    }
+                    properties.insert(prop.clone(), extract_property(row, prop));
                 }
 
                 serde_json::json!({

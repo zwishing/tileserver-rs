@@ -49,10 +49,40 @@ fn default_limit() -> i64 {
     OGC_FEATURES_LIMIT_DEFAULT
 }
 
-/// Extracts the configured base URL from application state.
+/// Builds the base URL for OGC API links.
+///
+/// All OGC routes are mounted under the `/ogc` prefix, so every link we emit
+/// must include it. Returning just `state.base_url` would give clients 404s
+/// when they follow `rel="conformance"`/`rel="items"`/etc. links.
 #[must_use]
 fn build_base_url(state: &crate::reload::AppState) -> String {
-    state.base_url.clone()
+    format!("{}/ogc", state.base_url.trim_end_matches('/'))
+}
+
+/// Parses the OGC API Features `datetime` query parameter.
+///
+/// Part 1 Core does not yet implement temporal filtering in this server, but
+/// silently ignoring the parameter would make clients believe their filter
+/// succeeded. Accepting the parameter without applying it would also violate
+/// the spec (§7.15.4 says conforming implementations must honour it). We
+/// return `400 Bad Request` when a client explicitly requests datetime
+/// filtering until the feature lands.
+///
+/// # Errors
+///
+/// Returns [`TileServerError::InvalidTileRequest`] when the caller supplies
+/// any non-empty datetime value.
+fn reject_datetime(datetime: Option<&str>) -> Result<(), TileServerError> {
+    match datetime {
+        Some(s) if !s.trim().is_empty() => {
+            tracing::warn!(
+                datetime = %s,
+                "OGC API Features datetime filtering is not yet implemented; returning 400"
+            );
+            Err(TileServerError::InvalidTileRequest)
+        }
+        _ => Ok(()),
+    }
 }
 
 /// OGC API landing page returning service metadata and navigation links.
@@ -203,6 +233,8 @@ pub(crate) async fn items(
     let limit = params.limit.clamp(1, OGC_FEATURES_LIMIT_MAX);
     let offset = params.offset.max(0);
 
+    reject_datetime(params.datetime.as_deref())?;
+
     let bbox = parse_bbox(params.bbox.as_deref())?;
 
     let (features, number_matched) = table_source
@@ -273,79 +305,14 @@ pub(crate) async fn feature(
             ))
         })?;
 
-    let info = table_source.table_info();
-    let conn =
-        table_source.pool().get().await.map_err(|e| {
-            TileServerError::PostgresError(format!("failed to get connection: {e}"))
-        })?;
-
-    let id_col = info.id_column.as_deref().unwrap_or("ctid");
-
-    let geom_expr = if info.srid == 4326 {
-        format!(r#"ST_AsGeoJSON("{}")::jsonb"#, info.geometry_column)
-    } else {
-        format!(
-            r#"ST_AsGeoJSON(ST_Transform("{}", 4326))::jsonb"#,
-            info.geometry_column
-        )
-    };
-
-    let prop_cols: Vec<String> = info
-        .properties
-        .iter()
-        .map(|p| format!(r#""{p}""#))
-        .collect();
-    let prop_select = if prop_cols.is_empty() {
-        String::new()
-    } else {
-        format!(", {}", prop_cols.join(", "))
-    };
-
-    let sql = format!(
-        r#"SELECT {geom_expr} AS __ogc_geom{prop_select} FROM "{}"."{}" WHERE "{}"::text = $1 LIMIT 1"#,
-        info.schema, info.table, id_col
-    );
-
-    let row = conn
-        .query_opt(&sql, &[&feature_id])
-        .await
-        .map_err(|e| TileServerError::PostgresError(format!("feature query failed: {e}")))?
+    let (_fid, geom, properties) = table_source
+        .query_single_feature_geojson(&feature_id)
+        .await?
         .ok_or_else(|| {
             TileServerError::NotFound(format!(
                 "feature '{feature_id}' not found in collection '{collection_id}'"
             ))
         })?;
-
-    let geom: serde_json::Value = row.get("__ogc_geom");
-
-    let mut properties = serde_json::Map::new();
-    for prop in &info.properties {
-        if let Ok(val) = row.try_get::<_, Option<serde_json::Value>>(prop.as_str()) {
-            properties.insert(prop.clone(), val.unwrap_or(serde_json::Value::Null));
-        } else if let Ok(val) = row.try_get::<_, Option<String>>(prop.as_str()) {
-            properties.insert(
-                prop.clone(),
-                val.map_or(serde_json::Value::Null, serde_json::Value::String),
-            );
-        } else if let Ok(val) = row.try_get::<_, Option<i64>>(prop.as_str()) {
-            properties.insert(
-                prop.clone(),
-                val.map_or(serde_json::Value::Null, |v| {
-                    serde_json::Value::Number(v.into())
-                }),
-            );
-        } else if let Ok(val) = row.try_get::<_, Option<f64>>(prop.as_str()) {
-            properties.insert(
-                prop.clone(),
-                val.map_or(serde_json::Value::Null, |v| serde_json::json!(v)),
-            );
-        } else if let Ok(val) = row.try_get::<_, Option<bool>>(prop.as_str()) {
-            properties.insert(
-                prop.clone(),
-                val.map_or(serde_json::Value::Null, serde_json::Value::Bool),
-            );
-        }
-    }
 
     let body = serde_json::json!({
         "type": "Feature",
@@ -416,12 +383,19 @@ fn build_collection_json(meta: &crate::sources::TileMetadata, base_url: &str) ->
     })
 }
 
-/// Parses a comma-separated bbox string into `[minx, miny, maxx, maxy]`.
+/// Parses the OGC API Features `bbox` query parameter into a 2D envelope.
+///
+/// Per OGC API Features Part 1 Core §7.15.3, `bbox` is a comma-separated list
+/// of **four or six** numbers. The 6-value form carries elevation bounds
+/// `[west, south, minZ, east, north, maxZ]`; we drop the elevation axis and
+/// return only the horizontal envelope because PostGIS queries operate in 2D
+/// here. Rejecting 6-value bboxes (the old behaviour) broke QGIS clients that
+/// send 3D filters (fixes Oracle H4).
 ///
 /// # Errors
 ///
-/// Returns [`TileServerError::InvalidTileRequest`] if the string does not
-/// contain exactly four valid floats or if the coordinates are inverted.
+/// Returns [`TileServerError::InvalidTileRequest`] when the string does not
+/// parse as 4 or 6 floats, or when the horizontal coordinates are inverted.
 fn parse_bbox(bbox_str: Option<&str>) -> Result<Option<[f64; 4]>, TileServerError> {
     let Some(s) = bbox_str else {
         return Ok(None);
@@ -436,15 +410,17 @@ fn parse_bbox(bbox_str: Option<&str>) -> Result<Option<[f64; 4]>, TileServerErro
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    if parts.len() != 4 {
+    let (minx, miny, maxx, maxy) = match parts.len() {
+        4 => (parts[0], parts[1], parts[2], parts[3]),
+        6 => (parts[0], parts[1], parts[3], parts[4]),
+        _ => return Err(TileServerError::InvalidTileRequest),
+    };
+
+    if minx > maxx || miny > maxy {
         return Err(TileServerError::InvalidTileRequest);
     }
 
-    if parts[0] > parts[2] || parts[1] > parts[3] {
-        return Err(TileServerError::InvalidTileRequest);
-    }
-
-    Ok(Some([parts[0], parts[1], parts[2], parts[3]]))
+    Ok(Some([minx, miny, maxx, maxy]))
 }
 
 #[cfg(test)]
@@ -891,10 +867,47 @@ mod tests {
     }
 
     #[test]
-    fn build_base_url_returns_state_base_url() {
+    fn parse_bbox_accepts_six_values_dropping_elevation() {
+        let result = parse_bbox(Some("-10,20,0,30,40,100")).unwrap().unwrap();
+        assert!((result[0] - (-10.0)).abs() < f64::EPSILON);
+        assert!((result[1] - 20.0).abs() < f64::EPSILON);
+        assert!((result[2] - 30.0).abs() < f64::EPSILON);
+        assert!((result[3] - 40.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn parse_bbox_rejects_invalid_count() {
+        assert!(parse_bbox(Some("1,2,3")).is_err());
+        assert!(parse_bbox(Some("1,2,3,4,5")).is_err());
+        assert!(parse_bbox(Some("1,2,3,4,5,6,7")).is_err());
+    }
+
+    #[test]
+    fn reject_datetime_passes_when_absent_or_empty() {
+        assert!(reject_datetime(None).is_ok());
+        assert!(reject_datetime(Some("")).is_ok());
+        assert!(reject_datetime(Some("   ")).is_ok());
+    }
+
+    #[test]
+    fn reject_datetime_errors_on_any_value() {
+        assert!(reject_datetime(Some("2024-01-01T00:00:00Z")).is_err());
+        assert!(reject_datetime(Some("2024-01-01/2024-12-31")).is_err());
+    }
+
+    #[test]
+    fn build_base_url_appends_ogc_prefix() {
         let state = make_test_app_state(crate::sources::SourceManager::new());
         let base = build_base_url(&state);
-        assert_eq!(base, "http://localhost:8080");
+        assert_eq!(base, "http://localhost:8080/ogc");
+    }
+
+    #[test]
+    fn build_base_url_strips_trailing_slash() {
+        let mut state = make_test_app_state(crate::sources::SourceManager::new());
+        state.base_url = "http://localhost:8080/".to_string();
+        let base = build_base_url(&state);
+        assert_eq!(base, "http://localhost:8080/ogc");
     }
 
     #[test]
@@ -1080,7 +1093,18 @@ mod tests {
             .iter()
             .find(|l| l["rel"] == "self")
             .unwrap();
-        assert_eq!(self_link["href"], "http://localhost:8080");
+        assert_eq!(self_link["href"], "http://localhost:8080/ogc");
+
+        let conformance_link = json["links"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|l| l["rel"] == "conformance")
+            .unwrap();
+        assert_eq!(
+            conformance_link["href"], "http://localhost:8080/ogc/conformance",
+            "conformance link must include /ogc prefix so clients don't hit 404"
+        );
     }
 
     #[tokio::test]
