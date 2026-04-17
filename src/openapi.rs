@@ -28,7 +28,8 @@ use utoipa::OpenApi;
         (name = "Fonts", description = "Font glyphs for map labels"),
         (name = "Files", description = "Static file serving"),
         (name = "Upload", description = "File upload for drag-and-drop visualization"),
-        (name = "Spatial", description = "Spatial queries and source schema inspection for LLM tool integration")
+        (name = "Spatial", description = "Spatial queries and source schema inspection for LLM tool integration"),
+        (name = "OGC", description = "OGC API Features (Parts 1-5): read-only GeoJSON feature access for PostGIS table sources, consumed natively by QGIS, ArcGIS Pro and FME")
     ),
     paths(
         health_check,
@@ -54,6 +55,19 @@ use utoipa::OpenApi;
         get_spatial_schema,
         get_spatial_stats,
         post_spatial_query,
+        ogc_landing_page,
+        ogc_conformance,
+        ogc_collections,
+        ogc_collection,
+        ogc_items,
+        ogc_feature,
+        ogc_create_item,
+        ogc_replace_item,
+        ogc_update_item,
+        ogc_delete_item,
+        ogc_queryables,
+        ogc_sortables,
+        ogc_schema,
     ),
     components(schemas(
         TileJSON,
@@ -68,6 +82,13 @@ use utoipa::OpenApi;
         SpatialStatsResponse,
         SpatialQueryRequest,
         SpatialQueryResponse,
+        OgcLandingPage,
+        OgcConformance,
+        OgcCollection,
+        OgcCollections,
+        OgcFeature,
+        OgcFeatureCollection,
+        OgcLink,
     ))
 )]
 pub struct ApiDoc;
@@ -308,6 +329,80 @@ pub struct SpatialQueryResponse {
     pub total: usize,
     /// Whether results were truncated by limit
     pub truncated: bool,
+}
+
+/// OGC navigation link (self / conformance / data / service-desc / service-doc).
+#[derive(utoipa::ToSchema)]
+pub struct OgcLink {
+    pub href: String,
+    pub rel: String,
+    #[schema(rename = "type")]
+    pub r#type: String,
+    pub title: String,
+}
+
+/// OGC API Features landing page.
+#[derive(utoipa::ToSchema)]
+pub struct OgcLandingPage {
+    pub title: String,
+    pub description: String,
+    pub links: Vec<OgcLink>,
+}
+
+/// Conformance class URIs advertised by this server.
+#[derive(utoipa::ToSchema)]
+pub struct OgcConformance {
+    #[schema(rename = "conformsTo")]
+    pub conforms_to: Vec<String>,
+}
+
+/// Metadata for a single OGC feature collection.
+#[derive(utoipa::ToSchema)]
+pub struct OgcCollection {
+    pub id: String,
+    pub title: String,
+    pub description: Option<String>,
+    #[schema(value_type = serde_json::Value)]
+    pub extent: serde_json::Value,
+    #[schema(rename = "itemType")]
+    pub item_type: String,
+    pub crs: Vec<String>,
+    #[schema(rename = "storageCrs")]
+    pub storage_crs: String,
+    pub links: Vec<OgcLink>,
+}
+
+/// List of OGC feature collections.
+#[derive(utoipa::ToSchema)]
+pub struct OgcCollections {
+    pub collections: Vec<OgcCollection>,
+    pub links: Vec<OgcLink>,
+}
+
+/// A single OGC GeoJSON Feature.
+#[derive(utoipa::ToSchema)]
+pub struct OgcFeature {
+    #[schema(rename = "type", example = "Feature")]
+    pub r#type: String,
+    pub id: String,
+    #[schema(value_type = serde_json::Value)]
+    pub geometry: serde_json::Value,
+    #[schema(value_type = serde_json::Value)]
+    pub properties: serde_json::Value,
+    pub links: Vec<OgcLink>,
+}
+
+/// OGC FeatureCollection response with pagination metadata.
+#[derive(utoipa::ToSchema)]
+pub struct OgcFeatureCollection {
+    #[schema(rename = "type", example = "FeatureCollection")]
+    pub r#type: String,
+    pub features: Vec<OgcFeature>,
+    #[schema(rename = "numberMatched")]
+    pub number_matched: i64,
+    #[schema(rename = "numberReturned")]
+    pub number_returned: i64,
+    pub links: Vec<OgcLink>,
 }
 
 // ============================================================
@@ -735,6 +830,233 @@ pub async fn get_spatial_stats() {}
 )]
 pub async fn post_spatial_query() {}
 
+/// OGC API Features landing page
+///
+/// Discovery endpoint advertising links to conformance, collections and the
+/// OpenAPI description. This is the root of the OGC API Features tree.
+#[utoipa::path(
+    get,
+    path = "/ogc",
+    tag = "OGC",
+    responses(
+        (status = 200, description = "Landing page with navigation links", body = OgcLandingPage)
+    )
+)]
+pub async fn ogc_landing_page() {}
+
+/// OGC API conformance declaration
+///
+/// Returns the conformance class URIs this server implements. Currently
+/// advertises Part 1 Core, Part 2 CRS, and Part 3 Filter / Queryables.
+#[utoipa::path(
+    get,
+    path = "/ogc/conformance",
+    tag = "OGC",
+    responses(
+        (status = 200, description = "Conformance class URIs", body = OgcConformance)
+    )
+)]
+pub async fn ogc_conformance() {}
+
+/// List all OGC feature collections
+///
+/// Each PostGIS table source is exposed as a feature collection with the
+/// extent, supported CRSes and storage CRS populated from the table's
+/// geometry column metadata.
+#[utoipa::path(
+    get,
+    path = "/ogc/collections",
+    tag = "OGC",
+    responses(
+        (status = 200, description = "List of feature collections", body = OgcCollections)
+    )
+)]
+pub async fn ogc_collections() {}
+
+/// Single OGC collection metadata
+#[utoipa::path(
+    get,
+    path = "/ogc/collections/{id}",
+    tag = "OGC",
+    params(
+        ("id" = String, Path, description = "Collection id (maps to a PostGIS table source id)")
+    ),
+    responses(
+        (status = 200, description = "Collection metadata", body = OgcCollection),
+        (status = 404, description = "Collection not found", body = ApiError)
+    )
+)]
+pub async fn ogc_collection() {}
+
+/// Paginated GeoJSON FeatureCollection for a collection
+///
+/// Supports OGC API Features Part 1 (bbox, limit, offset), Part 2 (bbox-crs,
+/// crs response CRS, Content-Crs header) and Part 3 (filter + filter-lang +
+/// filter-crs, cql2-text and cql2-json dialects).
+#[utoipa::path(
+    get,
+    path = "/ogc/collections/{id}/items",
+    tag = "OGC",
+    params(
+        ("id" = String, Path, description = "Collection id"),
+        ("bbox" = Option<String>, Query, description = "Comma-separated bbox: minx,miny,maxx,maxy (4-value) or minx,miny,minz,maxx,maxy,maxz (6-value)"),
+        ("bbox-crs" = Option<String>, Query, description = "CRS of the bbox parameter (EPSG URI or OGC:CRS84). Defaults to CRS84"),
+        ("crs" = Option<String>, Query, description = "CRS requested for response geometries. Defaults to CRS84"),
+        ("filter" = Option<String>, Query, description = "CQL2 filter expression"),
+        ("filter-lang" = Option<String>, Query, description = "Filter dialect: cql2-text (default) or cql2-json"),
+        ("filter-crs" = Option<String>, Query, description = "CRS of geometry literals inside the filter expression"),
+        ("limit" = Option<i64>, Query, description = "Max features per page (1..=10000, default 10)"),
+        ("offset" = Option<i64>, Query, description = "Pagination offset in features")
+    ),
+    responses(
+        (status = 200, description = "GeoJSON FeatureCollection with pagination links", body = OgcFeatureCollection, content_type = "application/geo+json"),
+        (status = 400, description = "Invalid bbox, crs, or filter", body = ApiError),
+        (status = 404, description = "Collection not found", body = ApiError)
+    )
+)]
+pub async fn ogc_items() {}
+
+/// Single OGC Feature by id
+#[utoipa::path(
+    get,
+    path = "/ogc/collections/{id}/items/{fid}",
+    tag = "OGC",
+    params(
+        ("id" = String, Path, description = "Collection id"),
+        ("fid" = String, Path, description = "Feature id (matches the configured id_column or the PostgreSQL ctid fallback)"),
+        ("crs" = Option<String>, Query, description = "CRS requested for the response geometry. Defaults to CRS84")
+    ),
+    responses(
+        (status = 200, description = "GeoJSON Feature", body = OgcFeature, content_type = "application/geo+json"),
+        (status = 404, description = "Feature or collection not found", body = ApiError)
+    )
+)]
+pub async fn ogc_feature() {}
+
+/// Create a new feature (OGC API Features Part 4 Transactions)
+///
+/// Requires `writable = true` on the target table in config.toml.
+#[utoipa::path(
+    post,
+    path = "/ogc/collections/{id}/items",
+    tag = "OGC",
+    params(
+        ("id" = String, Path, description = "Collection id")
+    ),
+    request_body(content = OgcFeature, content_type = "application/geo+json"),
+    responses(
+        (status = 201, description = "Feature created; Location header contains the new /items/{fid} URL"),
+        (status = 400, description = "Invalid GeoJSON payload", body = ApiError),
+        (status = 405, description = "Collection is not writable", body = ApiError)
+    )
+)]
+pub async fn ogc_create_item() {}
+
+/// Replace a feature (PUT semantics — OGC API Features Part 4)
+///
+/// All configured property columns are overwritten; missing properties are
+/// set to NULL. Requires `writable = true`.
+#[utoipa::path(
+    put,
+    path = "/ogc/collections/{id}/items/{fid}",
+    tag = "OGC",
+    params(
+        ("id" = String, Path, description = "Collection id"),
+        ("fid" = String, Path, description = "Feature id")
+    ),
+    request_body(content = OgcFeature, content_type = "application/geo+json"),
+    responses(
+        (status = 204, description = "Feature replaced"),
+        (status = 400, description = "Invalid GeoJSON payload", body = ApiError),
+        (status = 404, description = "Feature not found", body = ApiError),
+        (status = 405, description = "Collection is not writable", body = ApiError)
+    )
+)]
+pub async fn ogc_replace_item() {}
+
+/// Merge-update a feature (PATCH / RFC 7396 — OGC API Features Part 4)
+///
+/// Only fields present in the payload are touched. Requires `writable = true`.
+#[utoipa::path(
+    patch,
+    path = "/ogc/collections/{id}/items/{fid}",
+    tag = "OGC",
+    params(
+        ("id" = String, Path, description = "Collection id"),
+        ("fid" = String, Path, description = "Feature id")
+    ),
+    request_body(content = OgcFeature, content_type = "application/merge-patch+json"),
+    responses(
+        (status = 204, description = "Feature updated"),
+        (status = 400, description = "Invalid payload", body = ApiError),
+        (status = 404, description = "Feature not found", body = ApiError),
+        (status = 405, description = "Collection is not writable", body = ApiError)
+    )
+)]
+pub async fn ogc_update_item() {}
+
+/// Delete a feature (OGC API Features Part 4 Transactions)
+#[utoipa::path(
+    delete,
+    path = "/ogc/collections/{id}/items/{fid}",
+    tag = "OGC",
+    params(
+        ("id" = String, Path, description = "Collection id"),
+        ("fid" = String, Path, description = "Feature id")
+    ),
+    responses(
+        (status = 204, description = "Feature deleted"),
+        (status = 404, description = "Feature not found", body = ApiError),
+        (status = 405, description = "Collection is not writable", body = ApiError)
+    )
+)]
+pub async fn ogc_delete_item() {}
+
+/// Filterable properties (OGC API Features Part 5)
+///
+/// Returns a JSON Schema describing every non-geometry column that CQL2
+/// filters may reference.
+#[utoipa::path(
+    get,
+    path = "/ogc/collections/{id}/queryables",
+    tag = "OGC",
+    params(("id" = String, Path, description = "Collection id")),
+    responses(
+        (status = 200, description = "JSON Schema of queryable properties", content_type = "application/schema+json")
+    )
+)]
+pub async fn ogc_queryables() {}
+
+/// Sortable properties (OGC API Features Part 5)
+///
+/// Subset of queryables that support SQL `ORDER BY` — excludes `jsonb` and
+/// array columns that have no defined comparison function.
+#[utoipa::path(
+    get,
+    path = "/ogc/collections/{id}/sortables",
+    tag = "OGC",
+    params(("id" = String, Path, description = "Collection id")),
+    responses(
+        (status = 200, description = "JSON Schema of sortable properties", content_type = "application/schema+json")
+    )
+)]
+pub async fn ogc_sortables() {}
+
+/// Full feature schema (OGC API Features Part 5)
+///
+/// Describes the complete shape of a Feature response — type, id, geometry
+/// (referencing geojson.org Geometry schema) and properties.
+#[utoipa::path(
+    get,
+    path = "/ogc/collections/{id}/schema",
+    tag = "OGC",
+    params(("id" = String, Path, description = "Collection id")),
+    responses(
+        (status = 200, description = "JSON Schema document for a Feature", content_type = "application/schema+json")
+    )
+)]
+pub async fn ogc_schema() {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -821,8 +1143,8 @@ mod tests {
         assert!(spec.tags.is_some(), "Tags should be defined");
         assert_eq!(
             spec.tags.as_ref().unwrap().len(),
-            7,
-            "Should have 5 tags defined"
+            8,
+            "Should have 8 tags defined (Health, Data, Styles, Fonts, Files, Upload, Spatial, OGC)"
         );
     }
 

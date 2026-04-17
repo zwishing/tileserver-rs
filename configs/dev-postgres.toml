@@ -1,0 +1,68 @@
+fonts = "./data/fonts"
+
+[server]
+host = "0.0.0.0"
+port = 8080
+cors_origins = ["*"]
+
+[telemetry]
+enabled = false
+
+[cache]
+enabled = true
+max_size_mb = 256
+ttl_seconds = 3600
+
+[postgres]
+connection_string = "postgresql://tileserver:tileserver@127.0.0.1:5432/gis"
+pool_size = 8
+
+[[postgres.tables]]
+id = "cities"
+schema = "public"
+table = "cities"
+geometry_column = "geom"
+id_column = "id"
+srid = 4326
+writable = true
+
+[[postgres.tables]]
+id = "countries"
+schema = "public"
+table = "countries"
+geometry_column = "geom"
+id_column = "id"
+srid = 4326
+
+[[postgres.tables]]
+id = "roads"
+schema = "public"
+table = "roads"
+geometry_column = "geom"
+id_column = "id"
+srid = 4326
+
+[[postgres.tables]]
+id = "buildings"
+schema = "public"
+table = "buildings"
+geometry_column = "geom"
+id_column = "id"
+srid = 4326
+
+[[sources]]
+id = "protomaps"
+type = "pmtiles"
+path = "./data/tiles/protomaps-sample.pmtiles"
+name = "Protomaps Firenze Sample"
+attribution = "<a href=\"https://protomaps.com\">Protomaps</a> | <a href=\"https://openstreetmap.org/copyright\">© OpenStreetMap</a>"
+
+[[styles]]
+id = "protomaps-light"
+path = "./data/styles/protomaps-light/style.json"
+name = "Protomaps Light"
+
+[[styles]]
+id = "postgis-collections"
+path = "./data/styles/postgis-collections/style.json"
+name = "PostGIS OGC Collections"

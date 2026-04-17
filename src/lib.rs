@@ -34,7 +34,9 @@ pub use transcode::{MvtProto, transcode_tile};
 #[cfg(feature = "postgres")]
 pub use config::{PostgresConfig, PostgresFunctionConfig};
 #[cfg(feature = "postgres")]
-pub use sources::postgres::{PoolSettings, PostgresFunctionSource, PostgresPool};
+pub use sources::postgres::{
+    PoolSettings, PostgresFunctionSource, PostgresPool, PostgresTableSource, TableInfo,
+};
 
 // Re-export render types for testing
 pub use render::overlay;
