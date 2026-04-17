@@ -104,10 +104,8 @@ impl MbTilesSource {
             match key.as_str() {
                 "name" => name = value,
                 "description" => description = Some(value),
-                "attribution" => {
-                    if attribution.is_none() {
-                        attribution = Some(value);
-                    }
+                "attribution" if attribution.is_none() => {
+                    attribution = Some(value);
                 }
                 "format" => {
                     format = match value.to_lowercase().as_str() {
