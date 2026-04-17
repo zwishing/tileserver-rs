@@ -5338,6 +5338,38 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
+name = "stac"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a069e4454aec3e4cf9340d2b2b242764086e23c452f1ff3deff29b30b2bf0b60"
+dependencies = [
+ "bytes",
+ "chrono",
+ "cql2",
+ "geojson 1.0.0",
+ "indexmap 2.14.0",
+ "log",
+ "mime",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "stac-derive",
+ "thiserror 2.0.18",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "stac-derive"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "087057f442c3a980721f249f723db459460ce74221730c9b2115bd63957027ae"
+dependencies = [
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "stacker"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5640,6 +5672,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.0",
  "shellexpand",
+ "stac",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -6210,6 +6243,7 @@ dependencies = [
  "idna",
  "percent-encoding",
  "serde",
+ "serde_derive",
 ]
 
 [[package]]
