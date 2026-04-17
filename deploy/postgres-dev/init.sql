@@ -47,7 +47,10 @@ INSERT INTO public.cities (name, country, population, is_capital, founded_year, 
     ('São Paulo',     'Brazil',        12330000, FALSE, 1554,  760, ST_SetSRID(ST_MakePoint( -46.6333, -23.5505), 4326));
 
 -- ============================================================================
--- countries (MULTIPOLYGON, 4326) — simplified bboxes to keep file small
+-- countries (MULTIPOLYGON, 4326) — real Natural Earth outlines, simplified to
+-- ~0.05° tolerance to keep the seed file under 300 KB. The full-resolution
+-- shapes are in natural_earth.sqlite (Natural Earth 10m admin_0_countries,
+-- public domain). See deploy/postgres-dev/countries_seed.sql for the data.
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.countries (
     id          SERIAL PRIMARY KEY,
@@ -59,16 +62,7 @@ CREATE TABLE IF NOT EXISTS public.countries (
 );
 CREATE INDEX IF NOT EXISTS countries_geom_idx ON public.countries USING GIST (geom);
 
-INSERT INTO public.countries (iso_a2, name, continent, population, geom) VALUES
-    ('US', 'United States',   'North America', 331000000, ST_Multi(ST_MakeEnvelope(-125.0, 24.0,  -66.0, 49.0, 4326))),
-    ('GB', 'United Kingdom',  'Europe',         67000000, ST_Multi(ST_MakeEnvelope(  -8.0, 49.0,    2.0, 61.0, 4326))),
-    ('FR', 'France',          'Europe',         67000000, ST_Multi(ST_MakeEnvelope(  -5.0, 41.0,   10.0, 51.0, 4326))),
-    ('DE', 'Germany',         'Europe',         83000000, ST_Multi(ST_MakeEnvelope(   5.0, 47.0,   16.0, 55.0, 4326))),
-    ('JP', 'Japan',           'Asia',          125000000, ST_Multi(ST_MakeEnvelope( 130.0, 30.0,  146.0, 46.0, 4326))),
-    ('IN', 'India',           'Asia',         1380000000, ST_Multi(ST_MakeEnvelope(  68.0,  6.0,   97.0, 37.0, 4326))),
-    ('AU', 'Australia',       'Oceania',        25000000, ST_Multi(ST_MakeEnvelope( 113.0,-44.0,  154.0,-10.0, 4326))),
-    ('ZA', 'South Africa',    'Africa',         59000000, ST_Multi(ST_MakeEnvelope(  16.0,-35.0,   33.0,-22.0, 4326))),
-    ('BR', 'Brazil',          'South America', 214000000, ST_Multi(ST_MakeEnvelope( -74.0,-34.0,  -34.0,  5.0, 4326)));
+\i /docker-entrypoint-initdb.d/countries_seed.sql
 
 -- ============================================================================
 -- roads (LINESTRING, 4326) — a few demo lines

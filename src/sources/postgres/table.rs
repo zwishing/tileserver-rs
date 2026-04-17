@@ -40,6 +40,18 @@ fn encode_property_param(
     }
 }
 
+/// Reports whether a PostGIS `geometry_columns.type` string describes a
+/// point geometry. Accepts dimension suffixes emitted by PostGIS
+/// (`POINT Z`, `POINT ZM`, `MULTIPOINT Z`, etc.) and is case-insensitive
+/// to survive catalogue quirks across PostGIS versions.
+///
+/// Used by `build_tile_query` to choose an unbuffered vs. buffered WHERE
+/// envelope — see the comment above that site for the rationale.
+fn is_point_geometry(geometry_type: &str) -> bool {
+    let upper = geometry_type.trim().to_ascii_uppercase();
+    upper.starts_with("POINT") || upper.starts_with("MULTIPOINT")
+}
+
 /// Maps a PostgreSQL `data_type` (as reported by `information_schema`) to a
 /// JSON Schema type object + a boolean indicating whether the column is
 /// safely sortable in SQL `ORDER BY` (arrays/jsonb/records are not).
@@ -1010,22 +1022,42 @@ impl PostgresTableSource {
         // PostGIS 3.1+ margin parameter: fraction of tile size (e.g., 64/4096 = 0.015625)
         let margin = buffer as f64 / extent as f64;
 
-        // ST_TileEnvelope call - with margin if PostGIS >= 3.1
-        let tile_envelope = if supports_tile_margin {
+        // Buffered envelope — used inside ST_AsMVTGeom so line/polygon geometry
+        // near tile edges is fetched and clipped to the buffered region,
+        // producing seamless rendering across tile boundaries.
+        let buffered_envelope = if supports_tile_margin {
             format!("ST_TileEnvelope($1, $2, $3, margin => {})", margin)
         } else {
             "ST_TileEnvelope($1, $2, $3)".to_string()
         };
 
+        // WHERE envelope — decides which rows are *fetched* from the table.
+        // For POINT/MULTIPOINT we use the UNBUFFERED tile envelope so that a
+        // point near a tile boundary is returned in exactly one tile. With the
+        // buffered envelope, ST_AsMVTGeom would keep the point (no clipping
+        // happens for points) and the client would render duplicate markers
+        // and labels on both sides of the seam.
+        //
+        // For lines/polygons/generic `GEOMETRY` we keep the buffered envelope
+        // because ST_AsMVTGeom *does* clip those types, so overlap is invisible
+        // but missing geometry at tile edges would produce visible seams.
+        let use_unbuffered_where = is_point_geometry(&table_info.geometry_type);
+        let where_envelope = if use_unbuffered_where {
+            "ST_TileEnvelope($1, $2, $3)".to_string()
+        } else {
+            buffered_envelope.clone()
+        };
+
         // WHERE clause: transform envelope to table SRID for spatial index usage
         let where_clause = if table_info.srid == 3857 {
-            format!(r#""{}" && {}"#, table_info.geometry_column, tile_envelope)
+            format!(r#""{}" && {}"#, table_info.geometry_column, where_envelope)
         } else {
             format!(
                 r#""{}" && ST_Transform({}, {})"#,
-                table_info.geometry_column, tile_envelope, table_info.srid
+                table_info.geometry_column, where_envelope, table_info.srid
             )
         };
+        let tile_envelope = buffered_envelope;
 
         format!(
             r#"
@@ -1193,7 +1225,8 @@ mod tests {
 
     #[test]
     fn test_build_tile_query_srid_4326_with_margin() {
-        let table_info = make_table_info();
+        let mut table_info = make_table_info();
+        table_info.geometry_type = "MULTIPOLYGON".to_string();
         let config = make_config();
         let query = PostgresTableSource::build_tile_query(&table_info, &config, true);
 
@@ -1286,11 +1319,97 @@ mod tests {
     fn test_build_tile_query_3857_with_margin() {
         let mut table_info = make_table_info();
         table_info.srid = 3857;
+        table_info.geometry_type = "MULTIPOLYGON".to_string();
         let config = make_config();
         let query = PostgresTableSource::build_tile_query(&table_info, &config, true);
 
         assert!(query.contains("margin =>"));
         assert!(query.contains(r#""geom" && ST_TileEnvelope($1, $2, $3, margin =>"#));
+    }
+
+    #[test]
+    fn test_build_tile_query_point_uses_unbuffered_where() {
+        let mut table_info = make_table_info();
+        table_info.srid = 3857;
+        table_info.geometry_type = "POINT".to_string();
+        let config = make_config();
+        let query = PostgresTableSource::build_tile_query(&table_info, &config, true);
+
+        assert!(
+            query.contains(r#""geom" && ST_TileEnvelope($1, $2, $3)"#),
+            "POINT WHERE must use unbuffered envelope to avoid duplicates; got:\n{query}"
+        );
+        assert!(
+            !query.contains(r#""geom" && ST_TileEnvelope($1, $2, $3, margin =>"#),
+            "POINT WHERE must not use margin; got:\n{query}"
+        );
+        assert!(
+            query.contains("ST_AsMVTGeom(") && query.contains("margin =>"),
+            "ST_AsMVTGeom must still use buffered envelope; got:\n{query}"
+        );
+    }
+
+    #[test]
+    fn test_build_tile_query_multipoint_uses_unbuffered_where() {
+        let mut table_info = make_table_info();
+        table_info.srid = 3857;
+        table_info.geometry_type = "MULTIPOINT".to_string();
+        let config = make_config();
+        let query = PostgresTableSource::build_tile_query(&table_info, &config, true);
+
+        assert!(query.contains(r#""geom" && ST_TileEnvelope($1, $2, $3)"#));
+        assert!(!query.contains(r#""geom" && ST_TileEnvelope($1, $2, $3, margin =>"#));
+    }
+
+    #[test]
+    fn test_build_tile_query_point_z_suffix_treated_as_point() {
+        let mut table_info = make_table_info();
+        table_info.srid = 3857;
+        table_info.geometry_type = "POINT Z".to_string();
+        let config = make_config();
+        let query = PostgresTableSource::build_tile_query(&table_info, &config, true);
+
+        assert!(query.contains(r#""geom" && ST_TileEnvelope($1, $2, $3)"#));
+    }
+
+    #[test]
+    fn test_build_tile_query_polygon_uses_buffered_where() {
+        let mut table_info = make_table_info();
+        table_info.srid = 3857;
+        table_info.geometry_type = "POLYGON".to_string();
+        let config = make_config();
+        let query = PostgresTableSource::build_tile_query(&table_info, &config, true);
+
+        assert!(query.contains(r#""geom" && ST_TileEnvelope($1, $2, $3, margin =>"#));
+    }
+
+    #[test]
+    fn test_build_tile_query_generic_geometry_defaults_to_buffered() {
+        let mut table_info = make_table_info();
+        table_info.srid = 3857;
+        table_info.geometry_type = "GEOMETRY".to_string();
+        let config = make_config();
+        let query = PostgresTableSource::build_tile_query(&table_info, &config, true);
+
+        assert!(
+            query.contains(r#""geom" && ST_TileEnvelope($1, $2, $3, margin =>"#),
+            "Generic GEOMETRY must default to buffered WHERE to avoid seams in mixed layers; got:\n{query}"
+        );
+    }
+
+    #[test]
+    fn test_is_point_geometry_accepts_suffixed_and_mixed_case() {
+        assert!(is_point_geometry("POINT"));
+        assert!(is_point_geometry("point"));
+        assert!(is_point_geometry("POINT Z"));
+        assert!(is_point_geometry("POINT ZM"));
+        assert!(is_point_geometry("MULTIPOINT"));
+        assert!(is_point_geometry("multipoint z"));
+        assert!(!is_point_geometry("LINESTRING"));
+        assert!(!is_point_geometry("POLYGON"));
+        assert!(!is_point_geometry("MULTIPOLYGON"));
+        assert!(!is_point_geometry("GEOMETRY"));
+        assert!(!is_point_geometry("GEOMETRYCOLLECTION"));
     }
 
     #[test]
