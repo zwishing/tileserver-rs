@@ -304,122 +304,101 @@ pub fn build_search_url(api_url: &str) -> String {
 
 /// Extract COG assets from a STAC item collection JSON response.
 ///
+/// Deserialises the body as a [`stac::ItemCollection`] (community-maintained
+/// spec types from the `stac` crate), then walks each [`stac::Item`] and
+/// picks the best COG [`stac::Asset`] — first by matching [`asset_role`],
+/// falling back to the first asset whose `type` is a COG/GeoTIFF MIME type.
+///
+/// The crate deserialiser is intentionally lenient (unknown top-level
+/// keys land in `additional_fields`), so we gate on the presence of at
+/// least one of the STAC discriminators (`type: "FeatureCollection"` or
+/// a `features` array) before accepting the payload. This protects
+/// against configuration errors where a non-STAC endpoint silently
+/// deserialises as an empty catalogue.
+///
 /// # Errors
 ///
-/// Returns [`TileServerError::StacError`] if the `features` array is missing.
+/// Returns [`TileServerError::StacError`] if the body fails either the
+/// STAC-shape check or [`stac::ItemCollection`] deserialisation.
 pub fn extract_assets_from_item_collection(
     body: &serde_json::Value,
     asset_role: &str,
 ) -> Result<Vec<StacAsset>> {
-    let features = body
-        .get("features")
-        .and_then(|f| f.as_array())
-        .ok_or_else(|| {
-            TileServerError::StacError("stac response missing 'features' array".to_string())
-        })?;
-
-    let mut assets = Vec::with_capacity(features.len());
-
-    for feature in features {
-        if let Some(asset) = extract_cog_asset_from_item(feature, asset_role) {
-            assets.push(asset);
-        }
+    let looks_like_feature_collection = body.get("type").and_then(|v| v.as_str())
+        == Some("FeatureCollection")
+        || body.get("features").is_some();
+    if !looks_like_feature_collection {
+        return Err(TileServerError::StacError(
+            "stac response is missing both 'type: FeatureCollection' and 'features'".to_string(),
+        ));
     }
+
+    let collection: stac::ItemCollection = serde_json::from_value(body.clone()).map_err(|e| {
+        TileServerError::StacError(format!("stac response is not a valid ItemCollection: {e}"))
+    })?;
+
+    let assets = collection
+        .items
+        .iter()
+        .filter_map(|item| extract_cog_asset_from_item(item, asset_role))
+        .collect();
 
     Ok(assets)
 }
 
-/// Extract a single COG asset from a STAC item, first by role then by MIME type.
-pub fn extract_cog_asset_from_item(
-    item: &serde_json::Value,
-    asset_role: &str,
-) -> Option<StacAsset> {
-    let item_id = item.get("id")?.as_str()?;
-    let bbox = extract_bbox(item)?;
-    let assets_obj = item.get("assets")?.as_object()?;
+/// Extract a single COG asset from a typed [`stac::Item`], first by
+/// `asset_role`, then by COG/GeoTIFF MIME type.
+#[must_use]
+pub fn extract_cog_asset_from_item(item: &stac::Item, asset_role: &str) -> Option<StacAsset> {
+    let bbox = item.bbox.as_ref().map(bbox_to_2d)?;
 
-    if let Some(asset) = find_asset_by_role(assets_obj, asset_role) {
-        return Some(StacAsset {
-            id: item_id.to_string(),
-            href: asset.get("href")?.as_str()?.to_string(),
-            bbox,
-            title: asset
-                .get("title")
-                .and_then(|t| t.as_str())
-                .unwrap_or(item_id)
-                .to_string(),
-        });
-    }
+    let (asset_key, asset) = find_asset_by_role(item.assets.iter(), asset_role)
+        .or_else(|| find_asset_by_cog_mime(item.assets.iter()))?;
 
-    if let Some(asset) = find_asset_by_cog_mime(assets_obj) {
-        return Some(StacAsset {
-            id: item_id.to_string(),
-            href: asset.get("href")?.as_str()?.to_string(),
-            bbox,
-            title: asset
-                .get("title")
-                .and_then(|t| t.as_str())
-                .unwrap_or(item_id)
-                .to_string(),
-        });
-    }
-
-    None
+    Some(StacAsset {
+        id: item.id.clone(),
+        href: asset.href.clone(),
+        bbox,
+        title: asset.title.clone().unwrap_or_else(|| {
+            if item.id.is_empty() {
+                asset_key.clone()
+            } else {
+                item.id.clone()
+            }
+        }),
+    })
 }
 
-fn find_asset_by_role<'a>(
-    assets: &'a serde_json::Map<String, serde_json::Value>,
-    role: &str,
-) -> Option<&'a serde_json::Value> {
-    for asset in assets.values() {
-        if let Some(roles) = asset.get("roles").and_then(|r| r.as_array())
-            && roles.iter().any(|r| r.as_str() == Some(role))
-        {
-            return Some(asset);
-        }
-    }
-
-    assets.get(role)
+fn find_asset_by_role<'a, I>(assets: I, role: &str) -> Option<(&'a String, &'a stac::Asset)>
+where
+    I: IntoIterator<Item = (&'a String, &'a stac::Asset)> + Clone,
+{
+    assets
+        .clone()
+        .into_iter()
+        .find(|(_, a)| a.roles.iter().any(|r| r == role))
+        .or_else(|| assets.into_iter().find(|(k, _)| k.as_str() == role))
 }
 
-fn find_asset_by_cog_mime(
-    assets: &serde_json::Map<String, serde_json::Value>,
-) -> Option<&serde_json::Value> {
-    for asset in assets.values() {
-        if let Some(mime) = asset.get("type").and_then(|t| t.as_str())
-            && (mime == COG_MIME_TYPE || mime.starts_with(GEOTIFF_MIME_TYPE))
-        {
-            return Some(asset);
-        }
-    }
-    None
+fn find_asset_by_cog_mime<'a, I>(assets: I) -> Option<(&'a String, &'a stac::Asset)>
+where
+    I: IntoIterator<Item = (&'a String, &'a stac::Asset)>,
+{
+    assets
+        .into_iter()
+        .find(|(_, a)| a.r#type.as_deref().is_some_and(is_cog_mime_type))
 }
 
-/// Extract a 2D WGS-84 bounding box from a STAC item, collapsing 3D bboxes.
+/// Convert a [`stac::Bbox`] to the 2D WGS-84 footprint `[west, south, east, north]`.
 ///
-/// Per STAC spec §7.9.3 a `bbox` is a JSON array of either 4 or 6 numbers.
-/// The 6-element form is `[west, south, min_elev, east, north, max_elev]`;
-/// only indices 0, 1, 3, 4 carry the 2D footprint (the middle pair is
-/// elevation). Naïvely treating every `bbox[2]` as `east` silently flips
-/// footprints when items carry elevation metadata — rendering tiles in
-/// the wrong location.
-fn extract_bbox(item: &serde_json::Value) -> Option<[f64; 4]> {
-    let bbox = item.get("bbox")?.as_array()?;
-    match bbox.len() {
-        4 => Some([
-            bbox[0].as_f64()?,
-            bbox[1].as_f64()?,
-            bbox[2].as_f64()?,
-            bbox[3].as_f64()?,
-        ]),
-        6 => Some([
-            bbox[0].as_f64()?,
-            bbox[1].as_f64()?,
-            bbox[3].as_f64()?,
-            bbox[4].as_f64()?,
-        ]),
-        _ => None,
-    }
+/// Per STAC spec §7.9.3 a bbox is either 4 or 6 numbers; the 6-element
+/// form is `[west, south, min_elev, east, north, max_elev]` and indices
+/// 0, 1, 3, 4 carry the 2D footprint. `stac::Bbox` encodes this as a
+/// two-variant enum, so we access corners via its accessors instead of
+/// index arithmetic (which previously caused a 3D-bbox truncation bug
+/// where `bbox[2]` was mistakenly treated as `east`).
+fn bbox_to_2d(bbox: &stac::Bbox) -> [f64; 4] {
+    [bbox.xmin(), bbox.ymin(), bbox.xmax(), bbox.ymax()]
 }
 
 /// Compute the merged bounding box across all assets.
@@ -689,6 +668,10 @@ mod tests {
         })
     }
 
+    fn sample_item(item_id: &str, role: &str, mime: &str) -> stac::Item {
+        serde_json::from_value(sample_item_json(item_id, role, mime)).expect("valid STAC Item")
+    }
+
     fn sample_item_collection(items: Vec<serde_json::Value>) -> serde_json::Value {
         serde_json::json!({
             "type": "FeatureCollection",
@@ -715,26 +698,30 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_bbox_valid() {
-        let item = serde_json::json!({"bbox": [-122.5, 37.0, -122.0, 37.5]});
-        let bbox = extract_bbox(&item).unwrap();
-        assert_eq!(bbox, [-122.5, 37.0, -122.0, 37.5]);
+    fn test_bbox_to_2d_from_2d() {
+        let bbox = stac::Bbox::TwoDimensional([-122.5, 37.0, -122.0, 37.5]);
+        assert_eq!(bbox_to_2d(&bbox), [-122.5, 37.0, -122.0, 37.5]);
     }
 
     #[test]
-    fn test_extract_bbox_6_element() {
-        // STAC 3D bbox: [west, south, min_elev, east, north, max_elev].
-        // We must collapse to the 2D footprint (indices 0, 1, 3, 4), NOT
-        // treat elevation as east — which would silently mis-place tiles.
-        let item = serde_json::json!({"bbox": [-122.5, 37.0, 0.0, -122.0, 37.5, 100.0]});
-        let bbox = extract_bbox(&item).unwrap();
-        assert_eq!(bbox, [-122.5, 37.0, -122.0, 37.5]);
+    fn test_bbox_to_2d_collapses_3d() {
+        let bbox = stac::Bbox::ThreeDimensional([-122.5, 37.0, 0.0, -122.0, 37.5, 100.0]);
+        assert_eq!(bbox_to_2d(&bbox), [-122.5, 37.0, -122.0, 37.5]);
     }
 
     #[test]
-    fn test_extract_bbox_5_element_rejected() {
-        let item = serde_json::json!({"bbox": [-122.5, 37.0, 0.0, -122.0, 37.5]});
-        assert!(extract_bbox(&item).is_none());
+    fn test_stac_item_rejects_invalid_bbox_length() {
+        let item_json = serde_json::json!({
+            "type": "Feature",
+            "id": "test",
+            "stac_version": "1.0.0",
+            "geometry": null,
+            "bbox": [-122.5, 37.0, 0.0, -122.0, 37.5],
+            "properties": {"datetime": null},
+            "assets": {},
+            "links": []
+        });
+        assert!(serde_json::from_value::<stac::Item>(item_json).is_err());
     }
 
     #[test]
@@ -755,21 +742,18 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_bbox_missing() {
-        let item = serde_json::json!({"id": "test"});
-        assert!(extract_bbox(&item).is_none());
-    }
-
-    #[test]
-    fn test_extract_bbox_too_short() {
-        let item = serde_json::json!({"bbox": [1.0, 2.0]});
-        assert!(extract_bbox(&item).is_none());
-    }
-
-    #[test]
-    fn test_extract_bbox_not_array() {
-        let item = serde_json::json!({"bbox": "invalid"});
-        assert!(extract_bbox(&item).is_none());
+    fn test_stac_item_missing_bbox_is_optional() {
+        let item_json = serde_json::json!({
+            "type": "Feature",
+            "id": "no-bbox",
+            "stac_version": "1.0.0",
+            "geometry": null,
+            "properties": {"datetime": null},
+            "assets": {},
+            "links": []
+        });
+        let item: stac::Item = serde_json::from_value(item_json).unwrap();
+        assert!(item.bbox.is_none());
     }
 
     #[test]
@@ -811,27 +795,27 @@ mod tests {
 
     #[test]
     fn test_find_asset_by_role_found() {
-        let item = sample_item_json("s2-001", "visual", COG_MIME_TYPE);
-        let assets = item["assets"].as_object().unwrap();
-        let result = find_asset_by_role(assets, "visual");
-        assert!(result.is_some());
-        assert_eq!(
-            result.unwrap()["href"].as_str().unwrap(),
-            "https://example.com/cog.tif"
-        );
+        let item = sample_item("s2-001", "visual", COG_MIME_TYPE);
+        let (_, asset) = find_asset_by_role(item.assets.iter(), "visual").unwrap();
+        assert_eq!(asset.href, "https://example.com/cog.tif");
     }
 
     #[test]
     fn test_find_asset_by_role_not_found() {
-        let item = sample_item_json("s2-001", "visual", COG_MIME_TYPE);
-        let assets = item["assets"].as_object().unwrap();
-        let result = find_asset_by_role(assets, "data");
-        assert!(result.is_none());
+        let item = sample_item("s2-001", "visual", COG_MIME_TYPE);
+        assert!(find_asset_by_role(item.assets.iter(), "data").is_none());
     }
 
     #[test]
     fn test_find_asset_by_role_fallback_to_key() {
-        let item = serde_json::json!({
+        let item_json = serde_json::json!({
+            "type": "Feature",
+            "id": "test",
+            "stac_version": "1.0.0",
+            "geometry": null,
+            "bbox": [0.0, 0.0, 1.0, 1.0],
+            "properties": {"datetime": null},
+            "links": [],
             "assets": {
                 "visual": {
                     "href": "https://example.com/file.tif",
@@ -839,30 +823,32 @@ mod tests {
                 }
             }
         });
-        let assets = item["assets"].as_object().unwrap();
-        let result = find_asset_by_role(assets, "visual");
-        assert!(result.is_some());
+        let item: stac::Item = serde_json::from_value(item_json).unwrap();
+        assert!(find_asset_by_role(item.assets.iter(), "visual").is_some());
     }
 
     #[test]
     fn test_find_asset_by_cog_mime_found() {
-        let item = sample_item_json("s2-001", "visual", COG_MIME_TYPE);
-        let assets = item["assets"].as_object().unwrap();
-        let result = find_asset_by_cog_mime(assets);
-        assert!(result.is_some());
+        let item = sample_item("s2-001", "visual", COG_MIME_TYPE);
+        assert!(find_asset_by_cog_mime(item.assets.iter()).is_some());
     }
 
     #[test]
     fn test_find_asset_by_cog_mime_geotiff() {
-        let item = sample_item_json("s2-001", "visual", "image/tiff; application=geotiff");
-        let assets = item["assets"].as_object().unwrap();
-        let result = find_asset_by_cog_mime(assets);
-        assert!(result.is_some());
+        let item = sample_item("s2-001", "visual", "image/tiff; application=geotiff");
+        assert!(find_asset_by_cog_mime(item.assets.iter()).is_some());
     }
 
     #[test]
     fn test_find_asset_by_cog_mime_none() {
-        let item = serde_json::json!({
+        let item_json = serde_json::json!({
+            "type": "Feature",
+            "id": "png-only",
+            "stac_version": "1.0.0",
+            "geometry": null,
+            "bbox": [0.0, 0.0, 1.0, 1.0],
+            "properties": {"datetime": null},
+            "links": [],
             "assets": {
                 "thumb": {
                     "href": "https://example.com/thumb.png",
@@ -870,14 +856,13 @@ mod tests {
                 }
             }
         });
-        let assets = item["assets"].as_object().unwrap();
-        let result = find_asset_by_cog_mime(assets);
-        assert!(result.is_none());
+        let item: stac::Item = serde_json::from_value(item_json).unwrap();
+        assert!(find_asset_by_cog_mime(item.assets.iter()).is_none());
     }
 
     #[test]
     fn test_extract_cog_asset_by_role() {
-        let item = sample_item_json("s2-001", "visual", COG_MIME_TYPE);
+        let item = sample_item("s2-001", "visual", COG_MIME_TYPE);
         let asset = extract_cog_asset_from_item(&item, "visual").unwrap();
         assert_eq!(asset.id, "s2-001");
         assert_eq!(asset.href, "https://example.com/cog.tif");
@@ -887,9 +872,14 @@ mod tests {
 
     #[test]
     fn test_extract_cog_asset_fallback_to_mime() {
-        let item = serde_json::json!({
+        let item_json = serde_json::json!({
+            "type": "Feature",
             "id": "landsat-001",
+            "stac_version": "1.0.0",
+            "geometry": null,
             "bbox": [10.0, 20.0, 11.0, 21.0],
+            "properties": {"datetime": null},
+            "links": [],
             "assets": {
                 "B04": {
                     "href": "https://example.com/B04.tif",
@@ -899,6 +889,7 @@ mod tests {
                 }
             }
         });
+        let item: stac::Item = serde_json::from_value(item_json).unwrap();
         let asset = extract_cog_asset_from_item(&item, "visual").unwrap();
         assert_eq!(asset.id, "landsat-001");
         assert_eq!(asset.href, "https://example.com/B04.tif");
@@ -906,9 +897,14 @@ mod tests {
 
     #[test]
     fn test_extract_cog_asset_no_match() {
-        let item = serde_json::json!({
+        let item_json = serde_json::json!({
+            "type": "Feature",
             "id": "empty",
+            "stac_version": "1.0.0",
+            "geometry": null,
             "bbox": [0.0, 0.0, 1.0, 1.0],
+            "properties": {"datetime": null},
+            "links": [],
             "assets": {
                 "thumb": {
                     "href": "https://example.com/thumb.png",
@@ -917,13 +913,19 @@ mod tests {
                 }
             }
         });
+        let item: stac::Item = serde_json::from_value(item_json).unwrap();
         assert!(extract_cog_asset_from_item(&item, "visual").is_none());
     }
 
     #[test]
     fn test_extract_cog_asset_missing_bbox() {
-        let item = serde_json::json!({
+        let item_json = serde_json::json!({
+            "type": "Feature",
             "id": "no-bbox",
+            "stac_version": "1.0.0",
+            "geometry": null,
+            "properties": {"datetime": null},
+            "links": [],
             "assets": {
                 "visual": {
                     "href": "https://example.com/cog.tif",
@@ -932,15 +934,7 @@ mod tests {
                 }
             }
         });
-        assert!(extract_cog_asset_from_item(&item, "visual").is_none());
-    }
-
-    #[test]
-    fn test_extract_cog_asset_missing_id() {
-        let item = serde_json::json!({
-            "bbox": [0.0, 0.0, 1.0, 1.0],
-            "assets": {}
-        });
+        let item: stac::Item = serde_json::from_value(item_json).unwrap();
         assert!(extract_cog_asset_from_item(&item, "visual").is_none());
     }
 
@@ -965,8 +959,15 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_assets_missing_features() {
+    fn test_extract_assets_missing_features_is_empty() {
         let body = serde_json::json!({"type": "FeatureCollection"});
+        let assets = extract_assets_from_item_collection(&body, "visual").unwrap();
+        assert!(assets.is_empty());
+    }
+
+    #[test]
+    fn test_extract_assets_non_stac_payload_errors() {
+        let body = serde_json::json!({"not": "a stac response"});
         let result = extract_assets_from_item_collection(&body, "visual");
         assert!(result.is_err());
     }
@@ -1076,9 +1077,14 @@ mod tests {
 
     #[test]
     fn test_extract_cog_asset_title_fallback_to_id() {
-        let item = serde_json::json!({
+        let item_json = serde_json::json!({
+            "type": "Feature",
             "id": "item-no-title",
+            "stac_version": "1.0.0",
+            "geometry": null,
             "bbox": [0.0, 0.0, 1.0, 1.0],
+            "properties": {"datetime": null},
+            "links": [],
             "assets": {
                 "visual": {
                     "href": "https://example.com/cog.tif",
@@ -1087,15 +1093,21 @@ mod tests {
                 }
             }
         });
+        let item: stac::Item = serde_json::from_value(item_json).unwrap();
         let asset = extract_cog_asset_from_item(&item, "visual").unwrap();
         assert_eq!(asset.title, "item-no-title");
     }
 
     #[test]
     fn test_extract_cog_asset_multiple_roles() {
-        let item = serde_json::json!({
+        let item_json = serde_json::json!({
+            "type": "Feature",
             "id": "multi-role",
+            "stac_version": "1.0.0",
+            "geometry": null,
             "bbox": [0.0, 0.0, 1.0, 1.0],
+            "properties": {"datetime": null},
+            "links": [],
             "assets": {
                 "B04": {
                     "href": "https://example.com/B04.tif",
@@ -1105,6 +1117,7 @@ mod tests {
                 }
             }
         });
+        let item: stac::Item = serde_json::from_value(item_json).unwrap();
         let asset = extract_cog_asset_from_item(&item, "visual").unwrap();
         assert_eq!(asset.id, "multi-role");
         assert_eq!(asset.title, "Red Band");
