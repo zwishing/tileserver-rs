@@ -171,6 +171,7 @@ pub async fn upload_file(
         asset_role: "visual".to_string(),
         dynamic: false,
         max_items: 100,
+        stac_bbox: None,
     };
 
     let mut temp_manager = SourceManager::new();

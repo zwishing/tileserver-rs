@@ -1051,6 +1051,7 @@ mod mlt_mbtiles_tests {
             asset_role: "data".to_string(),
             dynamic: false,
             max_items: 500,
+            stac_bbox: None,
         }
     }
 

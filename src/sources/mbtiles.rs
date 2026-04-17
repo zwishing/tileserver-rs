@@ -317,6 +317,7 @@ mod tests {
             asset_role: "visual".to_string(),
             dynamic: false,
             max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         assert_eq!(meta.format, TileFormat::Pbf);
@@ -350,6 +351,7 @@ mod tests {
             asset_role: "visual".to_string(),
             dynamic: false,
             max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         assert_eq!(meta.format, TileFormat::Png);
@@ -382,6 +384,7 @@ mod tests {
             asset_role: "visual".to_string(),
             dynamic: false,
             max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         assert_eq!(meta.format, TileFormat::Jpeg);
@@ -414,6 +417,7 @@ mod tests {
             asset_role: "visual".to_string(),
             dynamic: false,
             max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         assert_eq!(meta.format, TileFormat::Mlt);
@@ -448,6 +452,7 @@ mod tests {
             asset_role: "visual".to_string(),
             dynamic: false,
             max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         assert_eq!(meta.minzoom, 5);
@@ -484,6 +489,7 @@ mod tests {
             asset_role: "visual".to_string(),
             dynamic: false,
             max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         let b = meta.bounds.unwrap();
@@ -527,6 +533,7 @@ mod tests {
             asset_role: "visual".to_string(),
             dynamic: false,
             max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         let c = meta.center.unwrap();
@@ -562,6 +569,7 @@ mod tests {
             asset_role: "visual".to_string(),
             dynamic: false,
             max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         let c = meta.center.unwrap();
@@ -597,6 +605,7 @@ mod tests {
             asset_role: "visual".to_string(),
             dynamic: false,
             max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         assert_eq!(meta.name, "DB Name");
@@ -632,6 +641,7 @@ mod tests {
             asset_role: "visual".to_string(),
             dynamic: false,
             max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         assert_eq!(meta.attribution.as_deref(), Some("Config Attribution"));
@@ -662,6 +672,7 @@ mod tests {
             asset_role: "visual".to_string(),
             dynamic: false,
             max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         assert_eq!(meta.name, "empty");

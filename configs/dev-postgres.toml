@@ -29,10 +29,8 @@ collection = "sentinel-2-l2a"
 asset_role = "visual"
 dynamic = false
 max_items = 25
+stac_bbox = [6.0, 43.0, 10.0, 46.0]
 
-# Phase 2/3: dynamic per-tile bbox search + mosaic compositing.
-# Same STAC catalog but every tile request re-queries the API with
-# the tile's bounding box and composites up to 5 intersecting COGs.
 [[sources]]
 id = "sentinel2-dynamic"
 type = "stac"
@@ -42,6 +40,7 @@ collection = "sentinel-2-l2a"
 asset_role = "visual"
 dynamic = true
 max_items = 5
+stac_bbox = [6.0, 43.0, 10.0, 46.0]
 
 [[styles]]
 id = "protomaps-light"

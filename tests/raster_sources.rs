@@ -631,6 +631,7 @@ mod error_handling {
             asset_role: "data".to_string(),
             dynamic: false,
             max_items: 500,
+            stac_bbox: None,
         };
 
         let result = CogSource::from_file(&config).await;

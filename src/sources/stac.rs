@@ -81,9 +81,10 @@ impl StacSource {
         let asset_role = &config.asset_role;
         let max_items = config.max_items;
 
-        let assets = discover_assets(api_url, collection, asset_role, max_items).await?;
+        let assets =
+            discover_assets(api_url, collection, asset_role, max_items, config.stac_bbox).await?;
 
-        let bounds = compute_merged_bounds(&assets);
+        let bounds = config.stac_bbox.or_else(|| compute_merged_bounds(&assets));
         let name = config
             .name
             .clone()
@@ -93,7 +94,7 @@ impl StacSource {
             let cog_config = SourceConfig {
                 id: config.id.clone(),
                 source_type: crate::config::SourceType::Cog,
-                path: first_asset.href.clone(),
+                path: to_gdal_cog_path(&first_asset.href),
                 name: config.name.clone(),
                 attribution: config.attribution.clone(),
                 description: config.description.clone(),
@@ -111,6 +112,7 @@ impl StacSource {
                 asset_role: config.asset_role.clone(),
                 dynamic: config.dynamic,
                 max_items: config.max_items,
+                stac_bbox: config.stac_bbox,
             };
 
             match CogSource::from_file(&cog_config).await {
@@ -255,6 +257,7 @@ pub async fn discover_assets(
     collection: &str,
     asset_role: &str,
     max_items: usize,
+    bbox: Option<[f64; 4]>,
 ) -> Result<Vec<StacAsset>> {
     let search_url = build_search_url(api_url);
     let client = reqwest::Client::builder()
@@ -262,10 +265,13 @@ pub async fn discover_assets(
         .build()
         .map_err(|e| TileServerError::StacError(format!("failed to create HTTP client: {e}")))?;
 
-    let search_body = serde_json::json!({
+    let mut search_body = serde_json::json!({
         "collections": [collection],
         "limit": max_items
     });
+    if let Some(b) = bbox {
+        search_body["bbox"] = serde_json::json!([b[0], b[1], b[2], b[3]]);
+    }
 
     let response = client
         .post(&search_url)
@@ -516,6 +522,22 @@ pub async fn discover_assets_by_bbox(
     extract_assets_from_item_collection(&body, asset_role)
 }
 
+/// Convert a STAC asset `href` into a path GDAL can range-read.
+///
+/// STAC hrefs are typically `https://…/TCI.tif`. GDAL's `Dataset::open`
+/// blocks for the entire file over HTTPS; the `/vsicurl/` VSI prefix
+/// switches it to HTTP range requests so only the COG header + requested
+/// overview bands are fetched. Non-HTTP paths pass through unchanged.
+fn to_gdal_cog_path(href: &str) -> String {
+    if href.starts_with("http://") || href.starts_with("https://") {
+        format!("/vsicurl/{href}")
+    } else if let Some(rest) = href.strip_prefix("s3://") {
+        format!("/vsis3/{rest}")
+    } else {
+        href.to_string()
+    }
+}
+
 /// Phase 2 single-asset rendering: construct a one-shot [`CogSource`]
 /// pointed at `asset.href`, render the tile, and drop the source.
 ///
@@ -531,7 +553,7 @@ async fn render_single_asset(
     let cfg = SourceConfig {
         id: template.id.clone(),
         source_type: crate::config::SourceType::Cog,
-        path: asset.href.clone(),
+        path: to_gdal_cog_path(&asset.href),
         name: template.name.clone(),
         attribution: template.attribution.clone(),
         description: template.description.clone(),
@@ -549,6 +571,7 @@ async fn render_single_asset(
         asset_role: template.asset_role.clone(),
         dynamic: false,
         max_items: template.max_items,
+        stac_bbox: template.stac_bbox,
     };
 
     match CogSource::from_file(&cfg).await {

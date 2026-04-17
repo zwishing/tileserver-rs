@@ -164,6 +164,7 @@ pub fn detect_config(target_path: PathBuf) -> anyhow::Result<(Config, AutoDetect
                 asset_role: "visual".to_string(),
                 dynamic: false,
                 max_items: 100,
+                stac_bbox: None,
             });
             report.sources.push(AutoDetectedSource {
                 id,
@@ -304,6 +305,7 @@ pub fn detect_config(target_path: PathBuf) -> anyhow::Result<(Config, AutoDetect
             asset_role: "visual".to_string(),
             dynamic: false,
             max_items: 100,
+            stac_bbox: None,
         });
         report.sources.push(AutoDetectedSource {
             id,

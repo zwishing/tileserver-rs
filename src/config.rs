@@ -287,6 +287,12 @@ pub struct SourceConfig {
     pub dynamic: bool,
     #[serde(default = "default_stac_max_items")]
     pub max_items: usize,
+    /// Optional WGS-84 bounding box `[west, south, east, north]` used to scope
+    /// Phase 1 static discovery AND to override the merged item bounds exposed
+    /// to clients. Essential when a global STAC collection would otherwise
+    /// anchor discovery on whichever items the API happens to rank first.
+    #[serde(default)]
+    pub stac_bbox: Option<[f64; 4]>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
