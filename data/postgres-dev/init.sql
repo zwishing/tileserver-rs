@@ -50,7 +50,7 @@ INSERT INTO public.cities (name, country, population, is_capital, founded_year, 
 -- countries (MULTIPOLYGON, 4326) — real Natural Earth outlines, simplified to
 -- ~0.05° tolerance to keep the seed file under 300 KB. The full-resolution
 -- shapes are in natural_earth.sqlite (Natural Earth 10m admin_0_countries,
--- public domain). See deploy/postgres-dev/countries_seed.sql for the data.
+-- public domain). See data/postgres-dev/countries_seed.sql for the data.
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.countries (
     id          SERIAL PRIMARY KEY,

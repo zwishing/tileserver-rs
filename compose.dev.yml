@@ -1,8 +1,6 @@
 services:
   postgres-dev:
-    build:
-      context: ./deploy/postgres-dev
-      dockerfile: Dockerfile
+    image: postgis/postgis:16-3.4
     container_name: tileserver-rs-postgres-dev
     restart: unless-stopped
     environment:
@@ -12,8 +10,8 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
-      - ./deploy/postgres-dev/init.sql:/docker-entrypoint-initdb.d/00-tileserver-rs-init.sql:ro
-      - ./deploy/postgres-dev/countries_seed.sql:/docker-entrypoint-initdb.d/countries_seed.sql:ro
+      - ./data/postgres-dev/init.sql:/docker-entrypoint-initdb.d/00-tileserver-rs-init.sql:ro
+      - ./data/postgres-dev/countries_seed.sql:/docker-entrypoint-initdb.d/countries_seed.sql:ro
       - postgres_dev_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tileserver -d gis"]
