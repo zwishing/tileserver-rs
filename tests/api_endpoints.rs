@@ -104,7 +104,8 @@ mod openapi_tests {
         assert!(spec.tags.is_some());
 
         let tags = spec.tags.as_ref().unwrap();
-        assert_eq!(tags.len(), 7, "Should have 7 tags");
+        // Tags: Health, Data, Styles, Fonts, Files, Upload, Spatial, OGC.
+        assert_eq!(tags.len(), 8, "Should have 8 tags");
     }
 
     #[test]
