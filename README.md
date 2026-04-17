@@ -21,6 +21,7 @@ High-performance vector tile server built in Rust with a modern Nuxt 4 frontend.
 - **Native Raster Rendering** - Generate PNG/JPEG/WebP tiles using MapLibre Native (C++ FFI)
 - **MLT (MapLibre Tiles)** - Serve and transcode MLT tiles with MLT↔MVT on-the-fly conversion (feature-gated)
 - **PostgreSQL Out-DB Rasters** - Serve VRT/COG tiles via PostGIS functions with dynamic filtering
+- **OGC API Features** - PostGIS tables as OGC-spec collections (Parts 1-5: Core, CRS, CQL2 Filter, Transactions, Schemas)
 - **STAC Catalog Sources** - Serve COGs directly from any STAC API (static, dynamic per-tile bbox, multi-asset mosaic)
 - **Static Map Images** - Create embeddable map screenshots (like Mapbox/Maptiler Static API)
 - **Zero-Config Auto-Detect** - Point at a directory or file and start serving instantly

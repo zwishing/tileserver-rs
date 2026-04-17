@@ -677,6 +677,13 @@ pub struct PostgresTableConfig {
     pub buffer: u32,
     /// Maximum features per tile (default: unlimited)
     pub max_features: Option<u32>,
+    /// Enable OGC API Features Part 4 transactions (POST/PUT/PATCH/DELETE).
+    ///
+    /// Defaults to `false` — mutation endpoints return `405 Method Not Allowed`
+    /// unless this is explicitly set. Enable per table on trusted deployments
+    /// only; there is no built-in auth.
+    #[serde(default)]
+    pub writable: bool,
 }
 
 #[cfg(all(feature = "postgres", feature = "raster"))]

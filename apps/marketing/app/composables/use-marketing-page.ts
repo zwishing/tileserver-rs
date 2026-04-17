@@ -22,6 +22,7 @@ import {
   Braces,
   Timer,
   Satellite,
+  FileCode2,
 } from 'lucide-vue-next';
 import type {
   Feature,
@@ -147,6 +148,12 @@ export function useMarketingPage() {
       title: 'Configurable Caching',
       description:
         'Per-source cache control headers with configurable max-age, stale-while-revalidate, and CDN-friendly strategies for optimal tile delivery.',
+    },
+    {
+      icon: FileCode2,
+      title: 'OGC API Features',
+      description:
+        'PostGIS tables as OGC-spec collections. Parts 1-5: Core, CRS reprojection, CQL2 filter with SQL-injection defence, create/replace/update/delete transactions, and JSON Schema introspection. QGIS-ready.',
     },
     {
       icon: Satellite,

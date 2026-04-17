@@ -1,8 +1,14 @@
+# Development config for tileserver-rs with postgres + STAC sources.
+# Spin up the companion dev database with:
+#   docker compose -f compose.dev.yml up -d postgres-dev
+# Start the server with:
+#   cargo run --features postgres,raster,stac,frontend -- --config configs/dev-postgres.toml
+
 fonts = "./data/fonts"
 
 [server]
 host = "0.0.0.0"
-port = 8081
+port = 8080
 cors_origins = ["*"]
 
 [telemetry]
@@ -13,6 +19,43 @@ enabled = true
 max_size_mb = 256
 ttl_seconds = 3600
 
+[postgres]
+connection_string = "postgresql://tileserver:tileserver@127.0.0.1:5432/gis"
+pool_size = 8
+
+[[postgres.tables]]
+id = "cities"
+schema = "public"
+table = "cities"
+geometry_column = "geom"
+id_column = "id"
+srid = 4326
+writable = true
+
+[[postgres.tables]]
+id = "countries"
+schema = "public"
+table = "countries"
+geometry_column = "geom"
+id_column = "id"
+srid = 4326
+
+[[postgres.tables]]
+id = "roads"
+schema = "public"
+table = "roads"
+geometry_column = "geom"
+id_column = "id"
+srid = 4326
+
+[[postgres.tables]]
+id = "buildings"
+schema = "public"
+table = "buildings"
+geometry_column = "geom"
+id_column = "id"
+srid = 4326
+
 [[sources]]
 id = "protomaps"
 type = "pmtiles"
@@ -20,6 +63,8 @@ path = "./data/tiles/protomaps-sample.pmtiles"
 name = "Protomaps Firenze Sample"
 attribution = "<a href=\"https://protomaps.com\">Protomaps</a> | <a href=\"https://openstreetmap.org/copyright\">© OpenStreetMap</a>"
 
+# stac_bbox anchors Phase 1 discovery + sets source bounds (prevents Element84 from defaulting to
+# whatever is first in its index, e.g. Hudson Bay). Order: [west, south, east, north] in WGS84.
 [[sources]]
 id = "sentinel2"
 type = "stac"
@@ -46,6 +91,11 @@ stac_bbox = [6.0, 43.0, 10.0, 46.0]
 id = "protomaps-light"
 path = "./data/styles/protomaps-light/style.json"
 name = "Protomaps Light"
+
+[[styles]]
+id = "postgis-collections"
+path = "./data/styles/postgis-collections/style.json"
+name = "PostGIS OGC Collections"
 
 [[styles]]
 id = "sentinel2"

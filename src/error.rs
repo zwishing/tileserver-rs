@@ -33,6 +33,9 @@ pub enum TileServerError {
     #[error("not found: {0}")]
     NotFound(String),
 
+    #[error("method not allowed: {0}")]
+    MethodNotAllowed(String),
+
     #[error("failed to read file: {0}")]
     FileError(#[from] std::io::Error),
 
@@ -108,6 +111,9 @@ impl IntoResponse for TileServerError {
             TileServerError::SpriteNotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
             TileServerError::FontNotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
             TileServerError::NotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
+            TileServerError::MethodNotAllowed(_) => {
+                (StatusCode::METHOD_NOT_ALLOWED, self.to_string())
+            }
             TileServerError::FileError(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "File read error".to_string(),
