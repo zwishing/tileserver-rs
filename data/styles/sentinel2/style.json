@@ -1,0 +1,56 @@
+{
+  "version": 8,
+  "name": "Sentinel-2 L2A Imagery",
+  "metadata": {
+    "description": "Element84 Sentinel-2 L2A imagery discovered via STAC, overlaid on Protomaps basemap."
+  },
+  "sources": {
+    "protomaps": {
+      "type": "vector",
+      "url": "/data/protomaps.json"
+    },
+    "sentinel2": {
+      "type": "raster",
+      "url": "/data/sentinel2.json",
+      "tileSize": 256
+    }
+  },
+  "glyphs": "/fonts/{fontstack}/{range}.pbf",
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": { "background-color": "#0b1a2a" }
+    },
+    {
+      "id": "sentinel2",
+      "type": "raster",
+      "source": "sentinel2",
+      "paint": { "raster-opacity": 1.0, "raster-resampling": "linear" }
+    },
+    {
+      "id": "earth",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "earth",
+      "paint": { "fill-color": "rgba(0,0,0,0)" }
+    },
+    {
+      "id": "places-labels",
+      "type": "symbol",
+      "source": "protomaps",
+      "source-layer": "places",
+      "filter": ["<=", ["get", "pmap:min_zoom"], ["zoom"]],
+      "layout": {
+        "text-field": ["get", "name"],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 12
+      },
+      "paint": {
+        "text-color": "#ffffff",
+        "text-halo-color": "rgba(0,0,0,0.75)",
+        "text-halo-width": 1.5
+      }
+    }
+  ]
+}

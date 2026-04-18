@@ -21,6 +21,7 @@ import {
   FileSpreadsheet,
   Braces,
   Timer,
+  Satellite,
   FileCode2,
 } from 'lucide-vue-next';
 import type {
@@ -153,6 +154,12 @@ export function useMarketingPage() {
       title: 'OGC API Features',
       description:
         'PostGIS tables as OGC-spec collections. Parts 1-5: Core, CRS reprojection, CQL2 filter with SQL-injection defence, create/replace/update/delete transactions, and JSON Schema introspection. QGIS-ready.',
+    },
+    {
+      icon: Satellite,
+      title: 'STAC Catalog Sources',
+      description:
+        'Point at any STAC API (Element84, Planetary Computer, USGS) and serve COGs as tiles. Phase 1 static, Phase 2 dynamic per-tile bbox search, Phase 3 multi-asset mosaic compositing.',
     },
   ];
 

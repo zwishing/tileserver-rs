@@ -73,6 +73,8 @@ fn source_type_label(st: &SourceType) -> &'static str {
         SourceType::GeoParquet => "geoparquet",
         #[cfg(feature = "duckdb")]
         SourceType::DuckDB => "duckdb",
+        #[cfg(feature = "stac")]
+        SourceType::Stac => "stac",
     }
 }
 
@@ -165,11 +167,15 @@ pub async fn upload_file(
         #[cfg(feature = "raster")]
         colormap: None,
         options: None,
+        collection: None,
+        asset_role: "visual".to_string(),
+        dynamic: false,
+        max_items: 100,
+        stac_bbox: None,
     };
 
     let mut temp_manager = SourceManager::new();
     if let Err(e) = temp_manager.load_source(&source_config).await {
-        // Clean up file on load failure
         let _ = tokio::fs::remove_file(&file_path).await;
         return Err(TileServerError::UploadError(format!(
             "failed to load source from uploaded file: {e}"
@@ -338,5 +344,11 @@ mod tests {
     fn test_detect_source_type_parquet() {
         let st = detect_source_type("buildings.parquet").unwrap();
         assert!(matches!(st, SourceType::GeoParquet));
+    }
+
+    #[test]
+    #[cfg(feature = "stac")]
+    fn test_source_type_label_stac() {
+        assert_eq!(source_type_label(&SourceType::Stac), "stac");
     }
 }

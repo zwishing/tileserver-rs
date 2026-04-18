@@ -52,6 +52,8 @@ fn source_type_suffix(source_type: &SourceType) -> &'static str {
         SourceType::GeoParquet => "geoparquet",
         #[cfg(feature = "duckdb")]
         SourceType::DuckDB => "duckdb",
+        #[cfg(feature = "stac")]
+        SourceType::Stac => "stac",
     }
 }
 
@@ -158,6 +160,11 @@ pub fn detect_config(target_path: PathBuf) -> anyhow::Result<(Config, AutoDetect
                 #[cfg(feature = "raster")]
                 colormap: None,
                 options: None,
+                collection: None,
+                asset_role: "visual".to_string(),
+                dynamic: false,
+                max_items: 100,
+                stac_bbox: None,
             });
             report.sources.push(AutoDetectedSource {
                 id,
@@ -294,6 +301,11 @@ pub fn detect_config(target_path: PathBuf) -> anyhow::Result<(Config, AutoDetect
             #[cfg(feature = "raster")]
             colormap: None,
             options: None,
+            collection: None,
+            asset_role: "visual".to_string(),
+            dynamic: false,
+            max_items: 100,
+            stac_bbox: None,
         });
         report.sources.push(AutoDetectedSource {
             id,
@@ -387,5 +399,17 @@ mod tests {
         assert!(ids.contains("tiles"));
         assert!(ids.contains("tiles-pmtiles") || ids.contains("tiles-mbtiles"));
         assert!(!report.conflicts.is_empty());
+    }
+
+    #[test]
+    #[cfg(feature = "stac")]
+    fn test_source_type_suffix_stac() {
+        assert_eq!(source_type_suffix(&SourceType::Stac), "stac");
+    }
+
+    #[test]
+    fn test_source_type_suffix_known_types() {
+        assert_eq!(source_type_suffix(&SourceType::PMTiles), "pmtiles");
+        assert_eq!(source_type_suffix(&SourceType::MBTiles), "mbtiles");
     }
 }

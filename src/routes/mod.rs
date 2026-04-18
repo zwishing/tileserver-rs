@@ -179,3 +179,51 @@ async fn get_index_json(
 
     Json(entries)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json;
+
+    #[test]
+    fn test_index_entry_data_serialization() {
+        let tilejson = TileJson {
+            tilejson: "3.0.0".to_string(),
+            id: "test-source".to_string(),
+            tiles: vec!["http://localhost:8080/data/test/{z}/{x}/{y}.pbf".to_string()],
+            name: "Test Source".to_string(),
+            description: None,
+            minzoom: 0,
+            maxzoom: 14,
+            bounds: None,
+            center: None,
+            vector_layers: None,
+            attribution: None,
+            encoding: None,
+        };
+        let entry = IndexEntry::Data(Box::new(tilejson));
+        let json = serde_json::to_value(&entry).unwrap();
+
+        assert_eq!(json["id"], "test-source");
+        assert_eq!(json["tilejson"], "3.0.0");
+        assert_eq!(json["minzoom"], 0);
+        assert_eq!(json["maxzoom"], 14);
+    }
+
+    #[test]
+    fn test_index_entry_style_serialization() {
+        let style_entry = IndexEntry::Style(RasterTileJson {
+            tilejson: "3.0.0",
+            name: "osm-bright".to_string(),
+            tiles: vec!["http://localhost:8080/styles/osm-bright/{z}/{x}/{y}.png".to_string()],
+            minzoom: 0,
+            maxzoom: 22,
+            attribution: None,
+        });
+        let json = serde_json::to_value(&style_entry).unwrap();
+
+        assert_eq!(json["name"], "osm-bright");
+        assert_eq!(json["tilejson"], "3.0.0");
+        assert_eq!(json["minzoom"], 0);
+    }
+}

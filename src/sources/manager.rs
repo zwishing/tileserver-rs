@@ -24,6 +24,8 @@ use crate::sources::postgres::PostgresOutDbRasterSource;
 use crate::sources::postgres::{
     PoolSettings, PostgresFunctionSource, PostgresPool, PostgresTableSource, TileCache,
 };
+#[cfg(feature = "stac")]
+use crate::sources::stac::StacSource;
 use crate::sources::{TileMetadata, TileSource};
 #[cfg(feature = "postgres")]
 use tokio_postgres::types::Type;
@@ -315,6 +317,8 @@ impl SourceManager {
             SourceType::GeoParquet => Arc::new(GeoParquetSource::from_config(config).await?),
             #[cfg(feature = "duckdb")]
             SourceType::DuckDB => Arc::new(DuckDbSource::from_config(config).await?),
+            #[cfg(feature = "stac")]
+            SourceType::Stac => Arc::new(StacSource::new(config).await?),
         };
 
         self.sources.insert(config.id.clone(), source);

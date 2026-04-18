@@ -313,6 +313,11 @@ mod tests {
             #[cfg(feature = "raster")]
             colormap: None,
             options: None,
+            collection: None,
+            asset_role: "visual".to_string(),
+            dynamic: false,
+            max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         assert_eq!(meta.format, TileFormat::Pbf);
@@ -342,6 +347,11 @@ mod tests {
             #[cfg(feature = "raster")]
             colormap: None,
             options: None,
+            collection: None,
+            asset_role: "visual".to_string(),
+            dynamic: false,
+            max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         assert_eq!(meta.format, TileFormat::Png);
@@ -370,6 +380,11 @@ mod tests {
             #[cfg(feature = "raster")]
             colormap: None,
             options: None,
+            collection: None,
+            asset_role: "visual".to_string(),
+            dynamic: false,
+            max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         assert_eq!(meta.format, TileFormat::Jpeg);
@@ -398,6 +413,11 @@ mod tests {
             #[cfg(feature = "raster")]
             colormap: None,
             options: None,
+            collection: None,
+            asset_role: "visual".to_string(),
+            dynamic: false,
+            max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         assert_eq!(meta.format, TileFormat::Mlt);
@@ -428,6 +448,11 @@ mod tests {
             #[cfg(feature = "raster")]
             colormap: None,
             options: None,
+            collection: None,
+            asset_role: "visual".to_string(),
+            dynamic: false,
+            max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         assert_eq!(meta.minzoom, 5);
@@ -460,6 +485,11 @@ mod tests {
             #[cfg(feature = "raster")]
             colormap: None,
             options: None,
+            collection: None,
+            asset_role: "visual".to_string(),
+            dynamic: false,
+            max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         let b = meta.bounds.unwrap();
@@ -499,6 +529,11 @@ mod tests {
             #[cfg(feature = "raster")]
             colormap: None,
             options: None,
+            collection: None,
+            asset_role: "visual".to_string(),
+            dynamic: false,
+            max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         let c = meta.center.unwrap();
@@ -530,6 +565,11 @@ mod tests {
             #[cfg(feature = "raster")]
             colormap: None,
             options: None,
+            collection: None,
+            asset_role: "visual".to_string(),
+            dynamic: false,
+            max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         let c = meta.center.unwrap();
@@ -561,6 +601,11 @@ mod tests {
             #[cfg(feature = "raster")]
             colormap: None,
             options: None,
+            collection: None,
+            asset_role: "visual".to_string(),
+            dynamic: false,
+            max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         assert_eq!(meta.name, "DB Name");
@@ -592,6 +637,11 @@ mod tests {
             #[cfg(feature = "raster")]
             colormap: None,
             options: None,
+            collection: None,
+            asset_role: "visual".to_string(),
+            dynamic: false,
+            max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         assert_eq!(meta.attribution.as_deref(), Some("Config Attribution"));
@@ -618,6 +668,11 @@ mod tests {
             #[cfg(feature = "raster")]
             colormap: None,
             options: None,
+            collection: None,
+            asset_role: "visual".to_string(),
+            dynamic: false,
+            max_items: 100,
+            stac_bbox: None,
         };
         let meta = MbTilesSource::read_metadata(&conn, &config).unwrap();
         assert_eq!(meta.name, "empty");

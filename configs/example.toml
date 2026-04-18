@@ -241,6 +241,21 @@ ttl_seconds = 3600
 # Example: /data/elevation/14/8192/5461.png?resampling=nearest
 
 # ============================================================================
+# STAC SOURCES (requires --features stac, which implies raster/GDAL)
+# Discover COG assets from STAC API catalogs at startup
+# ============================================================================
+
+# [[sources]]
+# id = "sentinel2"
+# type = "stac"
+# path = "https://earth-search.aws.element84.com/v1"
+# name = "Sentinel-2 L2A"
+# collection = "sentinel-2-l2a"
+# asset_role = "visual"       # STAC asset role to match (default: "visual")
+# dynamic = false              # false = discover at startup only (default)
+# max_items = 100              # max items to discover (default: 100)
+
+# ============================================================================
 # GLOBAL RASTER SETTINGS (optional, requires --features raster)
 # ============================================================================
 # [raster]

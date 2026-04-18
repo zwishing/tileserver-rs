@@ -1,3 +1,9 @@
+# Development config for tileserver-rs with postgres + STAC sources.
+# Spin up the companion dev database with:
+#   docker compose -f compose.dev.yml up -d postgres-dev
+# Start the server with:
+#   cargo run --features postgres,raster,stac,frontend -- --config configs/dev-postgres.toml
+
 fonts = "./data/fonts"
 
 [server]
@@ -57,6 +63,30 @@ path = "./data/tiles/protomaps-sample.pmtiles"
 name = "Protomaps Firenze Sample"
 attribution = "<a href=\"https://protomaps.com\">Protomaps</a> | <a href=\"https://openstreetmap.org/copyright\">© OpenStreetMap</a>"
 
+# stac_bbox anchors Phase 1 discovery + sets source bounds (prevents Element84 from defaulting to
+# whatever is first in its index, e.g. Hudson Bay). Order: [west, south, east, north] in WGS84.
+[[sources]]
+id = "sentinel2"
+type = "stac"
+path = "https://earth-search.aws.element84.com/v1"
+name = "Sentinel-2 L2A (Phase 1: static, first asset)"
+collection = "sentinel-2-l2a"
+asset_role = "visual"
+dynamic = false
+max_items = 25
+stac_bbox = [6.0, 43.0, 10.0, 46.0]
+
+[[sources]]
+id = "sentinel2-dynamic"
+type = "stac"
+path = "https://earth-search.aws.element84.com/v1"
+name = "Sentinel-2 L2A (Phase 2/3: dynamic + mosaic)"
+collection = "sentinel-2-l2a"
+asset_role = "visual"
+dynamic = true
+max_items = 5
+stac_bbox = [6.0, 43.0, 10.0, 46.0]
+
 [[styles]]
 id = "protomaps-light"
 path = "./data/styles/protomaps-light/style.json"
@@ -66,3 +96,13 @@ name = "Protomaps Light"
 id = "postgis-collections"
 path = "./data/styles/postgis-collections/style.json"
 name = "PostGIS OGC Collections"
+
+[[styles]]
+id = "sentinel2"
+path = "./data/styles/sentinel2/style.json"
+name = "Sentinel-2 L2A Imagery (static)"
+
+[[styles]]
+id = "sentinel2-dynamic"
+path = "./data/styles/sentinel2-dynamic/style.json"
+name = "Sentinel-2 L2A Dynamic Mosaic"
