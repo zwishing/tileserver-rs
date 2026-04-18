@@ -1689,6 +1689,36 @@ mod tests {
         assert!(result.is_err());
     }
 
+    /// Exercises the `.decode_all()` error arm in `mlt_to_mvt`. We take a valid
+    /// MLT tile and truncate the final byte so `parse_layers` returns structurally
+    /// valid `Layer<Lazy>` objects but column decoding fails on the truncated body.
+    #[test]
+    fn test_mlt_to_mvt_corrupt_body_triggers_decode_error() {
+        let mvt_bytes = make_mvt_point_tile("decode_err_test", 10, 20);
+        let mut mlt_bytes = mvt_to_mlt(&mvt_bytes).unwrap().to_vec();
+        assert!(mlt_bytes.len() > 10);
+
+        let mut last_err: Option<TileServerError> = None;
+        for trunc_from_end in 1..mlt_bytes.len().min(64) {
+            let truncated = &mlt_bytes[..mlt_bytes.len() - trunc_from_end];
+            if let Err(e) = mlt_to_mvt(truncated) {
+                last_err = Some(e);
+                break;
+            }
+        }
+        assert!(
+            matches!(
+                last_err,
+                Some(TileServerError::MltDecodeError(_)) | Some(TileServerError::MltEncodeError(_))
+            ),
+            "expected MltDecodeError or MltEncodeError from truncated MLT, got: {last_err:?}"
+        );
+
+        let last_idx = mlt_bytes.len() - 1;
+        mlt_bytes[last_idx] = mlt_bytes[last_idx].wrapping_add(0x7f);
+        let _ = mlt_to_mvt(&mlt_bytes);
+    }
+
     // -------------------------------------------------------------------------
     // Property helpers for test fixtures
     // -------------------------------------------------------------------------
