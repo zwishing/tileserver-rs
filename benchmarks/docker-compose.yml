@@ -31,6 +31,7 @@ services:
       - "5432:5432"
     volumes:
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./postgres/init-ogc.sql:/docker-entrypoint-initdb.d/init-ogc.sql:ro
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tileserver -d tiles"]
@@ -103,21 +104,28 @@ services:
       retries: 3
 
   titiler:
+    platform: linux/amd64
     image: ghcr.io/developmentseed/titiler:latest
+    container_name: benchmarks-titiler
     ports:
-      - "8903:80"
-    volumes:
-      - ../data:/data:ro
+      - "8903:8000"
     environment:
-      TITILER_API_DISABLE_DOC: "false"
-      TITILER_API_ROOT_PATH: ""
-      WORKERS_PER_CORE: "1"
-      MAX_WORKERS: "4"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/healthz"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
+      - GDAL_CACHEMAX=75%
+      - VSI_CACHE=TRUE
+      - VSI_CACHE_SIZE=536870912
+      - GDAL_HTTP_MERGE_CONSECUTIVE_RANGES=YES
+      - GDAL_HTTP_MULTIPLEX=YES
+      - GDAL_HTTP_VERSION=2
+      - GDAL_DISABLE_READDIR_ON_OPEN=EMPTY_DIR
+      - TITILER_API_TELEMETRY_ENABLED=False
+      - RIO_TILER_MAX_THREADS=4
+    volumes:
+      - ../data/raster:/data/raster:ro
+    command: ["uvicorn", "titiler.application.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+    restart: unless-stopped
+    profiles:
+      - titiler
+      - all
 
 volumes:
   postgres_data:

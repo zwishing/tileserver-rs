@@ -69,6 +69,15 @@ const SERVERS = {
       source: 'cog-rgb',
       tileUrl: (z, x, y) => `http://127.0.0.1:8901/data/cog-rgb/${z}/${x}/${y}.png`,
     },
+    ogc: {
+      source: 'ogc-features',
+      endpointUrl: (path) => `http://127.0.0.1:8901${path}`,
+    },
+    stac: {
+      source: 'sentinel2',
+      tileUrl: (z, x, y) => `http://127.0.0.1:8901/styles/sentinel2-dynamic/${z}/${x}/${y}.png`,
+      tileUrlStatic: (z, x, y) => `http://127.0.0.1:8901/styles/sentinel2-static/${z}/${x}/${y}.png`,
+    },
     healthUrl: 'http://127.0.0.1:8901/health',
   },
   martin: {
@@ -101,8 +110,26 @@ const SERVERS = {
       source: 'benchmark-rgb',
       tileUrl: (z, x, y) => `http://127.0.0.1:8903/cog/tiles/WebMercatorQuad/${z}/${x}/${y}.png?url=file:///data/raster/benchmark-rgb.cog.tif`,
     },
+    stac: {
+      source: 'benchmark-rgb',
+      tileUrl: (z, x, y) =>
+        `http://127.0.0.1:8903/cog/tiles/WebMercatorQuad/${z}/${x}/${y}.png?url=file:///data/raster/benchmark-rgb.cog.tif`,
+    },
     healthUrl: 'http://127.0.0.1:8903/healthz',
   },
+};
+
+// Protocol support matrix — used for skip messaging and markdown report.
+// ✓ supported, ✗ not supported, ◐ partial / read-only
+const PROTOCOL_SUPPORT = {
+  pmtiles: { 'tileserver-gl': '✓', 'tileserver-rs': '✓', martin: '✓', titiler: '✗' },
+  mbtiles: { 'tileserver-gl': '✓', 'tileserver-rs': '✓', martin: '✓', titiler: '✗' },
+  postgres: { 'tileserver-gl': '✗', 'tileserver-rs': '✓', martin: '✓', titiler: '✗' },
+  postgres_function: { 'tileserver-gl': '✗', 'tileserver-rs': '✓', martin: '✓', titiler: '✗' },
+  cog: { 'tileserver-gl': '✗', 'tileserver-rs': '✓', martin: '✗', titiler: '✓' },
+  raster: { 'tileserver-gl': '✓', 'tileserver-rs': '✓', martin: '✗', titiler: '✗' },
+  ogc: { 'tileserver-gl': '✗', 'tileserver-rs': '✓', martin: '✗', titiler: '✗' },
+  stac: { 'tileserver-gl': '✗', 'tileserver-rs': '✓', martin: '✗', titiler: '◐' },
 };
 
 // Test tiles - coordinates calculated from actual data bounds using:
@@ -160,7 +187,41 @@ const TEST_TILES = {
     { z: 13, x: 4352, y: 2986, desc: 'Florence z13' },
     { z: 14, x: 8704, y: 5972, desc: 'Florence z14' },
   ],
+  // STAC tiles — Alps bbox [6.0, 43.0, 10.0, 46.0], center (lat=44.5, lon=8.0)
+  // x = floor((8 + 180) / 360 * 2^z), y = floor((1 - asinh(tan(44.5°))/π)/2 * 2^z)
+  stac: [
+    { z: 8, x: 133, y: 91, desc: 'Alps z8' },
+    { z: 10, x: 534, y: 366, desc: 'Alps z10' },
+    { z: 12, x: 2138, y: 1465, desc: 'Alps z12' },
+    { z: 14, x: 8554, y: 5862, desc: 'Alps z14' },
+  ],
 };
+
+// OGC API Features endpoints (tileserver-rs only)
+const OGC_ENDPOINTS = [
+  { path: '/ogc/collections/cities/items?limit=100', desc: 'cities items (100)' },
+  { path: '/ogc/collections/countries/items?bbox=-10,40,20,60&limit=100', desc: 'countries bbox' },
+  {
+    path: '/ogc/collections/cities/items?filter=population%20%3E%201000000&filter-lang=cql2-text&limit=50',
+    desc: 'cities CQL2 filter',
+  },
+  { path: '/ogc/collections/cities/items/1', desc: 'single feature' },
+  { path: '/ogc/collections/cities/schema', desc: 'schema introspect' },
+];
+
+// STAC test endpoints — mix of dynamic and static modes for tileserver-rs
+function stacEndpointsFor(server) {
+  const cfg = server.stac;
+  if (!cfg) return [];
+  const out = [];
+  for (const t of TEST_TILES.stac) {
+    out.push({ url: cfg.tileUrl(t.z, t.x, t.y), desc: `${t.desc} dynamic` });
+    if (cfg.tileUrlStatic) {
+      out.push({ url: cfg.tileUrlStatic(t.z, t.x, t.y), desc: `${t.desc} static` });
+    }
+  }
+  return out;
+}
 
 // ─── Grid Viewport Simulation ──────────────────────────────────────────────────
 // Real MapLibre GL JS viewports load a grid of tiles simultaneously.
@@ -430,6 +491,118 @@ async function benchmarkServerGrid(serverKey, format, gridConfig) {
   return results;
 }
 
+// ─── OGC API Features Benchmarks ───────────────────────────────────────────────
+
+async function benchmarkServerOgc(serverKey) {
+  const server = SERVERS[serverKey];
+  if (!server) return [];
+
+  if (!server.ogc) {
+    console.log(chalk.gray(`  ${server.name}: OGC API Features N/A (protocol not supported), skipping`));
+    return [];
+  }
+
+  const results = [];
+  console.log(server.color(`\n  Testing ${server.name} (OGC API Features)...`));
+  console.log(chalk.gray(`    warmup: 30s, measure: ${BENCHMARK_CONFIG.duration}s, ${BENCHMARK_CONFIG.connections} conns`));
+
+  for (const ep of OGC_ENDPOINTS) {
+    const url = server.ogc.endpointUrl(ep.path);
+    process.stdout.write(chalk.gray(`    ${ep.desc.padEnd(22)}... `));
+
+    try {
+      // Warmup pass — discard
+      await runBenchmark(url, `warmup`, { duration: 30 });
+      const result = await runBenchmark(url, `${server.name} ogc ${ep.desc}`);
+
+      const reqPerSec = (result.requests.total / BENCHMARK_CONFIG.duration).toFixed(0);
+      const latencyAvg = result.latency.average.toFixed(2);
+      const errors = result.errors + (result.non2xx || 0);
+
+      let perfColor = chalk.green;
+      if (result.latency.average > 50) perfColor = chalk.yellow;
+      if (result.latency.average > 200 || errors > 0) perfColor = chalk.red;
+
+      console.log(perfColor(`${reqPerSec} req/s, ${latencyAvg}ms avg${errors ? ` (${errors} errors)` : ''}`));
+
+      results.push({
+        server: server.name,
+        serverId: serverKey,
+        format: 'ogc',
+        zoom: 0,
+        desc: ep.desc,
+        requests: result.requests.total,
+        throughput: result.throughput.total,
+        latencyAvg: result.latency.average,
+        latencyP50: result.latency.p50,
+        latencyP99: result.latency.p99,
+        errors,
+      });
+    } catch (err) {
+      console.log(chalk.red(`Error: ${err.message}`));
+    }
+  }
+
+  return results;
+}
+
+// ─── STAC Raster Tile Benchmarks ───────────────────────────────────────────────
+
+async function benchmarkServerStac(serverKey) {
+  const server = SERVERS[serverKey];
+  if (!server) return [];
+
+  if (!server.stac) {
+    console.log(chalk.gray(`  ${server.name}: STAC N/A (protocol not supported), skipping`));
+    return [];
+  }
+
+  const endpoints = stacEndpointsFor(server);
+  if (endpoints.length === 0) return [];
+
+  const results = [];
+  console.log(server.color(`\n  Testing ${server.name} (STAC raster)...`));
+  console.log(chalk.gray(`    warmup: 30s, measure: ${BENCHMARK_CONFIG.duration}s, 20 conns (CPU-heavy)`));
+
+  for (const ep of endpoints) {
+    process.stdout.write(chalk.gray(`    ${ep.desc.padEnd(22)}... `));
+
+    try {
+      const overrides = { connections: 20, timeout: 60 };
+      await runBenchmark(ep.url, 'warmup', { ...overrides, duration: 30 });
+      const result = await runBenchmark(ep.url, `${server.name} stac ${ep.desc}`, overrides);
+
+      const reqPerSec = (result.requests.total / BENCHMARK_CONFIG.duration).toFixed(0);
+      const latencyAvg = result.latency.average.toFixed(2);
+      const errors = result.errors + (result.non2xx || 0);
+
+      let perfColor = chalk.green;
+      if (result.latency.average > 500) perfColor = chalk.yellow;
+      if (result.latency.average > 2000 || errors > 0) perfColor = chalk.red;
+
+      console.log(perfColor(`${reqPerSec} req/s, ${latencyAvg}ms avg${errors ? ` (${errors} errors)` : ''}`));
+
+      results.push({
+        server: server.name,
+        serverId: serverKey,
+        format: 'stac',
+        zoom: 0,
+        desc: ep.desc,
+        requests: result.requests.total,
+        throughput: result.throughput.total,
+        latencyAvg: result.latency.average,
+        latencyP50: result.latency.p50,
+        latencyP99: result.latency.p99,
+        errors,
+      });
+    } catch (err) {
+      console.log(chalk.red(`Error: ${err.message}`));
+    }
+  }
+
+  return results;
+}
+
 // ─── Results Display ───────────────────────────────────────────────────────────
 
 /**
@@ -641,6 +814,20 @@ function printGridSummary(results) {
 /**
  * Generate markdown report for single-tile benchmarks
  */
+function generateProtocolMatrix() {
+  const servers = ['tileserver-gl', 'tileserver-rs', 'martin', 'titiler'];
+  const types = Object.keys(PROTOCOL_SUPPORT);
+  let md = `### Protocol Support Matrix\n\n`;
+  md += `| Type | ${servers.join(' | ')} |\n`;
+  md += `|------|${servers.map(() => '---').join('|')}|\n`;
+  for (const t of types) {
+    md += `| ${t} | ${servers.map((s) => PROTOCOL_SUPPORT[t][s] ?? '✗').join(' | ')} |\n`;
+  }
+  md += `\n_Legend: ✓ supported · ✗ not supported · ◐ partial / read-only._\n`;
+  md += `_Features as of April 2026. Check competitor docs for latest._\n\n`;
+  return md;
+}
+
 function generateMarkdownReport(results) {
   const summary = {};
   for (const r of results) {
@@ -663,7 +850,7 @@ function generateMarkdownReport(results) {
 - Connections: ${BENCHMARK_CONFIG.connections} concurrent
 - Date: ${new Date().toISOString().split('T')[0]}
 
-### Summary
+${generateProtocolMatrix()}### Summary
 
 | Server | Format | Avg Req/sec | Avg Throughput | Avg Latency | Errors |
 |--------|--------|-------------|----------------|-------------|--------|
@@ -679,7 +866,7 @@ function generateMarkdownReport(results) {
 
   md += `\n### Detailed Results\n\n`;
 
-  for (const format of ['pmtiles', 'mbtiles', 'postgres', 'postgres_function', 'cog', 'raster']) {
+  for (const format of ['pmtiles', 'mbtiles', 'postgres', 'postgres_function', 'cog', 'raster', 'ogc', 'stac']) {
     const filtered = results.filter((r) => r.format === format);
     if (filtered.length === 0) continue;
 
@@ -745,7 +932,7 @@ simultaneously to fill the viewport. This benchmark measures **time to fill one 
 
   md += `\n### Detailed Results\n\n`;
 
-  for (const format of ['pmtiles', 'mbtiles', 'postgres', 'postgres_function', 'cog', 'raster']) {
+  for (const format of ['pmtiles', 'mbtiles', 'postgres', 'postgres_function', 'cog', 'raster', 'ogc', 'stac']) {
     const filtered = results.filter((r) => r.format === format);
     if (filtered.length === 0) continue;
 
@@ -788,8 +975,9 @@ function parseGridSize(sizeStr) {
 
 async function main() {
   program
-    .option('-s, --server <server>', 'Server to test: tileserver-rs, martin, tileserver-gl, or all', 'all')
-    .option('-f, --format <format>', 'Format to test: pmtiles, mbtiles, postgres, postgres_function, cog, raster, or all', 'all')
+    .option('-s, --server <server>', 'Server to test: tileserver-rs, martin, tileserver-gl, titiler, or all', 'all')
+    .option('-f, --format <format>', 'Alias for --type (legacy)', undefined)
+    .option('-t, --type <type>', 'Benchmark type: pmtiles, mbtiles, postgres, postgres_function, cog, raster, ogc, stac, or all', 'all')
     .option('-d, --duration <seconds>', 'Test duration in seconds (single mode)', '10')
     .option('-c, --connections <num>', 'Number of connections (single mode)', '100')
     .option('-m, --mode <mode>', 'Benchmark mode: single (throughput) or grid (viewport simulation)', 'single')
@@ -822,7 +1010,11 @@ async function main() {
   console.log(chalk.gray(`Servers: tileserver-gl (8900), tileserver-rs (8901), martin (8902), titiler (8903)\n`));
 
   const serversToTest = opts.server === 'all' ? Object.keys(SERVERS) : [opts.server];
-  const formatsToTest = opts.format === 'all' ? ['pmtiles', 'mbtiles', 'postgres', 'postgres_function', 'cog', 'raster'] : [opts.format];
+  const typeArg = opts.type ?? opts.format ?? 'all';
+  const formatsToTest =
+    typeArg === 'all'
+      ? ['pmtiles', 'mbtiles', 'postgres', 'postgres_function', 'cog', 'raster', 'ogc', 'stac']
+      : [typeArg];
 
   // Check server availability
   console.log(chalk.bold('Checking server availability...'));
@@ -861,8 +1053,16 @@ async function main() {
     }
 
     for (const serverId of availableServers) {
-      const results =
-        mode === 'grid' ? await benchmarkServerGrid(serverId, format, gridConfig) : await benchmarkServerFormat(serverId, format);
+      let results;
+      if (format === 'ogc') {
+        results = await benchmarkServerOgc(serverId);
+      } else if (format === 'stac') {
+        results = await benchmarkServerStac(serverId);
+      } else if (mode === 'grid') {
+        results = await benchmarkServerGrid(serverId, format, gridConfig);
+      } else {
+        results = await benchmarkServerFormat(serverId, format);
+      }
       allResults = allResults.concat(results);
     }
 
@@ -873,6 +1073,20 @@ async function main() {
         printResults(allResults, format);
       }
     }
+  }
+
+  if (!opts.markdown) {
+    console.log(chalk.bold.cyan('\n📋 Protocol Support Matrix\n'));
+    const matrix = new Table({
+      head: [chalk.bold('Type'), chalk.bold('tileserver-gl'), chalk.bold('tileserver-rs'), chalk.bold('martin'), chalk.bold('titiler')],
+    });
+    for (const t of Object.keys(PROTOCOL_SUPPORT)) {
+      const row = PROTOCOL_SUPPORT[t];
+      matrix.push([t, row['tileserver-gl'], row['tileserver-rs'], row.martin, row.titiler]);
+    }
+    console.log(matrix.toString());
+    console.log(chalk.gray('Legend: ✓ supported · ✗ not supported · ◐ partial / read-only'));
+    console.log(chalk.gray('Features as of April 2026. Check competitor docs for latest.'));
   }
 
   // Print summary / report

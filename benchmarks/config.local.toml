@@ -69,9 +69,66 @@ minzoom = 0
 maxzoom = 14
 bounds = [8.45, 47.32, 8.63, 47.44]
 
+[[postgres.tables]]
+id = "cities"
+schema = "public"
+table = "cities"
+geometry_column = "geom"
+id_column = "id"
+srid = 4326
+writable = true
+
+[[postgres.tables]]
+id = "countries"
+schema = "public"
+table = "countries"
+geometry_column = "geom"
+id_column = "id"
+srid = 4326
+
+[[postgres.tables]]
+id = "roads"
+schema = "public"
+table = "roads"
+geometry_column = "geom"
+id_column = "id"
+srid = 4326
+
 [[sources]]
 id = "cog-rgb"
 type = "cog"
 path = "./data/raster/benchmark-rgb.cog.tif"
 name = "Benchmark RGB COG"
 attribution = "© tileserver-rs benchmarks"
+
+[[sources]]
+id = "sentinel2-static"
+type = "stac"
+path = "https://earth-search.aws.element84.com/v1"
+name = "Sentinel-2 Static (benchmark)"
+collection = "sentinel-2-l2a"
+asset_role = "visual"
+dynamic = false
+max_items = 1
+stac_bbox = [6.0, 43.0, 10.0, 46.0]
+
+[[sources]]
+id = "sentinel2-dynamic"
+type = "stac"
+path = "https://earth-search.aws.element84.com/v1"
+name = "Sentinel-2 Dynamic (benchmark)"
+collection = "sentinel-2-l2a"
+asset_role = "visual"
+dynamic = true
+max_items = 3
+stac_bbox = [6.0, 43.0, 10.0, 46.0]
+
+[[styles]]
+id = "sentinel2-static"
+path = "./data/styles/sentinel2/style.json"
+name = "Sentinel-2 Static"
+
+[[styles]]
+id = "sentinel2-dynamic"
+path = "./data/styles/sentinel2-dynamic/style.json"
+name = "Sentinel-2 Dynamic"
