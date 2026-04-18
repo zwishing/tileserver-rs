@@ -5,9 +5,15 @@ release_always = false
 semver_check = false
 
 # tileserver-rs: binary crate, GitHub Release only (no crates.io)
+# `git_only = true` tells release-plz to compare against the git tag
+# (v{{ version }}) instead of crates.io. Required because Cargo.toml sets
+# `publish = false` → is_publishable() returns false → without git_only the
+# updater skips the package entirely, producing `{"prs":[]}` silently.
+# See release-plz-core/src/command/update/updater.rs:283-302.
 [[package]]
 name = "tileserver-rs"
 publish = false
+git_only = true
 git_release_enable = true
 git_tag_name = "v{{ version }}"
 git_release_name = "v{{ version }}"
