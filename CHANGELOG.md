@@ -1,5 +1,45 @@
 # Changelog
 
+## [2.25.0](https://github.com/vinayakkulkarni/tileserver-rs/compare/v2.24.0...v2.25.0) (2026-04-18)
+
+
+### Features
+
+* **ogc:** add OGC API Features for PostGIS sources ([#781](https://github.com/vinayakkulkarni/tileserver-rs/pull/781)) — full Core read API, CRS transforms, CQL2 filtering, transactions (CRUD), and schema introspection via `/ogc/collections/*` routes. Compatible with QGIS, ArcGIS, FME, and any OGC-compliant client. Security: two-layer SQL injection defence (property allow-list + round-trip canonicalisation gate). All writes opt-in per table via `writable = true`. Specification: OGC API – Features Parts 1–5.
+* **sources:** add STAC catalog-driven COG discovery ([#782](https://github.com/vinayakkulkarni/tileserver-rs/pull/782)) — three operational modes: static discovery (ingests STAC items at startup), dynamic per-tile discovery (fresh bbox search per tile), and multi-asset mosaic compositing (overlay multiple items per tile). Supports Element84, Microsoft Planetary Computer, and any STAC-compliant API. Typed parsing via the `stac` crate.
+* **benchmarks:** add OGC + STAC benchmark suites and titiler competitor — 30s warmup + 60s measurement at z8–z14. Protocol support matrix (✓/✗/◐) at top of every run showing how tileserver-rs compares to martin, tileserver-gl, pg_tileserv, and titiler across 8 tile types.
+* **marketing:** reposition as swiss-army-knife for geospatial data — 20 features now grouped into 5 categories (Data formats / Rendering / Developer experience / Deployment / Intelligence) with a new comparison table.
+
+
+### Bug Fixes
+
+* **ogc:** correct CQL2 filter + transaction property binding bugs — transactions now bind numeric JSON values with `($N::text::numeric)` cast so Postgres infers target column type; integer-looking JSON Numbers bound as `i64` for `bigint` columns, `f64` for `double precision`.
+* **stac:** anchor discovery bbox + wrap remote COG hrefs with `/vsicurl/` — new `stac_bbox` SourceConfig field prevents Element84's default index-order ranking from anchoring discovery to wrong region (was Hudson Bay by default). GDAL COG paths now prefixed with `/vsicurl/` for HTTP(S) or `/vsis3/` for S3 so Dataset::open range-reads instead of full-download.
+* **stac:** composite_mosaic actually composites per documented priority — Phase 3 mosaic now reverse-iterates assets so first (highest priority) ends up painted on top.
+* **postgres:** dedup POINT features at tile boundaries — `build_tile_query()` branches WHERE envelope on geometry type: POINT/MULTIPOINT use unbuffered envelope (each point in exactly one tile), lines/polygons use buffered envelope (seamless across seams).
+* **mbtiles:** collapse nested if into match guard (Rust 1.95 clippy `collapsible_match`).
+* **routes:** box `IndexEntry::Data` variant to fix `large_enum_variant` clippy lint.
+* **client:** update API link description from Swagger UI to Scalar.
+* **ci:** state mbgl-sys version explicitly on leaf import — workaround for cargo edge case where `{ workspace = true }` alone doesn't always carry version through manifest verification (cargo#13691).
+* **ci:** unblock release-plz for binary crate — add `publish = false` + `git_only = true` for tileserver-rs so `cargo package` baseline comparison works.
+
+
+### Documentation
+
+* **ogc:** add OGC API Features guide + README + marketing entry — includes conformance classes, CRS transforms, CQL2 filtering, transactions, schemas, security notes, and example curl commands.
+* **stac:** add STAC guide + README + marketing entry — documents static discovery, dynamic per-tile, and multi-asset mosaic modes.
+* **all:** de-jargon OGC/STAC/MLT guides — replace internal Phase/Part terminology with user-facing feature names (Core/CRS/Filter/Transactions/Schemas for OGC; Static discovery/Dynamic per-tile discovery/Multi-asset mosaic for STAC). Official OGC spec references preserved in "Specifications" tables.
+
+
+### Miscellaneous
+
+* **deps:** bump compatible Rust dependency ranges + JS workspace catalogs to latest minor/patch versions.
+* **deps:** add `stac` crate v0.17 for typed catalog parsing.
+* **ci:** migrate from release-please to release-plz for versioning automation.
+* **dev:** add postgres-dev docker compose + seeded OGC test data (12 cities, 9 countries from Natural Earth, 3 roads, 250 buildings) for local development.
+* **homebrew:** update formula to v2.24.0.
+
+
 ## [2.24.0](https://github.com/vinayakkulkarni/tileserver-rs/compare/v2.23.0...v2.24.0) (2026-04-08)
 
 
