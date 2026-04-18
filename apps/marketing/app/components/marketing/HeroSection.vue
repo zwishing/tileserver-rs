@@ -92,7 +92,7 @@
         </h1>
 
         <SplitText
-          text="High-performance tile server built in Rust. Serve PMTiles, MBTiles, PostGIS, and Cloud Optimized GeoTIFF with a browser-local AI assistant and native MapLibre rendering."
+          text="One Rust binary. All geospatial formats. Vector tiles, raster tiles, PostGIS collections, COG, STAC, and OGC APIs — everything you need to serve maps at scale, with a browser-local AI that actually talks to your data."
           by="words"
           :delay="30"
           :duration="0.4"

@@ -1,9 +1,36 @@
 import type { Component } from 'vue';
 
+export type FeatureCategory =
+  | 'Data formats'
+  | 'Rendering'
+  | 'Developer experience'
+  | 'Deployment'
+  | 'Intelligence';
+
 export interface Feature {
   icon: Component;
   title: string;
   description: string;
+  category: FeatureCategory;
+}
+
+export interface FeatureGroup {
+  category: FeatureCategory;
+  features: Feature[];
+}
+
+export type ComparisonCell = '✓' | '✗' | '◐';
+
+export type ComparisonColumn =
+  | 'tileserver-rs'
+  | 'martin'
+  | 'tileserver-gl'
+  | 'pg_tileserv'
+  | 'titiler';
+
+export interface ComparisonRow {
+  feature: string;
+  values: Record<ComparisonColumn, ComparisonCell>;
 }
 
 export interface ApiEndpoint {

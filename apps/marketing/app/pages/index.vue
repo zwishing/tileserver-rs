@@ -2,9 +2,9 @@
   const { isDark } = useThemeToggle();
 
   usePageSeo({
-    title: 'Tileserver RS - High-Performance Vector Tile Server',
+    title: 'Tileserver RS — one binary for all geospatial data',
     description:
-      'High-performance vector tile server built in Rust with browser-local AI. Serve PMTiles and MBTiles with native MapLibre rendering — no API keys required.',
+      'Serve vector tiles, raster tiles, PostGIS collections, COG, STAC, and OGC APIs from a single Rust binary. Browser-local AI. Self-hosted. Zero config.',
     path: '/',
   });
 
@@ -79,6 +79,7 @@
         <MarketingPerformanceSection />
         <MarketingConfigSection />
         <MarketingApiSection />
+        <MarketingComparisonSection />
         <MarketingCtaSection />
         <MarketingFooter />
       </div>

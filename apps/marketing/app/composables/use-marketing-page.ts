@@ -26,6 +26,10 @@ import {
 } from 'lucide-vue-next';
 import type {
   Feature,
+  FeatureCategory,
+  FeatureGroup,
+  ComparisonColumn,
+  ComparisonRow,
   AiBenefit,
   AiChatMessage,
   ApiEndpointGroup,
@@ -46,120 +50,212 @@ export function useMarketingPage() {
       title: 'Blazing Fast',
       description:
         'Built in Rust for maximum performance. Serve tiles with sub-millisecond latency.',
+      category: 'Rendering',
     },
     {
       icon: Globe,
       title: 'PMTiles & MBTiles',
       description:
         'Native support for modern PMTiles and classic MBTiles tile archives with MVT and MLT format support.',
+      category: 'Data formats',
     },
     {
       icon: RefreshCw,
       title: 'MLT Transcoding',
       description:
         'On-the-fly MLT↔MVT transcoding. Serve next-gen MapLibre Tiles from existing MVT sources — up to 6x smaller tiles.',
+      category: 'Rendering',
     },
     {
       icon: Database,
       title: 'PostgreSQL / PostGIS',
       description:
         'Serve vector tiles directly from PostGIS tables with optimized spatial queries.',
+      category: 'Data formats',
     },
     {
       icon: MapIcon,
       title: 'Cloud Optimized GeoTIFF',
       description:
         'Serve raster tiles from COG files with on-the-fly reprojection and colormap support.',
+      category: 'Data formats',
     },
     {
       icon: HardDrive,
       title: 'PostgreSQL Out-DB Rasters',
       description:
         'Dynamic VRT/COG tile serving via PostGIS functions with query-based filtering.',
+      category: 'Data formats',
     },
     {
       icon: Layers,
       title: 'Vector & Raster',
       description:
         'Serve vector tiles directly or render them to raster on-the-fly.',
+      category: 'Rendering',
     },
     {
       icon: Image,
       title: 'Static Images',
       description:
         'Generate static map images like Mapbox Static API with native MapLibre rendering.',
+      category: 'Rendering',
     },
     {
       icon: Server,
       title: 'Self-Hosted',
       description:
         'Run on your own infrastructure. No vendor lock-in, no API keys required.',
+      category: 'Deployment',
     },
     {
       icon: Sparkles,
       title: 'Zero-Config Startup',
       description:
         'Point at a directory or file and start serving. Auto-detects PMTiles, MBTiles, styles, and fonts.',
+      category: 'Developer experience',
     },
     {
       icon: Terminal,
       title: 'Hot-Reload',
       description:
         'Reload configuration without downtime via SIGHUP or admin API. Zero-request-drop with ArcSwap.',
+      category: 'Developer experience',
     },
     {
       icon: Upload,
       title: 'Drag & Drop',
       description:
         'Drop GeoJSON, KML, GPX, CSV, Shapefile, PMTiles, MBTiles, or COG files onto the map for instant visualization with auto-styling.',
+      category: 'Developer experience',
     },
     {
       icon: Cloud,
       title: 'One-Click Deploy',
       description:
         'Deploy to Railway, Render, DigitalOcean, or Fly.io in minutes. Sample data auto-downloads on first start.',
+      category: 'Deployment',
     },
     {
       icon: BotMessageSquare,
       title: 'Browser-Local AI',
       description:
         'Talk to your maps with a built-in LLM. Runs entirely in your browser via WebGPU — no API keys, no cloud, no token costs.',
+      category: 'Intelligence',
     },
     {
       icon: FileSpreadsheet,
       title: 'GeoParquet Source',
       description:
         'Serve vector tiles directly from GeoParquet files — no preprocessing. Point at Overture Maps data and get instant tiles.',
+      category: 'Data formats',
     },
     {
       icon: Braces,
       title: 'DuckDB Backend',
       description:
         'Generate tiles from SQL queries against embedded DuckDB. Query GeoParquet, CSV, or any format DuckDB reads — PostGIS power, zero ops.',
+      category: 'Data formats',
     },
     {
       icon: BarChart3,
       title: 'OpenAPI & Analytics',
       description:
         'Interactive OpenAPI spec with Scalar UI. Generate SDKs, import into Postman, or track usage with built-in telemetry.',
+      category: 'Developer experience',
     },
     {
       icon: Timer,
       title: 'Configurable Caching',
       description:
         'Per-source cache control headers with configurable max-age, stale-while-revalidate, and CDN-friendly strategies for optimal tile delivery.',
+      category: 'Developer experience',
     },
     {
       icon: FileCode2,
       title: 'OGC API Features',
       description:
-        'PostGIS tables as OGC-spec collections. Parts 1-5: Core, CRS reprojection, CQL2 filter with SQL-injection defence, create/replace/update/delete transactions, and JSON Schema introspection. QGIS-ready.',
+        'Serve PostGIS tables as OGC-compliant feature collections. CRS reprojection, CQL2 filtering with SQL-injection defence, full CRUD write operations, and JSON Schema introspection. QGIS, ArcGIS, and FME ready.',
+      category: 'Data formats',
     },
     {
       icon: Satellite,
       title: 'STAC Catalog Sources',
       description:
-        'Point at any STAC API (Element84, Planetary Computer, USGS) and serve COGs as tiles. Phase 1 static, Phase 2 dynamic per-tile bbox search, Phase 3 multi-asset mosaic compositing.',
+        'Point at any STAC API (Element84, Planetary Computer, USGS) and serve COGs as tiles. Static discovery, dynamic per-tile bbox search, and multi-asset mosaic compositing — all without preprocessing.',
+      category: 'Data formats',
+    },
+  ];
+
+  const CATEGORY_ORDER: FeatureCategory[] = [
+    'Data formats',
+    'Rendering',
+    'Developer experience',
+    'Deployment',
+    'Intelligence',
+  ];
+
+  const featuresByCategory: FeatureGroup[] = CATEGORY_ORDER.map((cat) => ({
+    category: cat,
+    features: features.filter((f) => f.category === cat),
+  }));
+
+  const comparisonColumns: ComparisonColumn[] = [
+    'tileserver-rs',
+    'martin',
+    'tileserver-gl',
+    'pg_tileserv',
+    'titiler',
+  ];
+
+  const comparisonRows: ComparisonRow[] = [
+    {
+      feature: 'Vector tiles (MVT/PBF)',
+      values: { 'tileserver-rs': '✓', martin: '✓', 'tileserver-gl': '✓', pg_tileserv: '✓', titiler: '✓' },
+    },
+    {
+      feature: 'MLT transcoding',
+      values: { 'tileserver-rs': '✓', martin: '✗', 'tileserver-gl': '✗', pg_tileserv: '✗', titiler: '✗' },
+    },
+    {
+      feature: 'Raster tiles from COG',
+      values: { 'tileserver-rs': '✓', martin: '✗', 'tileserver-gl': '✗', pg_tileserv: '✗', titiler: '✓' },
+    },
+    {
+      feature: 'Server-side MapLibre rendering',
+      values: { 'tileserver-rs': '✓', martin: '✗', 'tileserver-gl': '✓', pg_tileserv: '✗', titiler: '✗' },
+    },
+    {
+      feature: 'PostGIS-backed tiles',
+      values: { 'tileserver-rs': '✓', martin: '✓', 'tileserver-gl': '✗', pg_tileserv: '✓', titiler: '✗' },
+    },
+    {
+      feature: 'OGC API Features (CRUD)',
+      values: { 'tileserver-rs': '✓', martin: '✗', 'tileserver-gl': '✗', pg_tileserv: '◐', titiler: '✗' },
+    },
+    {
+      feature: 'STAC catalog sources',
+      values: { 'tileserver-rs': '✓', martin: '✗', 'tileserver-gl': '✗', pg_tileserv: '✗', titiler: '✓' },
+    },
+    {
+      feature: 'Browser-local AI',
+      values: { 'tileserver-rs': '✓', martin: '✗', 'tileserver-gl': '✗', pg_tileserv: '✗', titiler: '✗' },
+    },
+    {
+      feature: 'Single binary (no Python deps)',
+      values: { 'tileserver-rs': '✓', martin: '✓', 'tileserver-gl': '✗', pg_tileserv: '✓', titiler: '✗' },
+    },
+    {
+      feature: 'OpenAPI spec built-in',
+      values: { 'tileserver-rs': '✓', martin: '✗', 'tileserver-gl': '✗', pg_tileserv: '✗', titiler: '✗' },
+    },
+    {
+      feature: 'Zero-config startup',
+      values: { 'tileserver-rs': '✓', martin: '◐', 'tileserver-gl': '◐', pg_tileserv: '◐', titiler: '✗' },
+    },
+    {
+      feature: 'Drag-and-drop file serving',
+      values: { 'tileserver-rs': '✓', martin: '✗', 'tileserver-gl': '✗', pg_tileserv: '✗', titiler: '✗' },
     },
   ];
 
@@ -287,6 +383,9 @@ export function useMarketingPage() {
     installCommand,
     copyToClipboard,
     features,
+    featuresByCategory,
+    comparisonColumns,
+    comparisonRows,
     aiBenefits,
     aiChatExample,
     performanceStats,
