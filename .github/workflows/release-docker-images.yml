@@ -63,12 +63,12 @@ jobs:
             platform: linux/amd64
             arch: amd64
             variant: full
-            features: frontend geoparquet
+            features: frontend geoparquet stac
           - runner: ubuntu-24.04-arm
             platform: linux/arm64
             arch: arm64
             variant: full
-            features: frontend geoparquet
+            features: frontend geoparquet stac
           # Headless builds (no frontend, server-only)
           - runner: ubuntu-latest
             platform: linux/amd64
