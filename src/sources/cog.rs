@@ -7,12 +7,12 @@ use gdal::spatial_ref::SpatialRef;
 use gdal::{Dataset, DriverManager};
 use image::{ImageBuffer, RgbaImage};
 use std::io::Cursor;
-use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::config::{ColorMapConfig, ResamplingMethod, SourceConfig};
 use crate::error::{Result, TileServerError};
+use crate::sources::dataset_cache;
 use crate::sources::{TileCompression, TileData, TileFormat, TileMetadata, TileSource};
 
 const WEB_MERCATOR_EXTENT: f64 = 20037508.342789244;
@@ -34,24 +34,26 @@ impl CogSource {
         let resampling = config.resampling.unwrap_or_default();
         let colormap = config.colormap.clone();
 
-        let (dataset, band_count, bounds) = tokio::task::spawn_blocking(move || {
-            let dataset = Dataset::open(Path::new(&path)).map_err(|e| {
-                TileServerError::RasterError(format!("Failed to open COG file: {}", e))
-            })?;
+        // Reuse a cached `Dataset` when the same path (local or /vsicurl/)
+        // has been opened before. This saves the 10-50ms HTTP+IFD parse
+        // cost that would otherwise be paid on every STAC-mosaic asset
+        // render.  See `dataset_cache` for eviction policy.
+        let dataset = dataset_cache::global().get_or_open(&path).await?;
 
-            let band_count = dataset.raster_count();
+        let dataset_for_inspect = Arc::clone(&dataset);
+        let (band_count, bounds) = tokio::task::spawn_blocking(move || {
+            let guard = dataset_for_inspect.blocking_lock();
+            let band_count = guard.raster_count();
             if band_count == 0 {
                 return Err(TileServerError::RasterError(
                     "COG file has no raster bands".to_string(),
                 ));
             }
-
-            let bounds = get_wgs84_bounds(&dataset)?;
-
-            Ok::<_, TileServerError>((dataset, band_count, bounds))
+            let bounds = get_wgs84_bounds(&guard)?;
+            Ok::<_, TileServerError>((band_count, bounds))
         })
         .await
-        .map_err(|e| TileServerError::RasterError(format!("Task failed: {}", e)))??;
+        .map_err(|e| TileServerError::RasterError(format!("task failed: {e}")))??;
 
         let metadata = TileMetadata {
             id,
@@ -71,7 +73,7 @@ impl CogSource {
         };
 
         Ok(Self {
-            dataset: Arc::new(Mutex::new(dataset)),
+            dataset,
             metadata,
             default_resampling: resampling,
             band_count,

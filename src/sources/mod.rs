@@ -5,6 +5,8 @@ use std::str::FromStr;
 
 #[cfg(feature = "raster")]
 pub mod cog;
+#[cfg(feature = "raster")]
+pub mod dataset_cache;
 #[cfg(feature = "duckdb")]
 pub mod duckdb;
 #[cfg(feature = "geoparquet")]
