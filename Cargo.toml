@@ -290,3 +290,8 @@ required-features = ["mlt"]
 [[bench]]
 name = "cache"
 harness = false
+
+[[bench]]
+name = "raster"
+harness = false
+required-features = ["raster"]
