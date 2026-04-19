@@ -72,12 +72,39 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Run release-plz release-pr
-        uses: release-plz/action@v0.5
-        with:
-          command: release-pr
+      # ──────────────────────────────────────────────────────────────────
+      # Run release-plz release-pr directly instead of via
+      # release-plz/action@v0.5.
+      #
+      # WHY: The upstream action's composite shell-step intentionally
+      # swallows any stderr containing the substring "422" and rewrites
+      # the output to `{"prs":[]}` (see its action.yml:171-178). That
+      # silences legitimate PR-creation failures — the wrapper cannot
+      # distinguish between a genuine "nothing to release" 422 and a
+      # "PAT-scope-too-narrow" 422. We do our own invocation so the
+      # actual GitHub error body surfaces in the job log.
+      #
+      # If a future release-plz/action version fixes this swallow
+      # (see https://github.com/release-plz/action/blob/main/action.yml),
+      # this step can be reverted to `uses: release-plz/action@vX`.
+      # ──────────────────────────────────────────────────────────────────
+      - name: Install release-plz CLI
+        uses: cargo-bins/cargo-binstall@main
+      - name: Install release-plz binary
+        shell: bash
+        run: cargo binstall --no-confirm release-plz@0.3.157
+
+      - name: Run release-plz release-pr (direct, no 422 swallow)
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          set -euo pipefail
+          release-plz release-pr \
+            --git-token "${GITHUB_TOKEN}" \
+            --repo-url "https://github.com/${GITHUB_REPOSITORY}" \
+            --forge github \
+            -o json
 
   # Job 2: When a Release PR is merged, create tags + GitHub Releases + publish crates.
   # With release_always = false, this only acts when the triggering commit
