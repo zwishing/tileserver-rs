@@ -211,51 +211,123 @@ export function useMarketingPage() {
   const comparisonRows: ComparisonRow[] = [
     {
       feature: 'Vector tiles (MVT/PBF)',
-      values: { 'tileserver-rs': '✓', martin: '✓', 'tileserver-gl': '✓', pg_tileserv: '✓', titiler: '✓' },
+      values: {
+        'tileserver-rs': '✓',
+        martin: '✓',
+        'tileserver-gl': '✓',
+        pg_tileserv: '✓',
+        titiler: '✓',
+      },
     },
     {
       feature: 'MLT transcoding',
-      values: { 'tileserver-rs': '✓', martin: '✗', 'tileserver-gl': '✗', pg_tileserv: '✗', titiler: '✗' },
+      values: {
+        'tileserver-rs': '✓',
+        martin: '✗',
+        'tileserver-gl': '✗',
+        pg_tileserv: '✗',
+        titiler: '✗',
+      },
     },
     {
       feature: 'Raster tiles from COG',
-      values: { 'tileserver-rs': '✓', martin: '✗', 'tileserver-gl': '✗', pg_tileserv: '✗', titiler: '✓' },
+      values: {
+        'tileserver-rs': '✓',
+        martin: '✗',
+        'tileserver-gl': '✗',
+        pg_tileserv: '✗',
+        titiler: '✓',
+      },
     },
     {
       feature: 'Server-side MapLibre rendering',
-      values: { 'tileserver-rs': '✓', martin: '✗', 'tileserver-gl': '✓', pg_tileserv: '✗', titiler: '✗' },
+      values: {
+        'tileserver-rs': '✓',
+        martin: '✗',
+        'tileserver-gl': '✓',
+        pg_tileserv: '✗',
+        titiler: '✗',
+      },
     },
     {
       feature: 'PostGIS-backed tiles',
-      values: { 'tileserver-rs': '✓', martin: '✓', 'tileserver-gl': '✗', pg_tileserv: '✓', titiler: '✗' },
+      values: {
+        'tileserver-rs': '✓',
+        martin: '✓',
+        'tileserver-gl': '✗',
+        pg_tileserv: '✓',
+        titiler: '✗',
+      },
     },
     {
       feature: 'OGC API Features (CRUD)',
-      values: { 'tileserver-rs': '✓', martin: '✗', 'tileserver-gl': '✗', pg_tileserv: '◐', titiler: '✗' },
+      values: {
+        'tileserver-rs': '✓',
+        martin: '✗',
+        'tileserver-gl': '✗',
+        pg_tileserv: '◐',
+        titiler: '✗',
+      },
     },
     {
       feature: 'STAC catalog sources',
-      values: { 'tileserver-rs': '✓', martin: '✗', 'tileserver-gl': '✗', pg_tileserv: '✗', titiler: '✓' },
+      values: {
+        'tileserver-rs': '✓',
+        martin: '✗',
+        'tileserver-gl': '✗',
+        pg_tileserv: '✗',
+        titiler: '✓',
+      },
     },
     {
       feature: 'Browser-local AI',
-      values: { 'tileserver-rs': '✓', martin: '✗', 'tileserver-gl': '✗', pg_tileserv: '✗', titiler: '✗' },
+      values: {
+        'tileserver-rs': '✓',
+        martin: '✗',
+        'tileserver-gl': '✗',
+        pg_tileserv: '✗',
+        titiler: '✗',
+      },
     },
     {
       feature: 'Single binary (no Python deps)',
-      values: { 'tileserver-rs': '✓', martin: '✓', 'tileserver-gl': '✗', pg_tileserv: '✓', titiler: '✗' },
+      values: {
+        'tileserver-rs': '✓',
+        martin: '✓',
+        'tileserver-gl': '✗',
+        pg_tileserv: '✓',
+        titiler: '✗',
+      },
     },
     {
       feature: 'OpenAPI spec built-in',
-      values: { 'tileserver-rs': '✓', martin: '✗', 'tileserver-gl': '✗', pg_tileserv: '✗', titiler: '✗' },
+      values: {
+        'tileserver-rs': '✓',
+        martin: '✗',
+        'tileserver-gl': '✗',
+        pg_tileserv: '✗',
+        titiler: '✗',
+      },
     },
     {
       feature: 'Zero-config startup',
-      values: { 'tileserver-rs': '✓', martin: '◐', 'tileserver-gl': '◐', pg_tileserv: '◐', titiler: '✗' },
+      values: {
+        'tileserver-rs': '✓',
+        martin: '◐',
+        'tileserver-gl': '◐',
+        pg_tileserv: '◐',
+        titiler: '✗',
+      },
     },
     {
       feature: 'Drag-and-drop file serving',
-      values: { 'tileserver-rs': '✓', martin: '✗', 'tileserver-gl': '✗', pg_tileserv: '✗', titiler: '✗' },
+      values: {
+        'tileserver-rs': '✓',
+        martin: '✗',
+        'tileserver-gl': '✗',
+        pg_tileserv: '✗',
+        titiler: '✗',
+      },
     },
   ];
 

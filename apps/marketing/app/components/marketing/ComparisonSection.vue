@@ -10,9 +10,7 @@
   }
 
   function colHeaderClass(col: ComparisonColumn): string {
-    return col === 'tileserver-rs'
-      ? 'text-primary'
-      : 'text-muted-foreground';
+    return col === 'tileserver-rs' ? 'text-primary' : 'text-muted-foreground';
   }
 </script>
 
@@ -20,11 +18,7 @@
   <section data-label="Compare" class="border-b border-border">
     <div class="px-6 pt-16 pb-10 md:px-12 lg:px-20">
       <p
-        class="
-          mb-3 font-mono text-[10px] tracking-[0.3em] text-muted-foreground
-          uppercase
-          lg:text-xs
-        "
+        class="mb-3 font-mono text-[10px] tracking-[0.3em] text-muted-foreground uppercase lg:text-xs"
       >
         Compare
       </p>
@@ -35,10 +29,7 @@
         Compare against the alternatives
       </h2>
       <p
-        class="
-          mt-4 max-w-2xl font-sans text-sm/relaxed text-muted-foreground
-          lg:text-base
-        "
+        class="mt-4 max-w-2xl font-sans text-sm/relaxed text-muted-foreground lg:text-base"
       >
         We didn&rsquo;t rebuild these. We rolled them into one binary.
       </p>
@@ -50,11 +41,7 @@
           <tr class="border-b border-border">
             <th
               scope="col"
-              class="
-                pb-3 pr-6 text-left font-mono text-[10px] tracking-[0.3em]
-                text-muted-foreground uppercase
-                lg:text-xs
-              "
+              class="pr-6 pb-3 text-left font-mono text-[10px] tracking-[0.3em] text-muted-foreground uppercase lg:text-xs"
             >
               Feature
             </th>
@@ -62,11 +49,7 @@
               v-for="col in comparisonColumns"
               :key="col"
               scope="col"
-              class="
-                pb-3 px-4 text-center font-mono text-[10px] tracking-[0.2em]
-                uppercase
-                lg:text-xs
-              "
+              class="px-4 pb-3 text-center font-mono text-[10px] tracking-[0.2em] uppercase lg:text-xs"
               :class="colHeaderClass(col)"
             >
               {{ col }}
@@ -77,10 +60,7 @@
           <tr
             v-for="row in comparisonRows"
             :key="row.feature"
-            class="
-              border-b border-border/50 transition-colors
-              hover:bg-muted/20
-            "
+            class="border-b border-border/50 transition-colors hover:bg-muted/20"
           >
             <td class="py-3 pr-6 font-sans text-sm text-foreground">
               {{ row.feature }}
@@ -88,7 +68,7 @@
             <td
               v-for="col in comparisonColumns"
               :key="col"
-              class="py-3 px-4 text-center"
+              class="px-4 py-3 text-center"
             >
               <span :class="cellClass(row.values[col])">{{
                 row.values[col]
