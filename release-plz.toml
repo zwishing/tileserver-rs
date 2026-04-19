@@ -3,13 +3,12 @@
 release_always = false
 # mbgl-sys uses FFI/C++ — cargo-semver-checks produces false positives
 semver_check = false
-# Semantic branch prefix so Release PR branches match lint-branch.yml's
-# conventional-commit style (`chore/…`). Full branch format becomes:
-#   chore/release-plz-YYYY-MM-DDTHH-MM-SSZ
-# The uppercase T/Z from the UTC timestamp cannot be stripped (upstream
-# hardcodes it), so lint-branch.yml still needs the `^chore/release-plz-`
-# allowlist entry.
-pr_branch_prefix = "chore/release-plz-"
+# Keep the default `release-plz-` branch prefix: release-plz detects Release
+# PR merges by checking if the head branch starts with `release-plz-` (see
+# release_always docs). Changing pr_branch_prefix breaks that detection and
+# prevents `release-plz release` from tagging tileserver-rs after merge.
+# lint-branch.yml has an allowlist entry for `^release-plz-` to permit the
+# non-kebab UTC timestamp suffix that release-plz always appends.
 
 # tileserver-rs: binary crate, GitHub Release only (no crates.io)
 # `git_only = true` tells release-plz to compare against the git tag
