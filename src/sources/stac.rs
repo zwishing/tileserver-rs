@@ -575,18 +575,28 @@ async fn render_single_asset(
 /// best-cloud-cover-first, and consumers expect to see those pixels).
 ///
 /// Strategy:
-/// 1. Render all candidates.
-/// 2. Start from the **lowest-priority** asset as the canvas.
-/// 3. Overlay each higher-priority asset on top using straight-alpha
-///    `image::imageops::overlay` so the top-priority asset's opaque
+/// 1. Render all candidates **concurrently** via [`futures::future::join_all`].
+///    Each asset's fetch+render runs as an independent future, so a
+///    5-asset mosaic on cold-cache tiles completes in roughly the
+///    slowest asset's latency instead of the sum of all of them.
+/// 2. Preserve input order in the result set: `join_all` returns results
+///    in the same order as inputs, so index `i` in the output maps back
+///    to `assets[i]`'s render outcome.
+/// 3. Start from the **lowest-priority** asset (the last one that
+///    produced a usable layer) as the canvas.
+/// 4. Overlay each higher-priority asset on top using straight-alpha
+///    [`image::imageops::overlay`] so the top-priority asset's opaque
 ///    pixels win where it has coverage and lower-priority pixels fill
 ///    in the transparent gaps.
-/// 4. Skip assets that fail to render or decode; a single bad COG does
+/// 5. Skip assets that fail to render or decode; a single bad COG does
 ///    not blank the tile.
 ///
 /// # Errors
 ///
-/// Returns [`TileServerError::StacError`] when the PNG re-encode fails.
+/// Returns [`TileServerError::StacError`] when the PNG re-encode fails
+/// or when an inner `render_single_asset` bubbles an error up.  Per-
+/// asset decode failures are *not* propagated — they are logged and
+/// the asset is dropped from the composite.
 async fn composite_mosaic(
     assets: &[StacAsset],
     template: &SourceConfig,
@@ -596,14 +606,15 @@ async fn composite_mosaic(
 ) -> Result<Option<TileData>> {
     use image::RgbaImage;
 
+    let render_futures = assets
+        .iter()
+        .map(|asset| render_single_asset(asset, template, z, x, y));
+    let render_results = futures::future::join_all(render_futures).await;
+
     let mut layers: Vec<RgbaImage> = Vec::with_capacity(assets.len());
-
-    for asset in assets {
-        let tile = match render_single_asset(asset, template, z, x, y).await? {
-            Some(t) => t,
-            None => continue,
-        };
-
+    for (asset, render_result) in assets.iter().zip(render_results.into_iter()) {
+        let maybe_tile = render_result?;
+        let Some(tile) = maybe_tile else { continue };
         match image::load_from_memory(&tile.data) {
             Ok(i) => layers.push(i.into_rgba8()),
             Err(e) => {
@@ -612,21 +623,18 @@ async fn composite_mosaic(
         }
     }
 
-    if layers.is_empty() {
+    let Some(mut canvas) = layers.pop() else {
         return Ok(None);
-    }
-
-    let mut canvas = layers.pop().expect("layers non-empty");
+    };
     while let Some(upper) = layers.pop() {
         image::imageops::overlay(&mut canvas, &upper, 0, 0);
     }
 
     let final_img = canvas;
-
     let mut buf = Vec::with_capacity(final_img.len());
     image::DynamicImage::ImageRgba8(final_img)
         .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
-        .map_err(|e| TileServerError::StacError(format!("mosaic PNG encode failed: {e}")))?;
+        .map_err(|e| TileServerError::StacError(format!("mosaic png encode failed: {e}")))?;
 
     Ok(Some(TileData {
         data: buf.into(),
