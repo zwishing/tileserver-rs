@@ -257,6 +257,14 @@ pub struct SourceConfig {
     pub attribution: Option<String>,
     /// Optional description
     pub description: Option<String>,
+    /// Resampling algorithm for rescaling raster tiles to the target
+    /// 256×256 Web Mercator grid.  `None` falls back to the global
+    /// [`RasterConfig::default_resampling`] (defaults to `Bilinear`).
+    /// Matters when a COG's native resolution differs from the served
+    /// tile size — e.g., Sentinel-2 10 m bands served as 256×256 Web
+    /// Mercator tiles need downsampling, and `Bilinear` or `Cubic`
+    /// give visibly better results than the `Nearest` default for
+    /// continuous imagery.
     #[serde(default)]
     pub resampling: Option<ResamplingMethod>,
     #[serde(default)]
@@ -378,17 +386,46 @@ fn default_stac_max_items() -> usize {
     100
 }
 
+/// GDAL-compatible resampling algorithm for rescaling a source raster
+/// onto the output tile grid.
+///
+/// Each variant maps 1-to-1 onto [`gdal::raster::ResampleAlg`] and
+/// matches rio-tiler / rasterio names when serialised, so titiler and
+/// tileserver-rs configs are interchangeable.
+///
+/// # When to change the default
+///
+/// `Bilinear` is a good general-purpose default for continuous imagery
+/// (satellite visual bands, DEMs).  Use `Nearest` for classified/
+/// categorical rasters where intermediate values are meaningless
+/// (land-cover codes, nominal classes).  `Cubic` / `Lanczos` give
+/// sharper downsampling at the cost of CPU time.
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
 pub enum ResamplingMethod {
+    /// Pick the closest source pixel. Preserves discrete values;
+    /// correct choice for classified rasters and mandatory for any
+    /// colourmap-indexed band.
     Nearest,
+    /// Linear interpolation across 2×2 source pixels.  Good default
+    /// for continuous imagery; balances quality and speed.
     #[default]
     Bilinear,
+    /// Cubic interpolation across 4×4 source pixels.  Sharper than
+    /// `Bilinear` at moderately higher CPU cost.
     Cubic,
+    /// Spline-smoothed cubic.  Softer edges than `Cubic`; useful for
+    /// continuous elevation data.
     CubicSpline,
+    /// Lanczos windowed sinc.  Best-quality general-purpose resampler
+    /// at the highest CPU cost.
     Lanczos,
+    /// Pixel-value averaging.  Appropriate for heavy downsampling
+    /// where aliasing would otherwise appear.
     Average,
+    /// Most-frequent source value.  Use for categorical data when
+    /// `Nearest` sampling alone would look noisy at low zooms.
     Mode,
 }
 
@@ -418,7 +455,7 @@ impl std::str::FromStr for ResamplingMethod {
             "lanczos" => Ok(ResamplingMethod::Lanczos),
             "average" => Ok(ResamplingMethod::Average),
             "mode" => Ok(ResamplingMethod::Mode),
-            _ => Err(format!("Unknown resampling method: {}", s)),
+            _ => Err(format!("unknown resampling method: {s}")),
         }
     }
 }
