@@ -80,6 +80,22 @@ jobs:
             arch: arm64
             variant: headless
             features: ''
+          # Fast builds — -C target-cpu=x86-64-v4 (AVX-512) on amd64 and
+          # neoverse-v1 on arm64.  Operators pinning images to modern
+          # hardware (post-2017 Intel/AMD server CPUs; Graviton3/3E; Azure
+          # Ampere Altra Max) pull the `-fast` tag for extra SIMD headroom.
+          - runner: ubuntu-latest
+            platform: linux/amd64
+            arch: amd64
+            variant: fast
+            features: frontend geoparquet stac
+            target_cpu: x86-64-v4
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            arch: arm64
+            variant: fast
+            features: frontend geoparquet stac
+            target_cpu: neoverse-v1
 
     steps:
       - name: Checkout repository
@@ -111,7 +127,9 @@ jobs:
         with:
           context: .
           platforms: ${{ matrix.platform }}
-          build-args: FEATURES=${{ matrix.features }}
+          build-args: |
+            FEATURES=${{ matrix.features }}
+            TARGET_CPU=${{ matrix.target_cpu || (matrix.arch == 'arm64' && 'neoverse-n1' || 'x86-64-v3') }}
           push: ${{ github.ref_name == 'main' || startsWith(github.ref, 'refs/tags/') }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.arch }}-${{ matrix.variant }}
@@ -267,3 +285,70 @@ jobs:
       - name: Inspect image
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+
+  merge-fast:
+    name: Create Multi-Arch Manifest (Fast)
+    runs-on: ubuntu-latest
+    if: github.ref_name == 'main' || startsWith(github.ref, 'refs/tags/')
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v8
+        with:
+          path: /tmp/digests
+          pattern: digests-fast-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute version from tag
+        id: version
+        if: inputs.tag != ''
+        run: |
+          TAG="${{ inputs.tag }}"
+          VERSION="${TAG#v}"
+          MAJOR="${VERSION%%.*}"
+          MINOR="${VERSION%.*}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
+          echo "minor=$MINOR" >> "$GITHUB_OUTPUT"
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: |
+            latest=false
+          tags: |
+            type=ref,event=branch,suffix=-fast
+            type=semver,pattern={{version}},suffix=-fast
+            type=semver,pattern={{major}}.{{minor}},suffix=-fast
+            type=semver,pattern={{major}},suffix=-fast,enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+            type=sha,suffix=-fast
+            type=raw,value=latest-fast,enable=${{ github.ref_name == 'main' }}
+            type=raw,value=${{ steps.version.outputs.version }}-fast,enable=${{ inputs.tag != '' }}
+            type=raw,value=${{ steps.version.outputs.minor }}-fast,enable=${{ inputs.tag != '' }}
+            type=raw,value=${{ steps.version.outputs.major }}-fast,enable=${{ inputs.tag != '' && !startsWith(inputs.tag, 'v0.') }}
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}-fast

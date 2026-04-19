@@ -83,6 +83,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
 ENV PATH="/root/.cargo/bin:${PATH}"
 ENV MBGL_SYS_LIB_DIR=/app/lib
 
+# Compiler optimisation tier.  `TARGET_CPU=x86-64-v3` (the default for
+# amd64 images) targets AVX2 + BMI2 which every x86 CPU since 2013
+# ships.  The `fast` tier sets `TARGET_CPU=native` for on-premises
+# operators who pin the image to a specific host; see `release-docker-images.yml`
+# for the matching `:fast` tag in the release matrix.
+ARG TARGET_CPU
+ENV RUSTFLAGS="-C target-cpu=${TARGET_CPU:-x86-64-v3}"
+
 WORKDIR /app
 
 COPY --from=maplibre-downloader /build/lib ./lib
