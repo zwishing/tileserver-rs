@@ -2246,6 +2246,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "hotpath"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28594d8a3d30371e1488dcd6ba545bf07e9ce9dff6d8a57d70dbbaa221d3246d"
+dependencies = [
+ "hotpath-macros",
+]
+
+[[package]]
+name = "hotpath-macros"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7b87d58f92c09858091f328521db329955e9fc960c3c9c55e5dc0ef228a37b0"
+
+[[package]]
 name = "http"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3145,16 +3160,19 @@ dependencies = [
 
 [[package]]
 name = "mlt-core"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01006947b9295790203c3fd3e2fb086c61a9f8d87be424468c5a1c99c2534bca"
+checksum = "76f53b272e6e6b5dc270dcd5fb976567c27692e4de8093473b5ed636df77d32f"
 dependencies = [
+ "bytemuck",
  "enum_dispatch",
  "fastpfor",
  "fsst-rs",
+ "geo 0.32.0",
  "geo-types",
  "hex",
  "hilbert_2d",
+ "hotpath",
  "integer-encoding 4.1.0",
  "mvt-reader",
  "num-traits",

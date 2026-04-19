@@ -194,7 +194,7 @@ fn bench_mlt_decode_all(c: &mut Criterion) {
                         mlt_core::Parser::default().parse_layers(std::hint::black_box(fixture.data))
                     {
                         let mut dec = mlt_core::Decoder::default();
-                        for mut layer in layers {
+                        for layer in layers {
                             let _ = layer.decode_all(&mut dec);
                         }
                     }

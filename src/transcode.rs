@@ -195,13 +195,11 @@ fn decompress_tile_data(tile: &TileData) -> Result<Vec<u8>> {
 fn mvt_to_mlt(mvt_bytes: &[u8]) -> Result<Bytes> {
     use std::collections::BTreeMap;
 
-    use mlt_core::StagedLayer;
+    use mlt_core::encoder::EncoderConfig;
 
-    // Step 1: Parse MVT protobuf into FeatureCollection
     let fc = mlt_core::mvt::mvt_to_feature_collection(mvt_bytes.to_vec())
         .map_err(|e| TileServerError::MltEncodeError(format!("failed to parse MVT tile: {e}")))?;
 
-    // Step 2: Group features by layer name
     let mut layer_map: BTreeMap<String, Vec<&mlt_core::geojson::Feature>> = BTreeMap::new();
     for feature in &fc.features {
         let layer_name = feature
@@ -213,17 +211,15 @@ fn mvt_to_mlt(mvt_bytes: &[u8]) -> Result<Bytes> {
         layer_map.entry(layer_name).or_default().push(feature);
     }
 
-    // Step 3: Build TileLayer01 per layer group, encode, and write
     let mut output = Vec::with_capacity(mvt_bytes.len());
     for (layer_name, features) in &layer_map {
         let tile_layer = build_tile_layer(layer_name, features);
-        let staged = StagedLayer::Tag01(tile_layer.into());
-        let (encoded, _encoder) = staged.encode_auto().map_err(|e| {
+        // mlt-core 0.7: TileLayer01::encode tries sort strategies internally + returns bytes.
+        // Replaces the 0.6 StagedLayer::Tag01(...).encode_auto() + write_to() two-step flow.
+        let bytes = tile_layer.encode(EncoderConfig::default()).map_err(|e| {
             TileServerError::MltEncodeError(format!("failed to encode MLT layer: {e}"))
         })?;
-        encoded.write_to(&mut output).map_err(|e| {
-            TileServerError::MltEncodeError(format!("failed to write MLT layer: {e}"))
-        })?;
+        output.extend_from_slice(&bytes);
     }
 
     Ok(Bytes::from(output))
@@ -237,10 +233,10 @@ fn mvt_to_mlt(mvt_bytes: &[u8]) -> Result<Bytes> {
 fn build_tile_layer(
     layer_name: &str,
     features: &[&mlt_core::geojson::Feature],
-) -> mlt_core::v01::TileLayer01 {
+) -> mlt_core::TileLayer01 {
     use std::collections::BTreeSet;
 
-    use mlt_core::v01::{PropValue, TileFeature, TileLayer01};
+    use mlt_core::{PropValue, TileFeature, TileLayer01};
 
     // Extract extent from first feature (injected by mvt_to_feature_collection as _extent)
     let extent = features
@@ -345,8 +341,8 @@ fn infer_dominant_type(features: &[&mlt_core::geojson::Feature], key: &str) -> D
 fn json_to_prop_value(
     value: Option<&serde_json::Value>,
     dominant: DominantType,
-) -> mlt_core::v01::PropValue {
-    use mlt_core::v01::PropValue;
+) -> mlt_core::PropValue {
+    use mlt_core::PropValue;
 
     match dominant {
         DominantType::String => {
@@ -377,27 +373,27 @@ fn json_to_prop_value(
 fn mlt_to_mvt(mlt_bytes: &[u8]) -> Result<Bytes> {
     use prost::Message;
 
-    // Step 1: Parse MLT layers (lazy — column data not yet decoded)
+    // mlt-core 0.7 decoder flow: parse_layers → type-state Layer<Lazy> → decode_all consumes
+    // into ParsedLayer. FeatureCollection::from_layers now takes a single arg (an iterator of
+    // ParsedLayer) because decoding is required before conversion rather than interleaved.
     let mut parser = mlt_core::Parser::default();
-    let mut layers = parser
+    let layers = parser
         .parse_layers(mlt_bytes)
         .map_err(|e| TileServerError::MltDecodeError(format!("failed to parse MLT tile: {e}")))?;
 
-    // Step 2: Decode all columns in each layer
     let mut dec = mlt_core::Decoder::default();
-    for layer in &mut layers {
-        layer.decode_all(&mut dec).map_err(|e| {
-            TileServerError::MltDecodeError(format!("failed to decode MLT layer: {e}"))
-        })?;
-    }
+    let parsed: Vec<_> = layers
+        .into_iter()
+        .map(|layer| {
+            layer.decode_all(&mut dec).map_err(|e| {
+                TileServerError::MltDecodeError(format!("failed to decode MLT layer: {e}"))
+            })
+        })
+        .collect::<Result<_>>()?;
 
-    // Step 3: Convert decoded MLT layers to FeatureCollection
-    let fc =
-        mlt_core::geojson::FeatureCollection::from_layers(&mut layers, &mut dec).map_err(|e| {
-            TileServerError::MltDecodeError(format!(
-                "failed to convert MLT layers to features: {e}"
-            ))
-        })?;
+    let fc = mlt_core::geojson::FeatureCollection::from_layers(parsed).map_err(|e| {
+        TileServerError::MltDecodeError(format!("failed to convert MLT layers to features: {e}"))
+    })?;
 
     // Step 4: Build MVT protobuf from FeatureCollection
     let mvt_tile = feature_collection_to_mvt(&fc)?;
@@ -1556,7 +1552,7 @@ mod tests {
         let val = serde_json::json!("hello");
         let pv = json_to_prop_value(Some(&val), DominantType::String);
         assert!(
-            matches!(pv, mlt_core::v01::PropValue::Str(Some(ref s)) if s == "hello"),
+            matches!(pv, mlt_core::PropValue::Str(Some(ref s)) if s == "hello"),
             "Expected Str(Some(\"hello\")), got: {pv:?}"
         );
     }
@@ -1566,7 +1562,7 @@ mod tests {
         let val = serde_json::json!(42);
         let pv = json_to_prop_value(Some(&val), DominantType::Int);
         assert!(
-            matches!(pv, mlt_core::v01::PropValue::I64(Some(42))),
+            matches!(pv, mlt_core::PropValue::I64(Some(42))),
             "Expected I64(Some(42)), got: {pv:?}"
         );
     }
@@ -1576,7 +1572,7 @@ mod tests {
         let val = serde_json::json!(true);
         let pv = json_to_prop_value(Some(&val), DominantType::Bool);
         assert!(
-            matches!(pv, mlt_core::v01::PropValue::Bool(Some(true))),
+            matches!(pv, mlt_core::PropValue::Bool(Some(true))),
             "Expected Bool(Some(true)), got: {pv:?}"
         );
     }
@@ -1586,7 +1582,7 @@ mod tests {
         let val = serde_json::json!(1.23);
         let pv = json_to_prop_value(Some(&val), DominantType::Float);
         assert!(
-            matches!(pv, mlt_core::v01::PropValue::F64(Some(v)) if (v - 1.23).abs() < f64::EPSILON),
+            matches!(pv, mlt_core::PropValue::F64(Some(v)) if (v - 1.23).abs() < f64::EPSILON),
             "Expected F64(Some(1.23)), got: {pv:?}"
         );
     }
@@ -1595,7 +1591,7 @@ mod tests {
     fn test_json_to_prop_value_null_returns_none() {
         let pv = json_to_prop_value(None, DominantType::Int);
         assert!(
-            matches!(pv, mlt_core::v01::PropValue::I64(None)),
+            matches!(pv, mlt_core::PropValue::I64(None)),
             "Expected I64(None) for null, got: {pv:?}"
         );
     }
@@ -1605,7 +1601,7 @@ mod tests {
         let val = serde_json::json!(10);
         let pv = json_to_prop_value(Some(&val), DominantType::Float);
         assert!(
-            matches!(pv, mlt_core::v01::PropValue::F64(Some(v)) if (v - 10.0).abs() < f64::EPSILON),
+            matches!(pv, mlt_core::PropValue::F64(Some(v)) if (v - 10.0).abs() < f64::EPSILON),
             "Expected F64(Some(10.0)), got: {pv:?}"
         );
     }
@@ -1615,7 +1611,7 @@ mod tests {
         let val = serde_json::json!(42);
         let pv = json_to_prop_value(Some(&val), DominantType::String);
         assert!(
-            matches!(pv, mlt_core::v01::PropValue::Str(Some(ref s)) if s == "42"),
+            matches!(pv, mlt_core::PropValue::Str(Some(ref s)) if s == "42"),
             "Expected Str(Some(\"42\")), got: {pv:?}"
         );
     }
@@ -1691,6 +1687,36 @@ mod tests {
         };
         let result = transcode_tile(&tile, TileFormat::Pbf);
         assert!(result.is_err());
+    }
+
+    /// Exercises the `.decode_all()` error arm in `mlt_to_mvt`. We take a valid
+    /// MLT tile and truncate the final byte so `parse_layers` returns structurally
+    /// valid `Layer<Lazy>` objects but column decoding fails on the truncated body.
+    #[test]
+    fn test_mlt_to_mvt_corrupt_body_triggers_decode_error() {
+        let mvt_bytes = make_mvt_point_tile("decode_err_test", 10, 20);
+        let mut mlt_bytes = mvt_to_mlt(&mvt_bytes).unwrap().to_vec();
+        assert!(mlt_bytes.len() > 10);
+
+        let mut last_err: Option<TileServerError> = None;
+        for trunc_from_end in 1..mlt_bytes.len().min(64) {
+            let truncated = &mlt_bytes[..mlt_bytes.len() - trunc_from_end];
+            if let Err(e) = mlt_to_mvt(truncated) {
+                last_err = Some(e);
+                break;
+            }
+        }
+        assert!(
+            matches!(
+                last_err,
+                Some(TileServerError::MltDecodeError(_)) | Some(TileServerError::MltEncodeError(_))
+            ),
+            "expected MltDecodeError or MltEncodeError from truncated MLT, got: {last_err:?}"
+        );
+
+        let last_idx = mlt_bytes.len() - 1;
+        mlt_bytes[last_idx] = mlt_bytes[last_idx].wrapping_add(0x7f);
+        let _ = mlt_to_mvt(&mlt_bytes);
     }
 
     // -------------------------------------------------------------------------
