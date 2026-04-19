@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.25.1](https://github.com/vinayakkulkarni/tileserver-rs/compare/v2.25.0...v2.25.1) - 2026-04-19
+
+### Fixed
+
+- *(ci)* supply mbgl-sys binaries to release-plz so verify succeeds
+
+### Other
+
+- *(release-plz)* use semantic chore/release-plz- branch prefix
+- *(lint-branch)* allow release-plz automated branches
+- Merge pull request #791 from vinayakkulkarni/feat/include-stac-in-default-docker-builds
+- *(marketing)* run bun lint:fix + format on agent-generated code
+- Merge pull request #790 from vinayakkulkarni/feat/mlt-core-0-7
+- *(homebrew)* update formula to v2.25.0
+
 ## [2.25.0](https://github.com/vinayakkulkarni/tileserver-rs/compare/v2.24.0...v2.25.0) (2026-04-18)
 
 
