@@ -60,6 +60,7 @@ uuid             = { version = "1.23.1", features = ["v4"] }
 # Binary formats / data
 bytes            = "1.11.1"
 image            = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "webp"] }
+ndarray          = { version = "0.16.1", features = ["rayon"] }
 
 # Concurrency
 arc-swap         = "1.9.1"
@@ -219,6 +220,7 @@ rusqlite         = { workspace = true }
 # Raster/COG support (optional, requires GDAL system library)
 gdal             = { workspace = true, optional = true }
 stac             = { workspace = true, optional = true }
+ndarray          = { workspace = true, optional = true }
 
 # PostgreSQL support (optional)
 deadpool-postgres = { workspace = true, optional = true }
@@ -249,7 +251,7 @@ default = ["postgres", "raster", "mlt", "cloud", "stac"]
 frontend = ["rust-embed"]
 postgres = ["deadpool-postgres", "tokio-postgres", "postgres-types", "semver", "dep:ogcapi-types", "dep:geojson", "dep:cql2"]
 postgres-integration = ["postgres"]
-raster = ["gdal"]
+raster = ["gdal", "dep:ndarray"]
 cloud = ["object_store", "url"]
 mlt = ["mlt-core", "dep:prost", "geo-types"]
 geoparquet = ["dep:parquet", "dep:arrow-array", "dep:arrow-schema", "dep:arrow-cast", "dep:geo", "dep:prost"]
