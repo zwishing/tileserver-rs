@@ -146,6 +146,19 @@ impl RasterImage {
         (self.data, self.mask)
     }
 
+    /// Borrow the data + mask planes simultaneously as mutable views.
+    ///
+    /// Enables mosaic methods to write into data and mask together
+    /// without re-borrowing `self` (which would produce E0499).
+    pub fn views_mut(
+        &mut self,
+    ) -> (
+        ndarray::ArrayViewMut3<'_, f32>,
+        ndarray::ArrayViewMut2<'_, bool>,
+    ) {
+        (self.data.view_mut(), self.mask.view_mut())
+    }
+
     /// Returns true if every pixel is masked (fully transparent tile).
     /// Short-circuits on first unmasked pixel for O(1) early-out on
     /// typical inputs.

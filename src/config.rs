@@ -293,6 +293,61 @@ pub struct SourceConfig {
     /// anchor discovery on whichever items the API happens to rank first.
     #[serde(default)]
     pub stac_bbox: Option<[f64; 4]>,
+    /// STAC mosaic pixel-selection method. Defaults to [`PixelSelectionMethod::First`]
+    /// which preserves pre-4.0 behaviour (first asset wins where opaque).
+    #[serde(default)]
+    pub pixel_selection: PixelSelectionMethod,
+}
+
+/// Pixel-selection strategy for STAC mosaic compositing.
+///
+/// Matches rio-tiler's `rio_tiler.mosaic.methods` set so operators who
+/// already know titiler feel at home.  When the default `first` is
+/// used, cold-path latency is minimal: the method short-circuits on
+/// the first fully-opaque pixel and stops fetching downstream assets.
+///
+/// Short-circuit capability is declared in [`PixelSelectionMethod::can_short_circuit`]
+/// and is honoured by the mosaic pipeline.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum PixelSelectionMethod {
+    /// First valid (non-masked) pixel wins. Short-circuits once the
+    /// canvas is fully opaque; this is the lowest-latency strategy.
+    #[default]
+    First,
+    /// Per-pixel maximum across all input bands.  Useful for highlighting
+    /// bright features (e.g., snow, water glare).
+    Highest,
+    /// Per-pixel minimum.  Useful for deep-shadow emphasis.
+    Lowest,
+    /// Per-pixel arithmetic mean across all valid inputs.
+    Mean,
+    /// Per-pixel median across all valid inputs.  More robust to outliers
+    /// than [`PixelSelectionMethod::Mean`] at the cost of extra allocations.
+    Median,
+    /// Per-pixel standard deviation across all valid inputs.  Useful for
+    /// change-detection visualisations.
+    Stdev,
+    /// Per-pixel count of valid contributions.  Primarily a QA/debug
+    /// visualisation; encodes the count in the red channel.
+    Count,
+    /// Select the asset with the lowest `eo:cloud_cover` value from the
+    /// STAC metadata, then use its pixels wherever they are valid.
+    /// Falls back to [`PixelSelectionMethod::First`] ordering for assets
+    /// where the field is missing.
+    LowestCloudCover,
+}
+
+impl PixelSelectionMethod {
+    /// Returns true when this method can stop feeding inputs once the
+    /// canvas is fully opaque — enabling an early-exit optimisation in
+    /// the mosaic loop.  Only [`Self::First`] and [`Self::LowestCloudCover`]
+    /// are short-circuit-safe; the statistical methods need every input.
+    #[must_use]
+    pub const fn can_short_circuit(self) -> bool {
+        matches!(self, Self::First | Self::LowestCloudCover)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

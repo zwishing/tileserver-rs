@@ -165,6 +165,7 @@ pub fn detect_config(target_path: PathBuf) -> anyhow::Result<(Config, AutoDetect
                 dynamic: false,
                 max_items: 100,
                 stac_bbox: None,
+                pixel_selection: crate::config::PixelSelectionMethod::First,
             });
             report.sources.push(AutoDetectedSource {
                 id,
@@ -306,6 +307,7 @@ pub fn detect_config(target_path: PathBuf) -> anyhow::Result<(Config, AutoDetect
             dynamic: false,
             max_items: 100,
             stac_bbox: None,
+            pixel_selection: crate::config::PixelSelectionMethod::First,
         });
         report.sources.push(AutoDetectedSource {
             id,

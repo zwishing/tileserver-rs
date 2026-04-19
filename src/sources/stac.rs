@@ -19,6 +19,10 @@ const COG_MIME_TYPE: &str = "image/tiff; application=geotiff; profile=cloud-opti
 const GEOTIFF_MIME_TYPE: &str = "image/tiff";
 
 /// A discovered COG asset from a STAC catalog item.
+///
+/// The priority metadata (`datetime`, `cloud_cover`) drives pixel-selection
+/// strategies such as `lowest_cloud_cover` and `most_recent`; both are
+/// optional because STAC items are not required to provide them.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StacAsset {
     /// Unique identifier from the STAC item.
@@ -29,6 +33,14 @@ pub struct StacAsset {
     pub bbox: [f64; 4],
     /// Human-readable title of the asset.
     pub title: String,
+    /// RFC 3339 capture timestamp from `properties.datetime`, when present.
+    /// Used by the `most_recent` pixel-selection method.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub datetime: Option<String>,
+    /// Cloud cover percentage `[0.0, 100.0]` from `properties.eo:cloud_cover`,
+    /// when present. Used by the `lowest_cloud_cover` pixel-selection method.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cloud_cover: Option<f64>,
 }
 
 /// A tile source backed by STAC API catalog discovery.
@@ -113,6 +125,7 @@ impl StacSource {
                 dynamic: config.dynamic,
                 max_items: config.max_items,
                 stac_bbox: config.stac_bbox,
+                pixel_selection: config.pixel_selection,
             };
 
             match CogSource::from_file(&cog_config).await {
@@ -348,6 +361,12 @@ pub fn extract_assets_from_item_collection(
 
 /// Extract a single COG asset from a typed [`stac::Item`], first by
 /// `asset_role`, then by COG/GeoTIFF MIME type.
+///
+/// Populates priority metadata (`datetime`, `cloud_cover`) from the
+/// item's `properties` map when the corresponding STAC fields are
+/// present.  Missing fields are preserved as `None` so mosaic methods
+/// that depend on them can degrade gracefully (e.g.
+/// `lowest_cloud_cover` treats `None` as worst cloud cover).
 #[must_use]
 pub fn extract_cog_asset_from_item(item: &stac::Item, asset_role: &str) -> Option<StacAsset> {
     let bbox = item.bbox.as_ref().map(bbox_to_2d)?;
@@ -366,7 +385,24 @@ pub fn extract_cog_asset_from_item(item: &stac::Item, asset_role: &str) -> Optio
                 item.id.clone()
             }
         }),
+        datetime: extract_datetime(item),
+        cloud_cover: extract_cloud_cover(item),
     })
+}
+
+fn extract_datetime(item: &stac::Item) -> Option<String> {
+    item.properties
+        .additional_fields
+        .get("datetime")
+        .and_then(|v| v.as_str())
+        .map(str::to_owned)
+}
+
+fn extract_cloud_cover(item: &stac::Item) -> Option<f64> {
+    item.properties
+        .additional_fields
+        .get("eo:cloud_cover")
+        .and_then(serde_json::Value::as_f64)
 }
 
 fn find_asset_by_role<'a, I>(assets: I, role: &str) -> Option<(&'a String, &'a stac::Asset)>
@@ -551,6 +587,7 @@ async fn render_single_asset(
         dynamic: false,
         max_items: template.max_items,
         stac_bbox: template.stac_bbox,
+        pixel_selection: template.pixel_selection,
     };
 
     match CogSource::from_file(&cfg).await {
@@ -604,43 +641,68 @@ async fn composite_mosaic(
     x: u32,
     y: u32,
 ) -> Result<Option<TileData>> {
-    use image::RgbaImage;
+    use crate::raster::{decode, encode, mosaic};
 
-    let render_futures = assets
+    let ordered_assets = order_assets_for_method(assets, template.pixel_selection);
+
+    let render_futures = ordered_assets
         .iter()
         .map(|asset| render_single_asset(asset, template, z, x, y));
     let render_results = futures::future::join_all(render_futures).await;
 
-    let mut layers: Vec<RgbaImage> = Vec::with_capacity(assets.len());
-    for (asset, render_result) in assets.iter().zip(render_results.into_iter()) {
-        let maybe_tile = render_result?;
-        let Some(tile) = maybe_tile else { continue };
-        match image::load_from_memory(&tile.data) {
-            Ok(i) => layers.push(i.into_rgba8()),
+    let mut method = mosaic::build(template.pixel_selection);
+    let mut fed_any = false;
+    for (asset, render_result) in ordered_assets.iter().zip(render_results.into_iter()) {
+        let Some(tile) = render_result? else { continue };
+        let raster = match decode::from_bytes(&tile.data) {
+            Ok(r) => r,
             Err(e) => {
                 tracing::warn!(asset_id = %asset.id, error = %e, "mosaic: failed to decode");
+                continue;
             }
+        };
+        method.feed(raster);
+        fed_any = true;
+        if method.is_done() {
+            break;
         }
     }
-
-    let Some(mut canvas) = layers.pop() else {
+    if !fed_any {
         return Ok(None);
-    };
-    while let Some(upper) = layers.pop() {
-        image::imageops::overlay(&mut canvas, &upper, 0, 0);
     }
+    let finalised = method.finalize();
 
-    let final_img = canvas;
-    let mut buf = Vec::with_capacity(final_img.len());
-    image::DynamicImage::ImageRgba8(final_img)
-        .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
+    let png = encode::to_png(&finalised)
         .map_err(|e| TileServerError::StacError(format!("mosaic png encode failed: {e}")))?;
 
     Ok(Some(TileData {
-        data: buf.into(),
+        data: png.into(),
         format: TileFormat::Png,
         compression: crate::sources::TileCompression::None,
     }))
+}
+
+/// Reorder assets to give the chosen [`PixelSelectionMethod`] its
+/// expected priority sequence.
+///
+/// - `LowestCloudCover`: sort by `cloud_cover` ascending, placing
+///   assets with no metadata at the end (treated as worst case so an
+///   explicitly-clear asset always wins over an unlabelled one).
+/// - All other methods: preserve input order (STAC's own ranking).
+fn order_assets_for_method(
+    assets: &[StacAsset],
+    method: crate::config::PixelSelectionMethod,
+) -> Vec<StacAsset> {
+    use crate::config::PixelSelectionMethod;
+    let mut out = assets.to_vec();
+    if method == PixelSelectionMethod::LowestCloudCover {
+        out.sort_by(|a, b| {
+            let ak = a.cloud_cover.unwrap_or(f64::INFINITY);
+            let bk = b.cloud_cover.unwrap_or(f64::INFINITY);
+            ak.partial_cmp(&bk).unwrap_or(std::cmp::Ordering::Equal)
+        });
+    }
+    out
 }
 
 #[cfg(test)]
@@ -1014,6 +1076,8 @@ mod tests {
             href: "https://example.com/a.tif".to_string(),
             bbox: [10.0, 20.0, 11.0, 21.0],
             title: "A".to_string(),
+            datetime: None,
+            cloud_cover: None,
         }];
         let bounds = compute_merged_bounds(&assets).unwrap();
         assert_eq!(bounds, [10.0, 20.0, 11.0, 21.0]);
@@ -1027,12 +1091,16 @@ mod tests {
                 href: "https://example.com/a.tif".to_string(),
                 bbox: [10.0, 20.0, 11.0, 21.0],
                 title: "A".to_string(),
+                datetime: None,
+                cloud_cover: None,
             },
             StacAsset {
                 id: "b".to_string(),
                 href: "https://example.com/b.tif".to_string(),
                 bbox: [9.0, 19.0, 12.0, 22.0],
                 title: "B".to_string(),
+                datetime: None,
+                cloud_cover: None,
             },
         ];
         let bounds = compute_merged_bounds(&assets).unwrap();
@@ -1047,12 +1115,16 @@ mod tests {
                 href: "https://example.com/w.tif".to_string(),
                 bbox: [-10.0, 0.0, -5.0, 5.0],
                 title: "West".to_string(),
+                datetime: None,
+                cloud_cover: None,
             },
             StacAsset {
                 id: "east".to_string(),
                 href: "https://example.com/e.tif".to_string(),
                 bbox: [5.0, 0.0, 10.0, 5.0],
                 title: "East".to_string(),
+                datetime: None,
+                cloud_cover: None,
             },
         ];
         let bounds = compute_merged_bounds(&assets).unwrap();
@@ -1066,6 +1138,8 @@ mod tests {
             href: "https://example.com/cog.tif".to_string(),
             bbox: [-180.0, -90.0, 180.0, 90.0],
             title: "Test Asset".to_string(),
+            datetime: None,
+            cloud_cover: None,
         };
         let json = serde_json::to_string(&asset).unwrap();
         let deserialized: StacAsset = serde_json::from_str(&json).unwrap();

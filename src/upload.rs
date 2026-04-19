@@ -172,6 +172,7 @@ pub async fn upload_file(
         dynamic: false,
         max_items: 100,
         stac_bbox: None,
+        pixel_selection: crate::config::PixelSelectionMethod::First,
     };
 
     let mut temp_manager = SourceManager::new();

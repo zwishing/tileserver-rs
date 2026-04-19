@@ -1052,6 +1052,7 @@ mod mlt_mbtiles_tests {
             dynamic: false,
             max_items: 500,
             stac_bbox: None,
+            pixel_selection: tileserver_rs::config::PixelSelectionMethod::First,
         }
     }
 

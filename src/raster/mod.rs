@@ -29,5 +29,6 @@ pub mod convert;
 pub mod decode;
 pub mod encode;
 pub mod image;
+pub mod mosaic;
 
 pub use image::{RasterImage, RasterMetadata};
