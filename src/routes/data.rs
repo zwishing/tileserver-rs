@@ -233,6 +233,16 @@ pub(crate) async fn get_tile(
         tile
     };
 
+    // Band math: when the client passes `?expression=...` and the
+    // requested tile is a raster format, parse the expression and
+    // apply it in-place on the decoded pixel data before re-encoding
+    // as PNG.  This intentionally runs AFTER the source has produced
+    // the raw tile bytes and BEFORE MLT transcoding — the two do not
+    // interact because band math only applies to raster formats and
+    // MLT only to vector formats.
+    #[cfg(feature = "raster")]
+    let tile = apply_band_math_if_requested(tile, &query);
+
     // MLT transcoding: if the requested format differs from the source format
     // and the `mlt` feature is enabled, attempt on-the-fly transcoding.
     #[cfg(feature = "mlt")]
@@ -376,4 +386,66 @@ async fn get_tile_as_geojson(
     headers.insert(CACHE_CONTROL, cache_control::tile_cache_headers());
 
     Ok((headers, geojson.to_string()).into_response())
+}
+
+/// Apply a band-math expression (if provided in the query) to a
+/// freshly-rendered raster tile.
+///
+/// Fails open: on any decode/parse/evaluate error the original tile
+/// is returned unchanged so a broken expression does not blank the
+/// map.  The exact failure is logged at WARN so operators can fix it.
+#[cfg(feature = "raster")]
+fn apply_band_math_if_requested(
+    tile: sources::TileData,
+    query: &std::collections::HashMap<String, String>,
+) -> sources::TileData {
+    use crate::raster::{decode, encode, expression};
+
+    let Some(expr_str) = query.get("expression") else {
+        return tile;
+    };
+    if !matches!(
+        tile.format,
+        sources::TileFormat::Png | sources::TileFormat::Jpeg | sources::TileFormat::Webp
+    ) {
+        return tile;
+    }
+
+    let raster = match decode::from_bytes(&tile.data) {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!(error = %e, "band math: failed to decode tile; serving original");
+            return tile;
+        }
+    };
+
+    let parsed = match expression::ParsedExpression::parse(expr_str, raster.band_count()) {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::warn!(expression = %expr_str, error = %e, "band math: parse failed; serving original");
+            return tile;
+        }
+    };
+
+    let result = match expression::apply(&parsed, &raster) {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!(expression = %expr_str, error = %e, "band math: eval failed; serving original");
+            return tile;
+        }
+    };
+
+    let png = match encode::to_png(&result) {
+        Ok(b) => b,
+        Err(e) => {
+            tracing::warn!(error = %e, "band math: encode failed; serving original");
+            return tile;
+        }
+    };
+
+    sources::TileData {
+        data: png.into(),
+        format: sources::TileFormat::Png,
+        compression: sources::TileCompression::None,
+    }
 }

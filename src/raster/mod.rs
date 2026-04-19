@@ -28,7 +28,9 @@
 pub mod convert;
 pub mod decode;
 pub mod encode;
+pub mod expression;
 pub mod image;
 pub mod mosaic;
 
+pub use expression::{ExpressionError, ParsedExpression};
 pub use image::{RasterImage, RasterMetadata};

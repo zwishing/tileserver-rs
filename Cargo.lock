@@ -1500,6 +1500,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "exmex"
+version = "0.20.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "114e4321fcb0242ffe3092e29a7a41c11fc119f1fa8e61cd21b72a68dd004aaa"
+dependencies = [
+ "lazy_static",
+ "num-traits",
+ "regex",
+ "smallvec",
+]
+
+[[package]]
 name = "expect-json"
 version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5713,6 +5725,7 @@ dependencies = [
  "deadpool-postgres",
  "dotenvy",
  "duckdb",
+ "exmex",
  "flate2",
  "futures",
  "gdal",
