@@ -7,7 +7,15 @@ on:
 permissions: {}
 
 jobs:
-  # Job 1: Create/update the Release PR with version bumps + changelog
+  # Job 1: Create/update the Release PR with version bumps + changelog.
+  #
+  # release-plz internally runs `cargo package --workspace` with the default
+  # verify step enabled. Verify compiles the packaged crates in an isolated
+  # directory, which links mbgl-sys against MapLibre Native. A plain ubuntu
+  # runner has neither the prebuilt `.a` files nor the C++ system libs, so
+  # the verify step fails with `ERROR failed to update pkgs`. We supply the
+  # same mbgl-native binaries release-linux-binaries.yml uses so verify
+  # succeeds without re-building MapLibre Native from source (~30 min).
   release-pr:
     name: Create Release PR
     runs-on: ubuntu-latest
@@ -22,6 +30,45 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Install MapLibre Native system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libuv1-dev \
+            libpng-dev \
+            libicu-dev \
+            libjpeg-turbo8-dev \
+            libwebp-dev \
+            libsqlite3-dev \
+            libopengl-dev \
+            libgl-dev \
+            libgdal-dev
+
+      - name: Download pre-built MapLibre Native binaries
+        run: |
+          MBGL_VERSION=$(grep '^version' crates/mbgl-sys/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          TARGET=x86_64-unknown-linux-gnu
+          URL="https://github.com/${{ github.repository }}/releases/download/mbgl-sys-v${MBGL_VERSION}/mbgl-native-${TARGET}.tar.gz"
+          echo "Downloading mbgl-sys v${MBGL_VERSION} for ${TARGET}..."
+
+          MAX_RETRIES=5
+          DELAY=60
+          for i in $(seq 1 $MAX_RETRIES); do
+            if curl -fSL "$URL" | tar xz; then
+              echo "Download successful"
+              ls -lh lib/
+              echo "MBGL_SYS_LIB_DIR=$(pwd)/lib" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            if [ "$i" -lt "$MAX_RETRIES" ]; then
+              echo "Attempt $i/$MAX_RETRIES failed, waiting ${DELAY}s before retry..."
+              sleep $DELAY
+            fi
+          done
+          echo "Failed to download native binaries after $MAX_RETRIES attempts"
+          echo "build-mbgl-native.yml may still be running; this job will re-run on the next main push."
+          exit 1
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -32,9 +79,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PAT }}
 
-  # Job 2: When a Release PR is merged, create tags + GitHub Releases + publish crates
+  # Job 2: When a Release PR is merged, create tags + GitHub Releases + publish crates.
   # With release_always = false, this only acts when the triggering commit
-  # comes from a merged release-plz PR. Otherwise it's a no-op.
+  # comes from a merged release-plz PR. Otherwise it's a no-op. Same mbgl-sys
+  # asset setup as release-pr so the release command's verify step succeeds.
   release:
     name: Release
     runs-on: ubuntu-latest
@@ -49,6 +97,43 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Install MapLibre Native system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libuv1-dev \
+            libpng-dev \
+            libicu-dev \
+            libjpeg-turbo8-dev \
+            libwebp-dev \
+            libsqlite3-dev \
+            libopengl-dev \
+            libgl-dev \
+            libgdal-dev
+
+      - name: Download pre-built MapLibre Native binaries
+        run: |
+          MBGL_VERSION=$(grep '^version' crates/mbgl-sys/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          TARGET=x86_64-unknown-linux-gnu
+          URL="https://github.com/${{ github.repository }}/releases/download/mbgl-sys-v${MBGL_VERSION}/mbgl-native-${TARGET}.tar.gz"
+          echo "Downloading mbgl-sys v${MBGL_VERSION} for ${TARGET}..."
+
+          MAX_RETRIES=5
+          DELAY=60
+          for i in $(seq 1 $MAX_RETRIES); do
+            if curl -fSL "$URL" | tar xz; then
+              echo "Download successful"
+              echo "MBGL_SYS_LIB_DIR=$(pwd)/lib" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            if [ "$i" -lt "$MAX_RETRIES" ]; then
+              echo "Attempt $i/$MAX_RETRIES failed, waiting ${DELAY}s before retry..."
+              sleep $DELAY
+            fi
+          done
+          echo "Failed to download native binaries after $MAX_RETRIES attempts"
+          exit 1
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
