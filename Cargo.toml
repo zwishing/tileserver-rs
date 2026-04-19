@@ -245,7 +245,7 @@ geo              = { workspace = true, optional = true }
 duckdb           = { workspace = true, optional = true }
 
 [features]
-default = ["postgres", "raster", "mlt", "cloud"]
+default = ["postgres", "raster", "mlt", "cloud", "stac"]
 frontend = ["rust-embed"]
 postgres = ["deadpool-postgres", "tokio-postgres", "postgres-types", "semver", "dep:ogcapi-types", "dep:geojson", "dep:cql2"]
 postgres-integration = ["postgres"]
