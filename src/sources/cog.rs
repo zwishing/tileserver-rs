@@ -2,6 +2,7 @@
 
 use async_trait::async_trait;
 use bytes::Bytes;
+use gdal::DatasetOptions;
 use gdal::raster::{Buffer, ResampleAlg};
 use gdal::spatial_ref::SpatialRef;
 use gdal::{Dataset, DriverManager};
@@ -23,6 +24,18 @@ pub struct CogSource {
     default_resampling: ResamplingMethod,
     band_count: usize,
     colormap: Option<ColorMapConfig>,
+    /// COG source path — kept so we can re-open the dataset with an
+    /// `OVERVIEW_LEVEL=N` open option when a low-zoom tile is smaller
+    /// than the full-resolution source.  This is the titiler/rio-tiler
+    /// `get_overview_level` optimisation; without it a z0 world tile
+    /// forces GDAL to read the entire source raster.
+    path: String,
+    /// Per-overview resolutions in EPSG:3857 metres/pixel, sorted
+    /// finest → coarsest.  `overview_resolutions[0]` is the full-res
+    /// source; `overview_resolutions[i+1]` is the i-th overview
+    /// (matching GDAL's `OVERVIEW_LEVEL=i` numbering where
+    /// level 0 is the first overview, NOT the base).
+    overview_resolutions: Vec<f64>,
 }
 
 impl CogSource {
@@ -41,7 +54,7 @@ impl CogSource {
         let dataset = dataset_cache::global().get_or_open(&path).await?;
 
         let dataset_for_inspect = Arc::clone(&dataset);
-        let (band_count, bounds) = tokio::task::spawn_blocking(move || {
+        let (band_count, bounds, overview_resolutions) = tokio::task::spawn_blocking(move || {
             let guard = dataset_for_inspect.blocking_lock();
             let band_count = guard.raster_count();
             if band_count == 0 {
@@ -50,7 +63,8 @@ impl CogSource {
                 ));
             }
             let bounds = get_wgs84_bounds(&guard)?;
-            Ok::<_, TileServerError>((band_count, bounds))
+            let overview_resolutions = compute_overview_resolutions(&guard)?;
+            Ok::<_, TileServerError>((band_count, bounds, overview_resolutions))
         })
         .await
         .map_err(|e| TileServerError::RasterError(format!("task failed: {e}")))??;
@@ -78,6 +92,8 @@ impl CogSource {
             default_resampling: resampling,
             band_count,
             colormap,
+            path,
+            overview_resolutions,
         })
     }
 
@@ -96,26 +112,63 @@ impl CogSource {
     ) -> Result<Option<TileData>> {
         let (minx, miny, maxx, maxy) = tile_to_web_mercator_bbox(z, x, y);
 
-        let dataset = self.dataset.clone();
+        let target_resolution = (maxx - minx) / f64::from(tile_size);
+        let overview_index = select_overview_level(&self.overview_resolutions, target_resolution);
+
         let band_count = self.band_count;
         let colormap = self.colormap.clone();
+        let path = self.path.clone();
+        let dataset = self.dataset.clone();
 
         let png_data = tokio::task::spawn_blocking(move || {
-            let dataset = dataset.blocking_lock();
-            render_tile_from_dataset(
-                &dataset,
-                minx,
-                miny,
-                maxx,
-                maxy,
-                tile_size,
-                band_count,
-                resampling.into(),
-                colormap.as_ref(),
-            )
+            let render_from = |dataset: &Dataset| {
+                render_tile_from_dataset(
+                    dataset,
+                    minx,
+                    miny,
+                    maxx,
+                    maxy,
+                    tile_size,
+                    band_count,
+                    resampling.into(),
+                    colormap.as_ref(),
+                )
+            };
+
+            // `overview_index` of 0 means "use the full-resolution base", which is
+            // already the cached dataset.  Any other value means "read from overview
+            // level `overview_index - 1`", which requires re-opening the source with
+            // GDAL's `OVERVIEW_LEVEL` open option.
+            //
+            // We do NOT cache the overview-level-opened dataset — each tile request
+            // may pick a different overview level, so a cache keyed by (path, idx)
+            // would grow unboundedly per-zoom.  The cost is a single `Dataset::open_ex`
+            // per tile (~1-5ms on warm OS page cache), recovered many-times-over by
+            // not reading the full-res raster.
+            if overview_index == 0 {
+                let dataset = dataset.blocking_lock();
+                render_from(&dataset)
+            } else {
+                let ovr_level = overview_index - 1;
+                let ovr_arg = format!("OVERVIEW_LEVEL={ovr_level}");
+                let open_options: [&str; 1] = [&ovr_arg];
+                let dataset = Dataset::open_ex(
+                    &path,
+                    DatasetOptions {
+                        open_options: Some(&open_options),
+                        ..DatasetOptions::default()
+                    },
+                )
+                .map_err(|e| {
+                    TileServerError::RasterError(format!(
+                        "failed to open {path} with OVERVIEW_LEVEL={ovr_level}: {e}"
+                    ))
+                })?;
+                render_from(&dataset)
+            }
         })
         .await
-        .map_err(|e| TileServerError::RasterError(format!("Task failed: {}", e)))??;
+        .map_err(|e| TileServerError::RasterError(format!("task failed: {e}")))??;
 
         Ok(Some(TileData {
             data: Bytes::from(png_data),
@@ -139,6 +192,90 @@ impl TileSource for CogSource {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+}
+
+/// Collect the full-resolution pixel size and each overview's
+/// pixel size from band 1 of the COG.  Resolutions are expressed
+/// in the source's native linear unit (typically metres for EPSG:3857
+/// COGs and decimal-degrees for EPSG:4326 COGs).  The returned vector
+/// is always non-empty and sorted finest → coarsest.
+///
+/// The source resolution is computed from the GeoTransform's pixel
+/// size (index 1, GDAL convention is [ulx, px_size_x, rot_x, uly,
+/// rot_y, -px_size_y]).  Overview resolutions are derived from the
+/// overview's pixel count ratio to the base, matching the rio-tiler
+/// formula `src_res * (src_width / overview_width)`.
+fn compute_overview_resolutions(dataset: &Dataset) -> Result<Vec<f64>> {
+    let transform = dataset
+        .geo_transform()
+        .map_err(|e| TileServerError::RasterError(format!("failed to get geotransform: {e}")))?;
+    let src_res = transform[1].abs();
+    let (src_width, _) = dataset.raster_size();
+    let src_width = src_width as f64;
+
+    let band = dataset
+        .rasterband(1)
+        .map_err(|e| TileServerError::RasterError(format!("failed to read band 1: {e}")))?;
+    let overview_count = band
+        .overview_count()
+        .map_err(|e| TileServerError::RasterError(format!("failed to get overview count: {e}")))?;
+
+    let mut resolutions = Vec::with_capacity(1 + overview_count.max(0) as usize);
+    resolutions.push(src_res);
+
+    for i in 0..overview_count {
+        let ovr = band.overview(i as usize).map_err(|e| {
+            TileServerError::RasterError(format!("failed to get overview {i}: {e}"))
+        })?;
+        let (ovr_width, _) = ovr.size();
+        // Classic COG overview: decimation is src_width / ovr_width
+        // (always ≥ 2 in a well-built COG, producing coarser res).
+        let ovr_res = src_res * (src_width / ovr_width as f64);
+        resolutions.push(ovr_res);
+    }
+
+    Ok(resolutions)
+}
+
+/// Pick the overview level to read from when rendering at the given
+/// target resolution (in the same unit as `overview_resolutions`).
+///
+/// Returns `0` for "use the base raster" or `N` for "use GDAL's
+/// OVERVIEW_LEVEL=N-1".  The algorithm mirrors rio-tiler's
+/// `get_overview_level` with a 50 % midpoint strategy: for a target
+/// resolution between levels, pick the **coarser** one iff the target
+/// is closer to it than to the finer level.  This gives the correct
+/// behaviour when `target_res` matches the base (picks level 0) AND
+/// when `target_res` is between overviews (picks the coarser one).
+fn select_overview_level(overview_resolutions: &[f64], target_resolution: f64) -> usize {
+    if overview_resolutions.len() <= 1 {
+        return 0;
+    }
+
+    // Target resolution is at-or-finer than the base: no overview helps.
+    if target_resolution <= overview_resolutions[0] {
+        return 0;
+    }
+
+    // Walk finest → coarsest; stop at the first overview whose resolution
+    // exceeds the target, then compare midpoint with the previous level.
+    for idx in 1..overview_resolutions.len() {
+        let current = overview_resolutions[idx];
+        let prev = overview_resolutions[idx - 1];
+        if current >= target_resolution {
+            // 50 % midpoint rule: if target is closer to the finer level
+            // (prev), keep the finer one; otherwise promote to coarser.
+            let midpoint = (prev + current) / 2.0;
+            return if target_resolution < midpoint {
+                idx - 1
+            } else {
+                idx
+            };
+        }
+    }
+
+    // Target is coarser than every overview — use the coarsest available.
+    overview_resolutions.len() - 1
 }
 
 fn tile_to_web_mercator_bbox(z: u8, x: u32, y: u32) -> (f64, f64, f64, f64) {
@@ -331,6 +468,51 @@ mod tests {
         assert!((miny - (-WEB_MERCATOR_EXTENT)).abs() < 1e-6);
         assert!((maxx - WEB_MERCATOR_EXTENT).abs() < 1e-6);
         assert!((maxy - WEB_MERCATOR_EXTENT).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_select_overview_level_no_overviews() {
+        // Single-element resolutions (no overviews built): always pick base.
+        let resolutions = vec![10.0];
+        assert_eq!(select_overview_level(&resolutions, 1.0), 0);
+        assert_eq!(select_overview_level(&resolutions, 10.0), 0);
+        assert_eq!(select_overview_level(&resolutions, 1000.0), 0);
+    }
+
+    #[test]
+    fn test_select_overview_level_target_finer_than_base() {
+        // If the caller asks for resolution finer than the base, no overview
+        // could ever help — stay at base.
+        let resolutions = vec![10.0, 20.0, 40.0, 80.0];
+        assert_eq!(select_overview_level(&resolutions, 5.0), 0);
+        assert_eq!(select_overview_level(&resolutions, 10.0), 0);
+    }
+
+    #[test]
+    fn test_select_overview_level_midpoint_rule() {
+        // base=10, overviews at 20, 40, 80.
+        let resolutions = vec![10.0, 20.0, 40.0, 80.0];
+
+        // Between base (10) and first overview (20): midpoint = 15.
+        // target=14 → closer to base → pick base (0).
+        assert_eq!(select_overview_level(&resolutions, 14.0), 0);
+        // target=16 → closer to first overview → pick overview 1 (returns 1).
+        assert_eq!(select_overview_level(&resolutions, 16.0), 1);
+
+        // Between first (20) and second (40) overview: midpoint = 30.
+        assert_eq!(select_overview_level(&resolutions, 29.0), 1);
+        assert_eq!(select_overview_level(&resolutions, 31.0), 2);
+
+        // Exactly at a level: "close enough to step up".
+        assert_eq!(select_overview_level(&resolutions, 20.0), 1);
+    }
+
+    #[test]
+    fn test_select_overview_level_target_coarser_than_all() {
+        // Target resolution exceeds the coarsest overview — clamp to it.
+        let resolutions = vec![10.0, 20.0, 40.0, 80.0];
+        assert_eq!(select_overview_level(&resolutions, 160.0), 3);
+        assert_eq!(select_overview_level(&resolutions, 10_000.0), 3);
     }
 
     #[test]

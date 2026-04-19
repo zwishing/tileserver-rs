@@ -67,11 +67,15 @@ services:
         condition: service_healthy
     profiles:
       - full
+      - all
 
   tileserver-rs-raster:
     image: ghcr.io/vinayakkulkarni/tileserver-rs:2.19.0
+    # 8904 to avoid collision with tileserver-rs (8901); the two services
+    # can now coexist in the same `docker compose up` invocation and the
+    # harness picks the right endpoint via run-benchmarks.js config.
     ports:
-      - "8901:8080"
+      - "8904:8080"
     volumes:
       - ../data:/data:ro
       - ../configs/benchmark-raster.toml:/app/config.toml:ro

@@ -83,13 +83,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
 ENV PATH="/root/.cargo/bin:${PATH}"
 ENV MBGL_SYS_LIB_DIR=/app/lib
 
-# Compiler optimisation tier.  `TARGET_CPU=x86-64-v3` (the default for
-# amd64 images) targets AVX2 + BMI2 which every x86 CPU since 2013
-# ships.  The `fast` tier sets `TARGET_CPU=native` for on-premises
-# operators who pin the image to a specific host; see `release-docker-images.yml`
-# for the matching `:fast` tag in the release matrix.
+# Compiler optimisation tier.  Per-architecture defaults:
+#   - amd64 → `x86-64-v3` (AVX2 + BMI2; every x86 CPU since 2013).
+#   - arm64 → `neoverse-n1` (Graviton2 / Ampere Altra / Cobalt, default
+#     in every major cloud ARM VM as of 2025).
+# Override `TARGET_CPU` explicitly for the `:fast` variant (AVX-512 / SVE2)
+# or to `native` for on-prem builds pinned to specific host hardware.
+# See `release-docker-images.yml` for how the release matrix passes this.
+# NOTE: `TARGET_CPU=x86-64-v3` is ONLY valid on amd64; on arm64 it triggers
+# a ring-crate static-NEON assert and kills the build.  Always branch on
+# `TARGETARCH` before using a target-cpu string as the fallback.
+# Cargo reads a per-user config at `~/.cargo/config.toml`; write the
+# selected flags there so both the pre-built dependency cache layer
+# AND the final source build pick them up automatically.
+ARG TARGETARCH
 ARG TARGET_CPU
-ENV RUSTFLAGS="-C target-cpu=${TARGET_CPU:-x86-64-v3}"
+RUN mkdir -p /root/.cargo && \
+    if [ -n "${TARGET_CPU}" ]; then \
+      CPU="${TARGET_CPU}"; \
+    elif [ "${TARGETARCH}" = "arm64" ]; then \
+      CPU="neoverse-n1"; \
+    else \
+      CPU="x86-64-v3"; \
+    fi && \
+    echo "[build]" > /root/.cargo/config.toml && \
+    echo "rustflags = [\"-C\", \"target-cpu=${CPU}\"]" >> /root/.cargo/config.toml && \
+    cat /root/.cargo/config.toml
 
 WORKDIR /app
 

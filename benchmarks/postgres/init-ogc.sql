@@ -1,7 +1,13 @@
 -- ============================================================================
 -- OGC API Features benchmark data (cities / countries / roads)
--- Loaded after init.sql by docker-entrypoint-initdb.d (alphabetical order)
+-- NOTE: docker-entrypoint-initdb.d runs files in C-locale sort order, and
+-- `init-ogc.sql` sorts BEFORE `init.sql` (because `-` = 0x2D < `.` = 0x2E).
+-- So we defensively load PostGIS here too; `IF NOT EXISTS` makes this
+-- idempotent when `init.sql` later runs the same statement.
 -- ============================================================================
+
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS postgis_topology;
 
 CREATE TABLE IF NOT EXISTS cities (
   id SERIAL PRIMARY KEY,
