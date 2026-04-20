@@ -652,7 +652,7 @@ async fn composite_mosaic(
 
     let mut method = mosaic::build(template.pixel_selection);
     let mut fed_any = false;
-    for (asset, render_result) in ordered_assets.iter().zip(render_results.into_iter()) {
+    for (asset, render_result) in ordered_assets.iter().zip(render_results) {
         let Some(tile) = render_result? else { continue };
         let raster = match decode::from_bytes(&tile.data) {
             Ok(r) => r,
