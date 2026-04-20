@@ -1,22 +1,32 @@
 name: Release Please
 
-# Opens/updates a running "chore: release X.Y.Z" PR aggregating unreleased
-# commits into a CHANGELOG.md + version bump. Merging the PR pushes a `vX.Y.Z`
-# tag, which fan-out-triggers the downstream release workflows via their
-# `push: tags: ['v*']` triggers (no explicit dispatch needed):
+# Manages two independent release trains:
 #
-#   - release-linux-binaries.yml
-#   - release-macos-binaries.yml
-#   - release-docker-images.yml
-#   - release-sample-data.yml
-#   - release-homebrew.yml (chains after macOS + Linux via workflow_run)
+# 1. tileserver-rs (root crate)
+#    - Release PR title: "chore(main): release X.Y.Z"
+#    - Merge → pushes `vX.Y.Z` tag → triggers:
+#        release-linux-binaries.yml
+#        release-macos-binaries.yml
+#        release-docker-images.yml
+#        release-sample-data.yml
+#        release-homebrew.yml (chains after macOS + Linux via workflow_run)
 #
-# mbgl-sys is NOT managed here. It's released manually by bumping its version
-# in crates/mbgl-sys/Cargo.toml + pushing a `mbgl-sys-vX.Y.Z` tag, which
-# triggers build-mbgl-native.yml. We tried release-plz in Apr 2026 but
-# abandoned it because its internal `cargo package --workspace --verify`
-# fails on mbgl-sys's FFI build.rs (upstream release-plz#2651). release-please
-# never invokes cargo so it sidesteps the problem entirely.
+# 2. mbgl-sys (FFI crate)
+#    - Release PR title: "chore(main): release mbgl-sys X.Y.Z"
+#    - Merge → pushes `mbgl-sys-vX.Y.Z` tag → triggers build-mbgl-native.yml
+#      which builds platform-native .a libraries and uploads them as assets
+#      on the mbgl-sys-vX.Y.Z GitHub Release. Not published to crates.io
+#      (tileserver-rs has publish = false, so no crates.io dep chain needed).
+#
+# release-please bumps each package only when commit messages reference its
+# path (scoped commits). `crates/mbgl-sys` is in the root's `exclude-paths`
+# list so feat/fix commits touching only that directory bump mbgl-sys but
+# NOT tileserver-rs.
+#
+# We tried release-plz in Apr 2026 but abandoned it because its internal
+# `cargo package --workspace --verify` fails on mbgl-sys's FFI build.rs
+# (upstream release-plz#2651). release-please never invokes cargo, so it
+# sidesteps the problem entirely.
 
 on:
   push:
