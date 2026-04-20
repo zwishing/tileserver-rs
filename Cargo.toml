@@ -161,15 +161,14 @@ publish = false
 workspace = true
 
 [dependencies]
-# MapLibre Native bindings for server-side rendering
-# Explicit version (not just workspace inheritance) is required for
-# `cargo package --workspace` to pass manifest verification. Without
-# this, release-plz's invocation fails with:
-#   "dependency `mbgl-sys` does not specify a version"
-# because cargo's package-time manifest normalisation doesn't always
-# carry `version` through `{ workspace = true }` when the workspace
-# entry uses `path = ...` alongside `version = ...`. See:
-#   https://github.com/rust-lang/cargo/issues/13691
+# MapLibre Native bindings for server-side rendering. Explicit `version`
+# (not just workspace inheritance) is required: any tool that runs
+# `cargo package --workspace` — e.g. release automation, `cargo publish`,
+# some IDE checks — fails manifest verification with
+# "dependency `mbgl-sys` does not specify a version" because cargo's
+# package-time manifest normalisation doesn't always carry `version`
+# through `{ workspace = true }` when the workspace entry combines
+# `path = ...` with `version = ...`. See rust-lang/cargo#13691.
 mbgl-sys = { workspace = true, version = "0.1.4" }
 anyhow           = { workspace = true }
 arc-swap         = { workspace = true }

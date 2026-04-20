@@ -511,12 +511,12 @@ Deployments are triggered on push to `main` when files in `marketing/` change.
 
 ## Releases
 
-This project uses [release-plz](https://release-plz.ieni.dev/) for automated releases based on [Conventional Commits](https://www.conventionalcommits.org/).
+This project uses [release-please](https://github.com/googleapis/release-please) for automated releases based on [Conventional Commits](https://www.conventionalcommits.org/).
 
 **How it works:**
-1. Commits to `main` with conventional commit messages (`feat:`, `fix:`, etc.) trigger release-plz to create/update a **Release PR**
-2. The Release PR contains version bumps in `Cargo.toml` and changelog updates
-3. Merging the Release PR creates GitHub Releases with tags, which trigger platform builds
+1. Commits to `main` with conventional commit messages (`feat:`, `fix:`, etc.) trigger release-please to create/update a **Release PR**
+2. The Release PR contains version bumps in `Cargo.toml`, `apps/client/package.json`, `homebrew/Formula/tileserver-rs.rb`, and changelog updates
+3. Merging the Release PR pushes a `vX.Y.Z` tag, which triggers the Linux/macOS binary, Docker image, sample-data, and Homebrew formula workflows
 
 **Version bumping:**
 - `feat:` commits → minor version (0.1.0 → 0.2.0)

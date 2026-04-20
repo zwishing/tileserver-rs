@@ -280,21 +280,23 @@ chore(deps): upgrade axum to 0.8
 
 ## Release Process
 
-This project uses [release-plz](https://release-plz.dev/) for automated releases. You don't need to manually bump versions or write changelogs.
+This project uses [release-please](https://github.com/googleapis/release-please) for automated releases of `tileserver-rs`. You don't need to manually bump versions or write changelogs.
+
+> **mbgl-sys is released manually.** When the FFI bindings change, bump `crates/mbgl-sys/Cargo.toml` and push a `mbgl-sys-vX.Y.Z` tag. `build-mbgl-native.yml` handles the rest (binary assets + `cargo publish` to crates.io). release-please does not manage mbgl-sys.
 
 ### How It Works
 
 1. **Commit with conventional messages** - Use `feat:`, `fix:`, `docs:`, etc.
-2. **release-plz creates a Release PR** - After merging to `main`, release-plz automatically creates/updates a Release PR with:
-   - Version bump in `Cargo.toml`
+2. **release-please creates a Release PR** - After merging to `main`, release-please automatically creates/updates a Release PR with:
+   - Version bump in `Cargo.toml`, `apps/client/package.json`, and `homebrew/Formula/tileserver-rs.rb`
    - Auto-generated `CHANGELOG.md`
 3. **Merge the Release PR** - When ready to release, merge the Release PR
-4. **Tags trigger builds** - Merging creates tags (`v*`), which trigger:
+4. **Tags trigger builds** - Merging pushes a `vX.Y.Z` tag, which triggers:
    - Linux binary builds (amd64 + arm64, full + headless)
-   - macOS ARM64 binary build
-   - Docker image build and push (multi-arch)
-   - Homebrew formula update
-   - crates.io publish for `mbgl-sys`
+   - macOS ARM64 + AMD64 binary builds
+   - Docker image build and push (multi-arch, default + `-fast`)
+   - Sample data bundle publish
+   - Homebrew formula auto-update (chained via `workflow_run` after binaries)
 
 ### Version Bumping Rules
 

@@ -1,0 +1,41 @@
+name: Release Please
+
+# Opens/updates a running "chore: release X.Y.Z" PR aggregating unreleased
+# commits into a CHANGELOG.md + version bump. Merging the PR pushes a `vX.Y.Z`
+# tag, which fan-out-triggers the downstream release workflows via their
+# `push: tags: ['v*']` triggers (no explicit dispatch needed):
+#
+#   - release-linux-binaries.yml
+#   - release-macos-binaries.yml
+#   - release-docker-images.yml
+#   - release-sample-data.yml
+#   - release-homebrew.yml (chains after macOS + Linux via workflow_run)
+#
+# mbgl-sys is NOT managed here. It's released manually by bumping its version
+# in crates/mbgl-sys/Cargo.toml + pushing a `mbgl-sys-vX.Y.Z` tag, which
+# triggers build-mbgl-native.yml. We tried release-plz in Apr 2026 but
+# abandoned it because its internal `cargo package --workspace --verify`
+# fails on mbgl-sys's FFI build.rs (upstream release-plz#2651). release-please
+# never invokes cargo so it sidesteps the problem entirely.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'vinayakkulkarni'
+    steps:
+      - name: Release Please
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.RELEASE_PAT }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
