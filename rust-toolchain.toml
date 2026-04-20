@@ -1,0 +1,18 @@
+# Pin the Rust toolchain so local dev matches CI exactly.
+#
+# WHY: Homebrew's `rust` bottle lags behind the latest stable release by up
+# to ~2 weeks. Without this pin, `rustc --version` on a dev machine can be
+# 1.94.1 while CI (via `dtolnay/rust-toolchain@stable`) installs 1.95.0 —
+# and new lints that CI enforces (e.g. `clippy::collapsible_match`,
+# `clippy::useless_conversion`) will silently pass locally then fail in CI.
+#
+# Format: https://rust-lang.github.io/rustup/overrides.html#the-toolchain-file
+#
+# If you need to bump this:
+#   1. update `channel` below to the new stable version
+#   2. re-run `cargo clippy --all-targets --all-features -- -D warnings` locally
+#   3. fix any newly-promoted lint failures BEFORE pushing
+[toolchain]
+channel = "1.95"
+components = ["rustfmt", "clippy"]
+profile = "minimal"
