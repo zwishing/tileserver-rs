@@ -98,6 +98,17 @@ ENV MBGL_SYS_LIB_DIR=/app/lib
 # AND the final source build pick them up automatically.
 ARG TARGETARCH
 ARG TARGET_CPU
+# Optional extra rustflags appended after `-C target-cpu=<CPU>`.  Used by the
+# `:fast` amd64 variant to add `+aes,+sha,+rdrnd` on top of x86-64-v3 for
+# crypto/rand speedups (without AVX-512 — GitHub runners lack it; see
+# release-docker-images.yml HISTORY comment).  Format: pass flags as a single
+# space-separated token pair per -C arg, e.g. `-C target-feature=+aes,+sha`.
+# Cargo's rustflags array requires `-C` and its value as SEPARATE elements
+# (not "-C target-feature=..." as one string — that fails "failed to run
+# rustc to learn about target-specific info").  The awk below splits the
+# input on whitespace into consecutive pairs and emits each as two JSON
+# array elements: `"-C", "target-feature=+aes,+sha,+rdrnd"`.
+ARG RUSTFLAGS_EXTRA=""
 RUN mkdir -p /root/.cargo && \
     if [ -n "${TARGET_CPU}" ]; then \
       CPU="${TARGET_CPU}"; \
@@ -107,7 +118,13 @@ RUN mkdir -p /root/.cargo && \
       CPU="x86-64-v3"; \
     fi && \
     echo "[build]" > /root/.cargo/config.toml && \
-    echo "rustflags = [\"-C\", \"target-cpu=${CPU}\"]" >> /root/.cargo/config.toml && \
+    EXTRA_FLAGS_JSON=""; \
+    if [ -n "${RUSTFLAGS_EXTRA}" ]; then \
+      EXTRA_FLAGS_JSON=$(echo "${RUSTFLAGS_EXTRA}" | awk '{ \
+        for (i=1; i<=NF; i+=2) printf ", \"%s\", \"%s\"", $i, $(i+1) \
+      }'); \
+    fi && \
+    echo "rustflags = [\"-C\", \"target-cpu=${CPU}\"${EXTRA_FLAGS_JSON}]" >> /root/.cargo/config.toml && \
     cat /root/.cargo/config.toml
 
 WORKDIR /app

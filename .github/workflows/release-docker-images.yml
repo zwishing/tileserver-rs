@@ -80,16 +80,25 @@ jobs:
             arch: arm64
             variant: headless
             features: ''
-          # Fast builds — -C target-cpu=x86-64-v4 (AVX-512) on amd64 and
-          # neoverse-v1 on arm64.  Operators pinning images to modern
-          # hardware (post-2017 Intel/AMD server CPUs; Graviton3/3E; Azure
-          # Ampere Altra Max) pull the `-fast` tag for extra SIMD headroom.
+          # Fast builds — tuned for modern server CPUs but still buildable on
+          # GitHub's hosted runners (which lack AVX-512 — see below). The `:fast`
+          # amd64 tag adds AES-NI + SHA + RDRND on top of the baseline x86-64-v3
+          # for crypto/rand speedups without blowing up CI. arm64 targets
+          # Graviton3/3E + Ampere Altra Max via neoverse-v1.
+          #
+          # HISTORY: target_cpu=x86-64-v4 (AVX-512) was tried on v2.26.2 and
+          # caused SIGILL during build — GitHub's ubuntu-latest runners use
+          # CPUs without AVX-512, so the build-script for num-traits (compiled
+          # with AVX-512) crashed when cargo tried to execute it at build time.
+          # Reverted to x86-64-v3+aes+sha+rdrnd (PR TBD, Apr 2026). DO NOT
+          # restore x86-64-v4 without confirming the build host supports it.
           - runner: ubuntu-latest
             platform: linux/amd64
             arch: amd64
             variant: fast
             features: frontend geoparquet stac
-            target_cpu: x86-64-v4
+            target_cpu: x86-64-v3
+            rustflags_extra: "-C target-feature=+aes,+sha,+rdrnd"
           - runner: ubuntu-24.04-arm
             platform: linux/arm64
             arch: arm64
@@ -130,6 +139,7 @@ jobs:
           build-args: |
             FEATURES=${{ matrix.features }}
             TARGET_CPU=${{ matrix.target_cpu || (matrix.arch == 'arm64' && 'neoverse-n1' || 'x86-64-v3') }}
+            RUSTFLAGS_EXTRA=${{ matrix.rustflags_extra || '' }}
           push: ${{ github.ref_name == 'main' || startsWith(github.ref, 'refs/tags/') }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.arch }}-${{ matrix.variant }}
