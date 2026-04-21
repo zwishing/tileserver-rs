@@ -103,19 +103,26 @@ moka             = { version = "0.12.15", features = ["future"] }
 # OGC API (optional, used with postgres)
 ogcapi-types     = { version = "0.3.0", features = ["features", "common"] }
 geojson          = "1.0.0"
-cql2             = "0.5.3"
+cql2             = "0.5.4"
 
 # GeoParquet (optional)
 parquet          = { version = "58", default-features = false, features = ["arrow", "zstd", "snap", "lz4", "async"] }
 arrow-array      = "58"
 arrow-schema     = "58"
 arrow-cast       = "58"
-# geo 0.33 is available but blocked by cql2 0.5.3's transitive `geo ^0.31.0`
+# geo 0.33 is available but blocked by cql2's transitive `geo ^0.31.0`
 # constraint: geo 0.31 pins `i_overlay ^4.0`, geo 0.33 pins `i_overlay ^4.5`,
 # and Cargo cannot resolve both in the same graph. Our own code has zero
 # `use geo::…` imports (verified Apr 2026) — the workspace dep only exists for
-# the unfinished `geoparquet` feature. Upstream tracking issue:
-# https://github.com/developmentseed/cql2-rs/issues/199 (filed Apr 21 2026).
+# the unfinished `geoparquet` feature. Upstream history (tricky):
+#   - Filed developmentseed/cql2-rs#199 on Apr 21 2026
+#   - Their PR #201 merged the geo 0.31→0.32 bump at 15:49 same day
+#   - Their stale v0.5.4 release-plz PR #175 merged 15 min later and
+#     OVERWROTE Cargo.toml back to geo 0.31 (branch was 7 weeks old)
+#   - Result: cql2 0.5.4 on crates.io STILL declares `geo ^0.31.0`
+#   - Issue #199 was closed but functionally not resolved
+# Status as of Apr 21 2026: re-verified at cql2 0.5.4 — still blocked.
+# Will unblock only when cql2 cuts v0.5.5+ AFTER re-applying the geo bump.
 # DO NOT bump to 0.33 without verifying `cargo check --features "postgres
 # geoparquet"` resolves cleanly — the i_overlay conflict aborts resolution.
 geo              = "0.32"
