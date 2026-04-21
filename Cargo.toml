@@ -8,7 +8,7 @@ repository = "https://github.com/vinayakkulkarni/tileserver-rs"
 
 [workspace.dependencies]
 # Internal crates
-mbgl-sys = { path = "crates/mbgl-sys", version = "0.1.4" }
+mbgl-sys = { path = "crates/mbgl-sys", version = "0.1.5" }
 
 # Web framework
 axum             = { version = "0.8.9", features = ["multipart"] }
@@ -169,7 +169,7 @@ workspace = true
 # package-time manifest normalisation doesn't always carry `version`
 # through `{ workspace = true }` when the workspace entry combines
 # `path = ...` with `version = ...`. See rust-lang/cargo#13691.
-mbgl-sys = { workspace = true, version = "0.1.4" }
+mbgl-sys = { workspace = true, version = "0.1.5" }
 anyhow           = { workspace = true }
 arc-swap         = { workspace = true }
 async-trait      = { workspace = true }
