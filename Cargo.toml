@@ -110,6 +110,14 @@ parquet          = { version = "58", default-features = false, features = ["arro
 arrow-array      = "58"
 arrow-schema     = "58"
 arrow-cast       = "58"
+# geo 0.33 is available but blocked by cql2 0.5.3's transitive `geo ^0.31.0`
+# constraint: geo 0.31 pins `i_overlay ^4.0`, geo 0.33 pins `i_overlay ^4.5`,
+# and Cargo cannot resolve both in the same graph. Our own code has zero
+# `use geo::…` imports (verified Apr 2026) — the workspace dep only exists for
+# the unfinished `geoparquet` feature. Stay at 0.32 until cql2 upstream
+# (developmentseed/cql2-rs) bumps its geo constraint; track via
+# https://crates.io/crates/cql2/versions. DO NOT bump to 0.33 without
+# verifying `cargo check --features "postgres geoparquet"` resolves cleanly.
 geo              = "0.32"
 
 # DuckDB (optional)
