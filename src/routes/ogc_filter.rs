@@ -179,41 +179,51 @@ fn reject_non_roundtrip(
 /// Canonicalises CQL2-text for the round-trip comparison.
 ///
 /// `cql2::to_text()` normalises the user input by wrapping groups in
-/// parentheses, standardising casing, and adding spaces after commas. To
-/// tell apart a legitimate difference (whitespace, casing, redundant
-/// parens the user omitted) from a malicious difference (dropped tokens),
-/// we strip everything the normaliser is allowed to change:
+/// parentheses, standardising casing, and inserting whitespace around
+/// operators and after commas. To tell apart a legitimate difference
+/// (whitespace, casing, redundant parens the user omitted) from a
+/// malicious difference (dropped tokens), we strip everything the
+/// normaliser is allowed to change:
 ///
 /// - parentheses are removed (cql2 always parenthesises nested exprs)
-/// - whitespace is collapsed to single spaces then stripped around `,`
-/// - casing is lowered uniformly
+/// - every whitespace run OUTSIDE a quoted string is removed entirely
+/// - casing is lowered uniformly OUTSIDE quoted strings (string literals
+///   preserve their original casing — `name = 'Paris'` must not canonicalise
+///   to `name='paris'` or we'd accept `'PARIS'` as equivalent)
 ///
 /// The remaining token stream must match byte-for-byte between the user's
 /// input and the round-tripped output. Any SQL trailer
 /// (`; DROP TABLE ...; --`) is detectable here because it contains
 /// semicolons or `--` that cql2 cannot emit itself.
+///
+/// Whitespace stripping (not collapsing) is load-bearing: users write
+/// `population>5000000` (no spaces), cql2 re-emits `(population > 5000000)`
+/// (with spaces). A collapsing canonicaliser would see these as different
+/// ("population>5000000" vs "population > 5000000") and reject the filter.
 fn canonicalise_cql_text(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
-    let mut prev_space = true;
+    let mut in_string = false;
+    let mut string_quote = '\0';
     for ch in s.chars() {
+        if in_string {
+            out.push(ch);
+            if ch == string_quote {
+                in_string = false;
+            }
+            continue;
+        }
         match ch {
+            '\'' | '"' => {
+                in_string = true;
+                string_quote = ch;
+                out.push(ch);
+            }
             '(' | ')' => continue,
-            c if c.is_whitespace() => {
-                if !prev_space && !out.is_empty() {
-                    out.push(' ');
-                    prev_space = true;
-                }
-            }
-            c => {
-                out.push(c.to_ascii_lowercase());
-                prev_space = false;
-            }
+            c if c.is_whitespace() => continue,
+            c => out.push(c.to_ascii_lowercase()),
         }
     }
-    while out.ends_with(' ') {
-        out.pop();
-    }
-    out.replace(" ,", ",").replace(", ", ",")
+    out
 }
 
 #[cfg(test)]
@@ -357,5 +367,43 @@ mod tests {
     fn rejects_property_in_json_filter_too() {
         let json = r#"{"op":"=","args":[{"property":"pg_shadow"},"x"]}"#;
         assert!(translate_filter_to_sql(json, Some("cql2-json"), &allowed()).is_err());
+    }
+
+    #[test]
+    fn accepts_filter_without_spaces_around_operators() {
+        let sql =
+            translate_filter_to_sql("population>5000000", Some("cql2-text"), &allowed()).unwrap();
+        assert!(sql.contains("population"));
+        assert!(sql.contains("5000000"));
+    }
+
+    #[test]
+    fn accepts_tight_equality() {
+        let sql = translate_filter_to_sql("iso_a2='DE'", Some("cql2-text"), &allowed()).unwrap();
+        assert!(sql.contains("iso_a2"));
+        assert!(sql.contains("'DE'"));
+    }
+
+    #[test]
+    fn accepts_between_with_varied_whitespace() {
+        let sql = translate_filter_to_sql(
+            "population  BETWEEN  1000000  AND  10000000",
+            Some("cql2-text"),
+            &allowed(),
+        )
+        .unwrap();
+        assert!(sql.to_uppercase().contains("BETWEEN"));
+    }
+
+    #[test]
+    fn canonicaliser_ignores_whitespace_around_operators() {
+        assert_eq!(
+            canonicalise_cql_text("population>5000000"),
+            canonicalise_cql_text("(population > 5000000)")
+        );
+        assert_eq!(
+            canonicalise_cql_text("iso_a2='DE'"),
+            canonicalise_cql_text("(iso_a2 = 'DE')")
+        );
     }
 }
