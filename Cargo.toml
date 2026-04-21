@@ -35,7 +35,7 @@ tracing          = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 
 # Tile formats
-pmtiles          = { version = "0.21.0", default-features = false, features = ["http-async", "mmap-async-tokio", "tilejson", "object-store"] }
+pmtiles          = { version = "0.23.0", default-features = false, features = ["http-async", "mmap-async-tokio", "tilejson", "object-store"] }
 
 # Cloud object storage (optional)
 object_store     = { version = "0.13", default-features = false, features = ["aws", "azure", "gcp"] }
