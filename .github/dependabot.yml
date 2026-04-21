@@ -27,10 +27,31 @@ updates:
       prefix-development: chore
       include: scope
 
-  # Bun - Root workspace + all apps (Dependabot ignores Bun's !apps/docs exclusion)
-  - package-ecosystem: npm
-    versioning-strategy: increase
+  # Bun - Root workspace (covers apps/client + apps/marketing via "apps/*" but
+  # NOT apps/docs — the root workspaces array explicitly sets "!apps/docs").
+  # Uses beta-ecosystem `bun` (enable-beta-ecosystems: true above) so Dependabot
+  # parses bun.lock and bumps BOTH package.json AND bun.lock in the same PR.
+  # The prior `npm` ecosystem only touched package.json, forcing a post-merge
+  # orchestrator `bun install` to re-sync bun.lock — broken in practice.
+  # Ref: https://docs.github.com/en/code-security/reference/supply-chain-security/supported-ecosystems-and-repositories
+  - package-ecosystem: bun
     directory: "/"
+    schedule:
+      interval: daily
+      time: "00:00"
+    assignees:
+      - vinayakkulkarni
+    commit-message:
+      prefix: fix
+      prefix-development: chore
+      include: scope
+
+  # Bun - apps/docs (standalone: excluded from root workspace via "!apps/docs",
+  # has its own bun.lock). Needs a separate dependabot block so its package.json
+  # + bun.lock get updated together. apps/marketing does NOT need its own block
+  # because it IS part of the root workspace and is covered by the "/" entry.
+  - package-ecosystem: bun
+    directory: "/apps/docs"
     schedule:
       interval: daily
       time: "00:00"
