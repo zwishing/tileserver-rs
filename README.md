@@ -530,6 +530,23 @@ This project uses [release-please](https://github.com/googleapis/release-please)
 - Docker image (`ghcr.io/vinayakkulkarni/tileserver-rs`) — multi-arch `linux/amd64` + `linux/arm64`
 - Homebrew formula auto-update
 
+### Known release race: retry Docker after mbgl-sys build
+
+When release-please merges a Release PR that bumps **both** `tileserver-rs` AND `mbgl-sys` (our two-package workspace), both tags (`v2.x.y` and `mbgl-sys-v0.1.z`) push simultaneously. This triggers `build-mbgl-native.yml` and `release-docker-images.yml` in parallel — but the Docker workflow starts with a pre-flight `Verify mbgl-sys assets exist` step that 404s because `build-mbgl-native` hasn't finished uploading release assets yet (build takes 10–15 min).
+
+**Symptom**: Release Docker Images run fails within seconds, job `Verify mbgl-sys assets exist` = failure, all downstream build jobs = skipped.
+
+**Fix**: wait for `Build MapLibre Native` run to conclude success, then rerun the failed Docker workflow:
+
+```bash
+gh run list --workflow release-docker-images.yml --limit 1 --json databaseId --jq '.[].databaseId' \
+  | xargs -I{} gh run rerun {}
+```
+
+The pre-flight gate is **intentional and load-bearing** — it prevents shipping a Docker image that points at non-existent mbgl-sys binaries. Do not remove it. Upstream fix blocked on release-please not supporting cross-tag `workflow_run` chaining (build-mbgl-native triggers on `mbgl-sys-v*`, Docker on `v*`).
+
+Observed on v2.26.0, v2.26.2. Manual rerun is the idiomatic workaround.
+
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines.
