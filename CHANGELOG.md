@@ -1,5 +1,36 @@
 # Changelog
 
+## [2.26.2](https://github.com/vinayakkulkarni/tileserver-rs/compare/v2.26.1...v2.26.2) (2026-04-21)
+
+
+### Bug Fixes
+
+* **deps:** bump ndarray from 0.16.1 to 0.17.2 ([1513b79](https://github.com/vinayakkulkarni/tileserver-rs/commit/1513b79b18b566016a3ec637c73e154684616d36))
+* **deps:** bump ndarray from 0.16.1 to 0.17.2 ([039aef1](https://github.com/vinayakkulkarni/tileserver-rs/commit/039aef114986a1b929df88f7ce008b1fdfc22c13))
+* **deps:** bump pmtiles from 0.21.0 to 0.23.0 ([dfb145d](https://github.com/vinayakkulkarni/tileserver-rs/commit/dfb145dcf39f937eea234d51e4afcc92062f804d))
+* **deps:** bump pmtiles from 0.21.0 to 0.23.0 ([f759bd4](https://github.com/vinayakkulkarni/tileserver-rs/commit/f759bd4167ec6f09677ba842c7cf8d8db189a664))
+
+
+### Documentation
+
+* **deps:** document why geo stays at 0.32 (blocked by cql2 transitive) ([236864b](https://github.com/vinayakkulkarni/tileserver-rs/commit/236864b21dc226f6d04460d8fffc911949849f13))
+* **deps:** link to upstream cql2-rs issue [#199](https://github.com/vinayakkulkarni/tileserver-rs/issues/199) in geo constraint comment ([94c1708](https://github.com/vinayakkulkarni/tileserver-rs/commit/94c1708b10978c8761393d5771d07d5d257b8eb3))
+
+
+### Miscellaneous
+
+* **ci:** switch dependabot to bun ecosystem + sync lockfiles ([a94afb7](https://github.com/vinayakkulkarni/tileserver-rs/commit/a94afb70e3fec3a4765598ff445db7617f175ac8))
+* **deps-dev:** bump @tailwindcss/postcss from 4.2.2 to 4.2.3 ([c964392](https://github.com/vinayakkulkarni/tileserver-rs/commit/c9643923a519c09562572be716ac3b6df1b10070))
+* **deps-dev:** bump @tailwindcss/postcss from 4.2.2 to 4.2.3 ([ec6a0dc](https://github.com/vinayakkulkarni/tileserver-rs/commit/ec6a0dc1cbea22aa710e326af29c00c5edf16150))
+* **deps-dev:** bump eslint-plugin-oxlint from 1.60.0 to 1.61.0 ([79d1321](https://github.com/vinayakkulkarni/tileserver-rs/commit/79d1321412cad412f5bb91e1bfc48cbf412bec79))
+* **deps-dev:** bump eslint-plugin-oxlint from 1.60.0 to 1.61.0 ([e1120c1](https://github.com/vinayakkulkarni/tileserver-rs/commit/e1120c137922b2bb55a9a1f9ebf8843a9f319d52))
+* **deps-dev:** bump oxlint from 1.60.0 to 1.61.0 ([453b747](https://github.com/vinayakkulkarni/tileserver-rs/commit/453b747749815709a2d63a3a538405f4e1fad80f))
+* **deps-dev:** bump oxlint from 1.60.0 to 1.61.0 ([208e4bb](https://github.com/vinayakkulkarni/tileserver-rs/commit/208e4bb9c5861d9fa48043477e75bdb134fc6f51))
+* **deps-dev:** bump tailwindcss from 4.2.2 to 4.2.3 ([0c43f5e](https://github.com/vinayakkulkarni/tileserver-rs/commit/0c43f5e7e90e7e23e7a8e5c8e18625d09081ffc4))
+* **deps-dev:** bump tailwindcss from 4.2.2 to 4.2.3 ([f050509](https://github.com/vinayakkulkarni/tileserver-rs/commit/f050509e48964e4350d409aca78a06522de5b549))
+* **deps:** sync compatible Cargo.lock bumps + bun catalog bumps ([064dfa3](https://github.com/vinayakkulkarni/tileserver-rs/commit/064dfa369226e284b22dce087156d190bb8cea4a))
+* **homebrew:** update formula to v2.26.1 ([18d3916](https://github.com/vinayakkulkarni/tileserver-rs/commit/18d391613726fe0bcdf87293be336839edab79b6))
+
 ## [2.26.1](https://github.com/vinayakkulkarni/tileserver-rs/compare/v2.26.0...v2.26.1) (2026-04-21)
 
 
