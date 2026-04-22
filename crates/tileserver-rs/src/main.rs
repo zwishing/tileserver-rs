@@ -42,7 +42,14 @@ use tileserver_rs::startup;
 
 #[cfg(feature = "frontend")]
 #[derive(Embed)]
-#[folder = "apps/client/.output/public"]
+// `rust-embed` resolves this path relative to CARGO_MANIFEST_DIR (= this
+// crate's Cargo.toml). Since the crate is at crates/tileserver-rs/ and the
+// build output lives at repo-root apps/client/.output/public, we must hop
+// up two levels. DO NOT change to `apps/client/.output/public` without also
+// moving the apps/client workspace under crates/tileserver-rs/ — the former
+// would silently embed an empty Assets struct in debug builds and fail
+// release builds with the "folder does not exist" error.
+#[folder = "../../apps/client/.output/public"]
 struct Assets;
 
 #[tokio::main]
