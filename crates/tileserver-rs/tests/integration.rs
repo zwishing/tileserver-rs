@@ -417,7 +417,7 @@ mod config_loading {
     #[test]
     fn test_fixture_files_exist() {
         // PMTiles fixture
-        let pmtiles_path = Path::new("data/tiles/protomaps-sample.pmtiles");
+        let pmtiles_path = Path::new("../../data/tiles/protomaps-sample.pmtiles");
         assert!(
             pmtiles_path.exists(),
             "PMTiles fixture should exist at {:?}",
@@ -425,7 +425,7 @@ mod config_loading {
         );
 
         // MBTiles fixture
-        let mbtiles_path = Path::new("data/tiles/zurich_switzerland.mbtiles");
+        let mbtiles_path = Path::new("../../data/tiles/zurich_switzerland.mbtiles");
         assert!(
             mbtiles_path.exists(),
             "MBTiles fixture should exist at {:?}",
@@ -433,7 +433,7 @@ mod config_loading {
         );
 
         // Style fixture
-        let style_path = Path::new("data/styles/protomaps-light/style.json");
+        let style_path = Path::new("../../data/styles/protomaps-light/style.json");
         assert!(
             style_path.exists(),
             "Style fixture should exist at {:?}",
@@ -441,7 +441,7 @@ mod config_loading {
         );
 
         // Font fixtures
-        let font_path = Path::new("data/fonts/Noto Sans Regular/0-255.pbf");
+        let font_path = Path::new("../../data/fonts/Noto Sans Regular/0-255.pbf");
         assert!(
             font_path.exists(),
             "Font fixture should exist at {:?}",
@@ -483,14 +483,14 @@ mod source_tests {
 
     #[test]
     fn test_pmtiles_file_is_valid() {
-        let path = Path::new("data/tiles/protomaps-sample.pmtiles");
+        let path = Path::new("../../data/tiles/protomaps-sample.pmtiles");
         let metadata = std::fs::metadata(path).expect("Should read PMTiles file");
         assert!(metadata.len() > 0, "PMTiles file should not be empty");
     }
 
     #[test]
     fn test_mbtiles_file_is_valid() {
-        let path = Path::new("data/tiles/zurich_switzerland.mbtiles");
+        let path = Path::new("../../data/tiles/zurich_switzerland.mbtiles");
         let metadata = std::fs::metadata(path).expect("Should read MBTiles file");
         assert!(metadata.len() > 0, "MBTiles file should not be empty");
 
@@ -520,7 +520,7 @@ mod source_tests {
 
     #[test]
     fn test_mbtiles_has_tiles() {
-        let path = Path::new("data/tiles/zurich_switzerland.mbtiles");
+        let path = Path::new("../../data/tiles/zurich_switzerland.mbtiles");
         let conn = rusqlite::Connection::open(path).expect("Should open MBTiles");
 
         let tile_count: u32 = conn
@@ -544,7 +544,7 @@ mod style_tests {
 
     #[test]
     fn test_style_json_is_valid() {
-        let content = fs::read_to_string("data/styles/protomaps-light/style.json")
+        let content = fs::read_to_string("../../data/styles/protomaps-light/style.json")
             .expect("Should read style.json");
 
         let style: serde_json::Value =
@@ -558,7 +558,7 @@ mod style_tests {
 
     #[test]
     fn test_style_references_correct_source() {
-        let content = fs::read_to_string("data/styles/protomaps-light/style.json")
+        let content = fs::read_to_string("../../data/styles/protomaps-light/style.json")
             .expect("Should read style.json");
 
         let style: serde_json::Value =
@@ -584,7 +584,7 @@ mod style_tests {
 
     #[test]
     fn test_style_references_fonts() {
-        let content = fs::read_to_string("data/styles/protomaps-light/style.json")
+        let content = fs::read_to_string("../../data/styles/protomaps-light/style.json")
             .expect("Should read style.json");
 
         let style: serde_json::Value =
@@ -613,7 +613,7 @@ mod font_tests {
 
     #[test]
     fn test_font_directories_exist() {
-        let fonts_dir = Path::new("data/fonts");
+        let fonts_dir = Path::new("../../data/fonts");
         assert!(fonts_dir.is_dir(), "Fonts directory should exist");
 
         let noto_regular = fonts_dir.join("Noto Sans Regular");
@@ -625,7 +625,7 @@ mod font_tests {
 
     #[test]
     fn test_font_pbf_files_exist() {
-        let font_dir = Path::new("data/fonts/Noto Sans Regular");
+        let font_dir = Path::new("../../data/fonts/Noto Sans Regular");
 
         // Check for common glyph ranges
         let ranges = ["0-255.pbf", "256-511.pbf", "512-767.pbf", "768-1023.pbf"];
@@ -642,7 +642,7 @@ mod font_tests {
 
     #[test]
     fn test_font_pbf_not_empty() {
-        let pbf_path = Path::new("data/fonts/Noto Sans Regular/0-255.pbf");
+        let pbf_path = Path::new("../../data/fonts/Noto Sans Regular/0-255.pbf");
         let metadata = fs::metadata(pbf_path).expect("Should read PBF file");
         assert!(metadata.len() > 0, "Font PBF should not be empty");
     }

@@ -1,4 +1,4 @@
-fonts = "data/fonts"
+fonts = "../../data/fonts"
 
 [server]
 host = "127.0.0.1"
@@ -15,7 +15,7 @@ tile_size = 256
 [[sources]]
 id = "test-rgb"
 type = "cog"
-path = "data/raster/test-rgb.cog.tif"
+path = "../../data/raster/test-rgb.cog.tif"
 name = "Test RGB COG"
 attribution = "Test Data"
 resampling = "bilinear"
@@ -23,7 +23,7 @@ resampling = "bilinear"
 [[sources]]
 id = "test-dem"
 type = "cog"
-path = "data/raster/test-dem.cog.tif"
+path = "../../data/raster/test-dem.cog.tif"
 name = "Test DEM COG"
 attribution = "Test Data"
 resampling = "cubic"
@@ -55,7 +55,7 @@ color = "#ff0000"
 [[sources]]
 id = "test-dem-discrete"
 type = "cog"
-path = "data/raster/test-dem.cog.tif"
+path = "../../data/raster/test-dem.cog.tif"
 name = "Test DEM Discrete"
 attribution = "Test Data"
 

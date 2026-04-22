@@ -1,4 +1,4 @@
-fonts = "data/fonts"
+fonts = "../../data/fonts"
 
 [server]
 host = "127.0.0.1"
@@ -11,17 +11,17 @@ enabled = false
 [[sources]]
 id = "protomaps"
 type = "pmtiles"
-path = "data/tiles/protomaps-sample.pmtiles"
+path = "../../data/tiles/protomaps-sample.pmtiles"
 name = "Protomaps Sample"
 attribution = "© Protomaps © OpenStreetMap"
 
 [[sources]]
 id = "zurich"
 type = "mbtiles"
-path = "data/tiles/zurich_switzerland.mbtiles"
+path = "../../data/tiles/zurich_switzerland.mbtiles"
 name = "Zurich Switzerland"
 
 [[styles]]
 id = "protomaps-light"
-path = "data/styles/protomaps-light/style.json"
+path = "../../data/styles/protomaps-light/style.json"
 name = "Protomaps Light"

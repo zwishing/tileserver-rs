@@ -18,13 +18,13 @@ mod fixture_validation {
 
     #[test]
     fn test_rgb_cog_fixture_exists() {
-        let path = Path::new("data/raster/test-rgb.cog.tif");
+        let path = Path::new("../../data/raster/test-rgb.cog.tif");
         assert!(path.exists(), "RGB COG fixture should exist at {:?}", path);
     }
 
     #[test]
     fn test_dem_cog_fixture_exists() {
-        let path = Path::new("data/raster/test-dem.cog.tif");
+        let path = Path::new("../../data/raster/test-dem.cog.tif");
         assert!(path.exists(), "DEM COG fixture should exist at {:?}", path);
     }
 
