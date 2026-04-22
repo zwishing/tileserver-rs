@@ -78,7 +78,7 @@ services:
       - "8904:8080"
     volumes:
       - ../data:/data:ro
-      - ../configs/benchmark-raster.toml:/app/config.toml:ro
+      - ../data/configs/benchmark-raster.toml:/app/config.toml:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 5s

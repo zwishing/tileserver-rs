@@ -426,7 +426,16 @@ tileserver-rs/
 │       └── package.json               # @tileserver-rs/marketing (excluded from workspace)
 │
 ├── crates/
-│   └── mbgl-sys/           # FFI bindings to MapLibre Native
+│   ├── tileserver-rs/                 # Binary crate (Rust backend)
+│   │   ├── src/                       # main.rs, cli, config, error, cache_control, etc.
+│   │   │   ├── render/                # Native MapLibre rendering
+│   │   │   ├── styles/                # Style management
+│   │   │   ├── transcode.rs           # MLT↔MVT transcoding (feature-gated `mlt`)
+│   │   │   └── sources/               # Tile source implementations
+│   │   ├── benches/                   # criterion benchmarks (mlt, cache, raster)
+│   │   ├── tests/                     # Integration tests + insta snapshots
+│   │   └── Cargo.toml                 # Leaf [package] metadata
+│   └── mbgl-sys/                      # FFI bindings to MapLibre Native
 │       ├── cpp/                       # C/C++ wrapper code
 │       │   ├── maplibre_c.h           # C API header
 │       │   ├── maplibre_c.cpp         # C++ implementation wrapping mbgl::*
@@ -435,39 +444,21 @@ tileserver-rs/
 │       ├── build.rs                   # Build script (links MapLibre Native)
 │       └── vendor/maplibre-native/    # MapLibre Native C++ source (git submodule)
 │
-├── src/                               # Rust backend
-│   ├── main.rs                        # Server entry point, routes
-│   ├── cli.rs                         # CLI argument parsing
-│   ├── config.rs                      # TOML configuration
-│   ├── error.rs                       # Error types
-│   ├── cache_control.rs               # Cache headers middleware
-│   ├── render/                        # Native MapLibre rendering
-│   │   ├── mod.rs                     # Module exports
-│   │   ├── native.rs                  # Safe Rust wrappers around FFI
-│   │   ├── pool.rs                    # Renderer pool (per scale factor)
-│   │   ├── renderer.rs                # High-level render API
-│   │   └── types.rs                   # RenderOptions, ImageFormat, etc.
-│   ├── styles/                        # Style management
-│   │   └── mod.rs                     # Style loading + rewrite_style_for_native()
-│   ├── transcode.rs                   # MLT↔MVT transcoding (feature-gated `mlt`)
-│   └── sources/                       # Tile source implementations
-│       ├── mod.rs                     # TileSource trait, TileMetadata, TileJSON
-│       ├── manager.rs                 # SourceManager (loads and manages sources)
-│       ├── pmtiles.rs                 # PMTiles source
-│       └── mbtiles.rs                 # MBTiles source
-│
-├── Cargo.toml                         # Rust dependencies
-├── configs/                           # Configuration files
+├── Cargo.toml                         # Virtual workspace manifest (no [package])
+├── data/configs/                      # Configuration files
 │   ├── example.toml                   # Example configuration
 │   ├── offline.toml                   # Offline/local development
 │   ├── dev.toml                       # Development config
+│   ├── dev-postgres.toml              # Development with PostGIS + OGC API
 │   ├── geoparquet.toml                # GeoParquet source testing
-│   └── benchmark-raster.toml         # Raster benchmark config
+│   └── benchmark-raster.toml          # Raster benchmark config
 ├── package.json                       # Root workspace (bun workspaces)
 ├── Dockerfile                         # Multi-stage Docker build
-├── compose.yml                        # Docker Compose v2 base config
-├── compose.override.yml               # Development overrides
-├── compose.prod.yml                   # Production config
+├── deploy/                            # Deployment manifests
+│   ├── compose.yml                    # Docker Compose base
+│   ├── compose.dev.yml                # Docker Compose dev overrides
+│   ├── compose.prod.yml               # Docker Compose prod overrides
+│   └── docker-entrypoint.sh
 └── CLAUDE.md                          # This file
 ```
 

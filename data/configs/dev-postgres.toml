@@ -1,8 +1,8 @@
 # Development config for tileserver-rs with postgres + STAC sources.
 # Spin up the companion dev database with:
-#   docker compose -f compose.dev.yml up -d postgres-dev
+#   docker compose -f deploy/compose.dev.yml up -d postgres-dev
 # Start the server with:
-#   cargo run --features postgres,raster,stac,frontend -- --config configs/dev-postgres.toml
+#   cargo run --features postgres,raster,stac,frontend -- --config data/configs/dev-postgres.toml
 
 fonts = "./data/fonts"
 

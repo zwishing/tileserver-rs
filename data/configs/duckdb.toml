@@ -1,6 +1,6 @@
 # DuckDB test configuration
 # Requires: cargo build --features duckdb
-# Usage: cargo run --features duckdb -- --config configs/duckdb.toml
+# Usage: cargo run --features duckdb -- --config data/configs/duckdb.toml
 #
 # Download sample data:
 #   pip install overturemaps

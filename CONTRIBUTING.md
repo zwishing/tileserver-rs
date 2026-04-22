@@ -330,38 +330,40 @@ Each release produces:
 ```
 tileserver-rs/
 ├── apps/
-│   ├── client/                  # Nuxt 4 frontend
-│   │   ├── app/                 # Nuxt app directory
-│   │   │   ├── components/      # Vue components
-│   │   │   ├── composables/     # Vue composables
-│   │   │   ├── pages/           # File-based routing
-│   │   │   └── types/           # TypeScript types
-│   │   └── nuxt.config.ts
-│   └── docs/                    # Documentation site
+│   ├── client/                  # Nuxt 4 frontend (embedded in binary)
+│   ├── docs/                    # Documentation site (docus v3)
+│   └── marketing/               # Landing page
 │
 ├── crates/
-│   └── mbgl-sys/     # FFI bindings crate
+│   ├── tileserver-rs/           # Binary crate (HTTP server)
+│   │   ├── src/
+│   │   │   ├── main.rs          # Entry point, HTTP routes
+│   │   │   ├── config.rs        # TOML configuration
+│   │   │   ├── render/          # Native MapLibre rendering
+│   │   │   ├── sources/         # Tile sources (PMTiles, MBTiles, STAC)
+│   │   │   └── styles/          # Style management + rewriting
+│   │   ├── benches/             # criterion benchmarks
+│   │   └── tests/               # Integration tests + insta snapshots
+│   └── mbgl-sys/                # FFI bindings to MapLibre Native (C++)
 │       ├── cpp/                 # C/C++ wrapper code
 │       ├── src/lib.rs           # Rust FFI declarations
-│       ├── build.rs             # Build script
+│       ├── build.rs             # Build script (links MapLibre Native)
 │       └── vendor/maplibre-native/  # MapLibre Native (submodule)
 │
-├── src/                         # Main Rust application
-│   ├── main.rs                  # Entry point, HTTP routes
-│   ├── config.rs                # TOML configuration
-│   ├── error.rs                 # Error types
-│   ├── render/                  # Native rendering
-│   │   ├── pool.rs              # Renderer pool
-│   │   ├── renderer.rs          # High-level API
-│   │   └── native.rs            # Safe FFI wrappers
-│   ├── sources/                 # Tile sources
-│   │   ├── pmtiles/             # PMTiles (local + HTTP)
-│   │   └── mbtiles.rs           # MBTiles
-│   └── styles/                  # Style management
+├── data/                        # Runtime assets + configs
+│   ├── configs/                 # tileserver-rs config files (TOML)
+│   ├── styles/                  # MapLibre GL style JSONs
+│   ├── tiles/, fonts/, raster/, overture/, postgres-dev/
 │
-├── compose.yml                  # Docker Compose base
+├── deploy/                      # Deployment manifests
+│   ├── compose.yml              # Docker Compose base
+│   ├── compose.dev.yml          # Docker Compose dev overrides
+│   ├── compose.prod.yml         # Docker Compose prod overrides
+│   └── docker-entrypoint.sh
+│
+├── Cargo.toml                   # Virtual workspace manifest
 ├── Dockerfile                   # Multi-stage build
-├── Cargo.toml                   # Rust workspace
+├── fly.toml, railway.toml, render.yaml  # Platform one-click configs
 ├── CLAUDE.md                    # AI assistant guidelines
 └── CONTRIBUTING.md              # This file
 ```

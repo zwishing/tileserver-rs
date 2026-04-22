@@ -1,6 +1,6 @@
 # GeoParquet test configuration
 # Requires: cargo build --features geoparquet
-# Usage: cargo run --features geoparquet -- --config configs/geoparquet.toml
+# Usage: cargo run --features geoparquet -- --config data/configs/geoparquet.toml
 #
 # Local testing with symlinked Overture data:
 #   ln -sf /path/to/overture/data ./data/overture

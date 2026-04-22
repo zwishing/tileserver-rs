@@ -5,7 +5,7 @@
 #   1. Download a PMTiles file (e.g., from https://protomaps.com/downloads)
 #   2. Place it in ./data/tiles/ directory
 #   3. Update the path below to point to your file
-#   4. Run: ./target/release/tileserver-rs --config configs/offline.toml --ui
+#   4. Run: ./target/release/tileserver-rs --config data/configs/offline.toml --ui
 
 # Root-level configuration (must come before any [section] headers)
 # Fonts directory
@@ -35,7 +35,7 @@ attribution = "<a href=\"https://protomaps.com\">Protomaps</a> | <a href=\"https
 # Local style (uses the bundled style in ./styles)
 [[styles]]
 id = "protomaps"
-path = "./styles/protomaps/style.json"
+path = "./data/styles/protomaps-offline/style.json"
 name = "Protomaps Light"
 
 

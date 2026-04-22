@@ -160,16 +160,16 @@ chmod +x tileserver-rs
 
 ```bash
 # Development (builds locally, mounts ./data directory)
-docker compose up -d
+docker compose -f deploy/compose.yml up -d
 
 # Production (uses pre-built image with resource limits)
-docker compose -f compose.yml -f compose.prod.yml up -d
+docker compose -f deploy/compose.yml -f deploy/compose.prod.yml up -d
 
 # View logs
-docker compose logs -f tileserver
+docker compose -f deploy/compose.yml logs -f tileserver
 
 # Stop
-docker compose down
+docker compose -f deploy/compose.yml down
 ```
 
 **Or run directly with Docker:**
@@ -271,7 +271,7 @@ admin_bind = "127.0.0.1:9099"
 
 This exposes `POST /__admin/reload` on a separate port for reloading configuration without restarting the server. You can also send `SIGHUP` to the process for the same effect. See the [Hot Reload Guide](https://docs.tileserver.app/guides/hot-reload) for details.
 
-See [configs/example.toml](./configs/example.toml) for a complete example, or [configs/offline.toml](./configs/offline.toml) for a local development setup.
+See [data/configs/example.toml](./data/configs/example.toml) for a complete example, or [data/configs/offline.toml](./data/configs/offline.toml) for a local development setup.
 
 ## API Endpoints
 
@@ -404,43 +404,41 @@ cargo build --release --features http,mlt
 ```
 tileserver-rs/
 ├── apps/
-│   └── client/              # Nuxt 4 frontend (embedded in binary)
-├── docs/                    # Documentation site (docs.tileserver.app)
-├── marketing/               # Landing page (tileserver.app)
+│   ├── client/              # Nuxt 4 frontend (embedded in binary)
+│   ├── docs/                # Documentation site (docs.tileserver.app)
+│   └── marketing/           # Landing page (tileserver.app)
+├── benchmarks/              # Load-test harness vs titiler/martin/tileserver-gl
 ├── crates/
+│   ├── tileserver-rs/       # Binary crate (Rust backend)
+│   │   ├── src/             # main.rs, admin, config, render, sources, …
+│   │   ├── benches/         # criterion benchmarks (mlt, cache, raster)
+│   │   └── tests/           # integration tests
 │   └── mbgl-sys/            # FFI bindings to MapLibre Native (C++)
-│       ├── cpp/             # C/C++ wrapper code
-│       │   ├── maplibre_c.h # C API header
-│       │   └── maplibre_c.cpp # C++ implementation
+│       ├── cpp/             # C wrapper over mbgl::*
 │       ├── src/lib.rs       # Rust FFI bindings
-│       ├── build.rs         # Build script
 │       └── vendor/maplibre-native/  # MapLibre Native source (submodule)
-├── src/                     # Rust backend
-│   ├── main.rs              # Entry point, routes
-│   ├── admin.rs             # Admin server + /ping endpoint
-│   ├── autodetect.rs        # Zero-config auto-detection
-│   ├── config.rs            # Configuration
-│   ├── error.rs             # Error types
-│   ├── reload.rs            # Hot-reload (ArcSwap + SIGHUP)
-│   ├── startup.rs           # Config resolution priority chain
-│   ├── render/              # Native MapLibre rendering
-│   │   ├── pool.rs          # Renderer pool (per scale factor)
-│   │   ├── renderer.rs      # High-level render API
-│   │   ├── native.rs        # Safe Rust wrappers around FFI
-│   │   └── types.rs         # RenderOptions, ImageFormat, etc.
-│   ├── sources/             # Tile source implementations
-│   └── styles/              # Style management + rewriting
-│   ├── transcode.rs         # MLT↔MVT transcoding (feature-gated)
-├── compose.yml              # Docker Compose (development)
-├── compose.prod.yml         # Docker Compose (production overrides)
-├── Dockerfile               # Multi-stage Docker build
-├── configs/                 # Configuration files
-│   ├── example.toml         # Example configuration
-│   ├── offline.toml         # Offline/local development
-│   ├── dev.toml             # Development config
-│   ├── geoparquet.toml      # GeoParquet source testing
-│   └── benchmark-raster.toml # Raster benchmark config
-└── tests/                   # Integration tests + test configs
+├── data/                    # Runtime assets + configs
+│   ├── configs/             # tileserver-rs config files (TOML)
+│   │   ├── example.toml     # Reference configuration
+│   │   ├── offline.toml     # Offline/local development
+│   │   ├── dev.toml         # Development config
+│   │   ├── dev-postgres.toml # Development with PostGIS + OGC API
+│   │   ├── geoparquet.toml  # GeoParquet source testing
+│   │   ├── duckdb.toml      # DuckDB source testing
+│   │   └── benchmark-raster.toml # Raster benchmark config
+│   ├── styles/              # MapLibre GL style JSONs
+│   ├── tiles/, fonts/, raster/, overture/, postgres-dev/
+├── deploy/                  # Deployment manifests
+│   ├── compose.yml          # Docker Compose (base)
+│   ├── compose.dev.yml      # Docker Compose (development overrides)
+│   ├── compose.prod.yml     # Docker Compose (production overrides)
+│   └── docker-entrypoint.sh # Container entrypoint
+├── homebrew/                # Homebrew formula (tileserver-rs.rb)
+├── Cargo.toml               # Virtual workspace manifest
+├── Cargo.lock
+├── Dockerfile               # Multi-stage build (Rust + Node + MapLibre)
+├── fly.toml, railway.toml, render.yaml  # One-click platform configs
+└── release-please-config.json + .release-please-manifest.json
 ```
 
 ## Deploy
@@ -455,7 +453,7 @@ Deploy a fully working tileserver-rs instance with sample data in minutes. No co
 | **DigitalOcean** | [![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/vinayakkulkarni/tileserver-rs/tree/main) | Uses `.do/deploy.template.yaml` |
 | **Railway** | [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/1u-LMi) | Uses `railway.toml` config |
 | **Fly.io** | `fly launch --copy-config` | Uses `fly.toml` — see below |
-| **Docker** | `docker compose up -d` | Uses `compose.yml` (already included) |
+| **Docker** | `docker compose -f deploy/compose.yml up -d` | Uses `deploy/compose.yml` (already included) |
 
 ### How Sample Data Works
 
