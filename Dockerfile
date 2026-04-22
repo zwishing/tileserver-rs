@@ -132,13 +132,19 @@ WORKDIR /app
 COPY --from=maplibre-downloader /build/lib ./lib
 COPY crates/mbgl-sys ./crates/mbgl-sys
 
-# Copy Cargo files and build script for dependency caching
+# Copy workspace + leaf-crate manifests for the dependency-caching trick
 COPY Cargo.toml Cargo.lock ./
+COPY crates/tileserver-rs/Cargo.toml ./crates/tileserver-rs/Cargo.toml
 
-# Create dummy source and bench files for dependency caching
-RUN mkdir -p src benches && echo "fn main() {}" > src/main.rs && echo "fn main() {}" > benches/mlt.rs
+# Create dummy source + bench files at the leaf crate's paths so the
+# dependency-only build step resolves. Location must match
+# crates/tileserver-rs/Cargo.toml's [[bench]] + implicit src/main.rs.
+RUN mkdir -p crates/tileserver-rs/src crates/tileserver-rs/benches && \
+    echo "fn main() {}" > crates/tileserver-rs/src/main.rs && \
+    echo "fn main() {}" > crates/tileserver-rs/benches/mlt.rs
 
-# Copy the embedded SPA
+# Copy the embedded SPA. rust-embed resolves `../../apps/client/.output/public`
+# from crates/tileserver-rs/Cargo.toml back to this workspace-root path.
 COPY --from=node-builder /app/apps/client/.output/public ./apps/client/.output/public
 
 ARG FEATURES="frontend geoparquet"
@@ -149,13 +155,14 @@ RUN if [ -n "$FEATURES" ]; then \
     else \
       cargo build --release 2>/dev/null || true; \
     fi
-RUN rm -rf src
+RUN rm -rf crates/tileserver-rs/src
 
-# Copy actual source code and benchmarks
-COPY src ./src
-COPY benches ./benches
+# Copy actual source code and benchmarks into the leaf crate
+COPY crates/tileserver-rs/src ./crates/tileserver-rs/src
+COPY crates/tileserver-rs/benches ./crates/tileserver-rs/benches
+COPY crates/tileserver-rs/tests ./crates/tileserver-rs/tests
 
-RUN touch src/main.rs && \
+RUN touch crates/tileserver-rs/src/main.rs && \
     if [ -n "$FEATURES" ]; then \
       cargo build --release --features "$FEATURES"; \
     else \
