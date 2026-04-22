@@ -29,8 +29,12 @@ node_modules/
 apps/docs/.output/
 apps/docs/.nuxt/
 
-# Test data
+# Test data — exclude bulk tile/font/raster assets but keep config files
+# that the Dockerfile's `COPY data/configs/example.toml ./config.toml`
+# step needs at build time. Without the allowlist below, buildx fails
+# mid-build with `"/data/configs/example.toml": not found`.
 data/
+!data/configs/
 *.pmtiles
 *.mbtiles
 
