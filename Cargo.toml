@@ -103,7 +103,7 @@ moka             = { version = "0.12.15", features = ["future"] }
 # OGC API (optional, used with postgres)
 ogcapi-types     = { version = "0.3.0", features = ["features", "common"] }
 geojson          = "1.0.0"
-cql2             = "0.5.4"
+cql2             = "0.5.5"
 
 # GeoParquet (optional)
 parquet          = { version = "58", default-features = false, features = ["arrow", "zstd", "snap", "lz4", "async"] }
