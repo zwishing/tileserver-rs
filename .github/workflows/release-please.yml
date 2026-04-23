@@ -1,9 +1,11 @@
 name: Release Please
 
-# Manages two independent release trains:
+# Manages two independent release trains via `separate-pull-requests: true`
+# in release-please-config.json — each package gets its OWN release PR, only
+# when it has pending commits:
 #
 # 1. tileserver-rs (root crate)
-#    - Release PR title: "chore(main): release X.Y.Z"
+#    - Release PR title: "chore(main): release tileserver-rs X.Y.Z"
 #    - Merge → pushes `vX.Y.Z` tag → triggers:
 #        release-linux-binaries.yml
 #        release-macos-binaries.yml
@@ -19,9 +21,12 @@ name: Release Please
 #      (tileserver-rs has publish = false, so no crates.io dep chain needed).
 #
 # release-please bumps each package only when commit messages reference its
-# path (scoped commits). `crates/mbgl-sys` is in the root's `exclude-paths`
-# list so feat/fix commits touching only that directory bump mbgl-sys but
-# NOT tileserver-rs.
+# path (scoped commits). With separate-pull-requests, a commit touching only
+# crates/mbgl-sys opens just the mbgl-sys PR; a commit touching only
+# crates/tileserver-rs (or apps/) opens just the tileserver-rs PR. When both
+# have pending changes, TWO separate PRs open (pre-2026-04-23 behavior grouped
+# both into one PR titled "chore: release main" — see PR #819 closed for the
+# transition).
 #
 # We tried release-plz in Apr 2026 but abandoned it because its internal
 # `cargo package --workspace --verify` fails on mbgl-sys's FFI build.rs
