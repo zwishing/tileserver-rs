@@ -58,7 +58,7 @@ High-performance vector tile server built in Rust with a modern Nuxt 4 frontend.
 ## Requirements
 
 - [Rust 1.75+](https://www.rust-lang.org/)
-- [Bun 1.0+](https://bun.sh/)
+- [Node.js 24+](https://nodejs.org/) with [pnpm 11](https://pnpm.io/) (via `corepack enable`)
 - (Optional) [Docker](https://www.docker.com/)
 
 ### For Native Rendering (Optional)
@@ -196,7 +196,7 @@ git clone --recursive https://github.com/vinayakkulkarni/tileserver-rs.git
 git submodule update --init --recursive
 
 # Install dependencies
-bun install
+pnpm install
 
 # Build the Rust backend
 cargo build --release
@@ -205,7 +205,7 @@ cargo build --release
 cargo build --release --features mlt
 
 # Build the frontend
-bun run build:client
+pnpm run build:client
 
 # Run the server
 ./target/release/tileserver-rs --config config.toml
@@ -364,24 +364,24 @@ See [data/configs/example.toml](./data/configs/example.toml) for a complete exam
 
 ```bash
 # Install dependencies
-bun install
+pnpm install
 
 # Start Rust backend (with hot reload via cargo-watch)
 cargo watch -x run
 
 # Start Nuxt frontend (in another terminal)
-bun run dev:client
+pnpm run dev:client
 
 # Start marketing site (landing page)
-bun run dev:marketing
+pnpm run dev:marketing
 
 # Run linters
-bun run lint
+pnpm run lint
 cargo clippy
 
 # Build for production
 cargo build --release
-bun run build:client
+pnpm run build:client
 ```
 
 ### Cargo Feature Flags

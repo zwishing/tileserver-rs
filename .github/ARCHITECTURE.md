@@ -59,8 +59,8 @@ tileserver-rs is distributed as a **single self-contained binary**, similar to [
 The frontend is generated as a static SPA (`ssr: false` in nuxt.config.ts):
 
 ```bash
-bun install --frozen-lockfile
-bun run --filter @tileserver-rs/client generate
+pnpm install --frozen-lockfile
+pnpm --filter @tileserver-rs/client run generate
 ```
 
 Output: `apps/client/.output/public/` (static HTML + JS bundles)

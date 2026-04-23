@@ -378,7 +378,7 @@ await uploadMutation.mutateAsync(file);
 **When adding a NEW dependency:**
 1. Add the version to the appropriate catalog in root `package.json`
 2. Reference it as `"catalog:client"` (or `"catalog:default"`) in the workspace package
-3. Run `bun install` to verify resolution
+3. Run `pnpm install` to verify resolution
 
 ---
 
@@ -774,10 +774,10 @@ When a client requests a tile in a different format than the source provides (e.
 
 ### Root (Workspace)
 ```bash
-bun install              # Install all dependencies
-bun run dev:client       # Start Nuxt dev server
-bun run build:client     # Build Nuxt for production
-bun run lint             # Lint all packages
+pnpm install             # Install all dependencies
+pnpm run dev:client      # Start Nuxt dev server
+pnpm run build:client    # Build Nuxt for production
+pnpm run lint            # Lint all packages
 ```
 
 ### Rust Backend

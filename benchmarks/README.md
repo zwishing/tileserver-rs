@@ -15,7 +15,7 @@ docker build -t tileserver-rs:latest .
 docker compose -f benchmarks/docker-compose.yml --profile all up -d
 
 # Run all benchmarks
-bun run --filter @tileserver-rs/benchmarks bench
+pnpm --filter @tileserver-rs/benchmarks run bench
 ```
 
 ## Benchmark types
@@ -42,7 +42,7 @@ Features with full CRUD support. Run:
 
 ```bash
 docker compose -f benchmarks/docker-compose.yml --profile full up -d
-bun run --filter @tileserver-rs/benchmarks bench -- --type ogc
+pnpm --filter @tileserver-rs/benchmarks run bench -- --type ogc
 ```
 
 Endpoints exercised:
@@ -67,7 +67,7 @@ server. Both serve raster tiles over the Alps bbox `[6.0, 43.0, 10.0, 46.0]`.
 
 ```bash
 docker compose -f benchmarks/docker-compose.yml --profile all up -d
-bun run --filter @tileserver-rs/benchmarks bench -- --type stac
+pnpm --filter @tileserver-rs/benchmarks run bench -- --type stac
 ```
 
 Endpoints exercised:
