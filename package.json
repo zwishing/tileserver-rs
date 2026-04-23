@@ -10,13 +10,13 @@
     ],
     "catalogs": {
       "default": {
-        "vue": "^3.5.32",
+        "vue": "^3.5.33",
         "vue-tsc": "^3.2.7",
         "typescript": "^6.0.3",
         "oxlint": "^1.61.0",
-        "oxfmt": "^0.45.0",
+        "oxfmt": "^0.46.0",
         "nuxt": "^4.4.2",
-        "maplibre-gl": "^5.23.0",
+        "maplibre-gl": "^5.24.0",
         "@nuxtjs/color-mode": "^4.0.0",
         "@nuxt/fonts": "^0.14.0",
         "@vueuse/core": "^14.2.1",
@@ -39,7 +39,7 @@
         "eslint-plugin-oxlint": "^1.61.0",
         "shadcn-nuxt": "^2.6.2",
         "tailwindcss": "^4.2.4",
-        "vite": "^8.0.9"
+        "vite": "^8.0.10"
       },
       "client": {
         "@deck.gl/aggregation-layers": "^9.3.1",
@@ -51,14 +51,14 @@
         "@geoql/v-maplibre": "^1.7.1",
         "@luma.gl/engine": "~9.3.3",
         "maplibre-gl-inspect": "^0.0.8",
-        "@maplibre/mlt": "^1.1.8",
+        "@maplibre/mlt": "^1.1.9",
         "@tanstack/query-db-collection": "^1.0.36",
         "@tanstack/vue-db": "^0.0.116",
         "@tanstack/vue-query": "^5.99.2",
-        "@tanstack/ai": "^0.10.3",
-        "@tanstack/ai-vue": "^0.6.17",
+        "@tanstack/ai": "^0.13.0",
+        "@tanstack/ai-vue": "^0.6.19",
         "@mlc-ai/web-llm": "^0.2.82",
-        "markstream-vue": "^0.0.13-beta.2",
+        "markstream-vue": "^0.0.13-beta.6",
         "zod": "^4.3.6",
         "@tmcw/togeojson": "^7.1.2",
         "destr": "^2.0.5",
@@ -73,7 +73,7 @@
       "marketing": {
         "@nuxtjs/plausible": "^3.0.2",
         "ogl": "^1.0.11",
-        "wrangler": "^4.84.0"
+        "wrangler": "^4.84.1"
       }
     }
   },
