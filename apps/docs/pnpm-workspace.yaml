@@ -1,0 +1,21 @@
+# Standalone workspace (NOT part of root tileserver-rs workspace).
+# apps/docs has its own deps + lockfile to keep Docus upgrades isolated
+# from the main app/marketing bundle.
+#
+# pnpm 11 blocks all package build scripts by default. The allowBuilds
+# map below is security-sensitive — true = postinstall runs; false = skipped.
+#   - better-sqlite3: native SQLite binding required by @nuxt/content v3
+#   - esbuild: Vite/Nuxt bundler, verifies prebuilt binary matches platform
+#   - sharp: image processing for @nuxt/fonts OG image generation
+#   - unrs-resolver: Nuxt 4 module resolver, rust-native platform-specific
+#   - workerd: Cloudflare Workers runtime for wrangler deployment
+#   - @parcel/watcher: falls back to polling; safe to skip native build
+#   - vue-demi: alias/symlink script; not required at runtime
+allowBuilds:
+  '@parcel/watcher': false
+  better-sqlite3: true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+  vue-demi: false
+  workerd: true
