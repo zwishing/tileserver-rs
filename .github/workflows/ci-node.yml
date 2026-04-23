@@ -17,29 +17,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.0.0-rc.5
+          run_install: false
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '24'
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Cache Bun dependencies
-        uses: actions/cache@v5
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
-          restore-keys: ${{ runner.os }}-bun-
+          cache: 'pnpm'
 
       - name: Install workspace dependencies
-        run: bun install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       # --- Client ---
       - name: Lint client
-        run: bun run --filter @tileserver-rs/client lint
+        run: pnpm --filter @tileserver-rs/client run lint
 
       - name: Build client
         run: |
@@ -47,7 +42,7 @@ jobs:
           max_attempts=3
           for attempt in $(seq 1 $max_attempts); do
             echo "Build attempt $attempt/$max_attempts..."
-            if bun run --filter @tileserver-rs/client build; then
+            if pnpm --filter @tileserver-rs/client run build; then
               echo "Build succeeded on attempt $attempt"
               exit 0
             fi
@@ -62,11 +57,11 @@ jobs:
       # --- Docs ---
       - name: Install docs dependencies
         working-directory: apps/docs
-        run: bun install
+        run: pnpm install --frozen-lockfile
 
       - name: Lint docs
         working-directory: apps/docs
-        run: bun run lint
+        run: pnpm run lint
 
       - name: Build docs
         working-directory: apps/docs
@@ -74,7 +69,7 @@ jobs:
           max_attempts=3
           for attempt in $(seq 1 $max_attempts); do
             echo "Build attempt $attempt/$max_attempts..."
-            if bun run build; then
+            if pnpm run build; then
               echo "Build succeeded on attempt $attempt"
               exit 0
             fi
@@ -87,21 +82,15 @@ jobs:
           exit 1
 
       # --- Marketing ---
-      - name: Install marketing dependencies
-        working-directory: apps/marketing
-        run: bun install
-
       - name: Lint marketing
-        working-directory: apps/marketing
-        run: bun run lint
+        run: pnpm --filter @tileserver-rs/marketing run lint
 
       - name: Build marketing
-        working-directory: apps/marketing
         run: |
           max_attempts=3
           for attempt in $(seq 1 $max_attempts); do
             echo "Build attempt $attempt/$max_attempts..."
-            if bun run build; then
+            if pnpm --filter @tileserver-rs/marketing run build; then
               echo "Build succeeded on attempt $attempt"
               exit 0
             fi

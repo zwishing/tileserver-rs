@@ -1,5 +1,4 @@
 version: 2
-enable-beta-ecosystems: true
 updates:
   # GitHub Actions
   - package-ecosystem: github-actions
@@ -27,14 +26,12 @@ updates:
       prefix-development: chore
       include: scope
 
-  # Bun - Root workspace (covers apps/client + apps/marketing via "apps/*" but
-  # NOT apps/docs — the root workspaces array explicitly sets "!apps/docs").
-  # Uses beta-ecosystem `bun` (enable-beta-ecosystems: true above) so Dependabot
-  # parses bun.lock and bumps BOTH package.json AND bun.lock in the same PR.
-  # The prior `npm` ecosystem only touched package.json, forcing a post-merge
-  # orchestrator `bun install` to re-sync bun.lock — broken in practice.
-  # Ref: https://docs.github.com/en/code-security/reference/supply-chain-security/supported-ecosystems-and-repositories
-  - package-ecosystem: bun
+  # pnpm - Root workspace (covers apps/client + apps/marketing + benchmarks via
+  # pnpm-workspace.yaml packages list). Dependabot pnpm ecosystem is GA since
+  # Feb 2025; parses pnpm-lock.yaml and bumps BOTH package.json AND pnpm-lock.yaml
+  # in the same PR. apps/docs has its own separate block (standalone workspace).
+  # Ref: https://github.blog/changelog/2025-02-04-dependabot-now-supports-pnpm-workspace-catalogs-ga/
+  - package-ecosystem: pnpm
     directory: "/"
     schedule:
       interval: daily
@@ -46,11 +43,10 @@ updates:
       prefix-development: chore
       include: scope
 
-  # Bun - apps/docs (standalone: excluded from root workspace via "!apps/docs",
-  # has its own bun.lock). Needs a separate dependabot block so its package.json
-  # + bun.lock get updated together. apps/marketing does NOT need its own block
-  # because it IS part of the root workspace and is covered by the "/" entry.
-  - package-ecosystem: bun
+  # pnpm - apps/docs (standalone workspace with its own pnpm-workspace.yaml +
+  # pnpm-lock.yaml, not part of the root workspace). apps/marketing does NOT
+  # need its own block because it IS in the root workspace above.
+  - package-ecosystem: pnpm
     directory: "/apps/docs"
     schedule:
       interval: daily

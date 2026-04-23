@@ -23,25 +23,29 @@ RUN MBGL_VERSION=$(grep '^version' /tmp/mbgl-sys-cargo.toml | head -1 | sed 's/.
 # =============================================================================
 # Stage 2: Build Nuxt frontend (SPA) - skipped for headless builds
 # =============================================================================
-FROM oven/bun:1 AS node-builder
+FROM node:24-slim AS node-builder
 
 ARG FEATURES="frontend geoparquet"
 
-# ulimit -s unlimited increases the POSIX thread stack size so Bun's JSC engine
-# can handle the deep CJS resolver recursion caused by @mlc-ai/web-llm in Vite builds
+# ulimit -s unlimited increases POSIX thread stack size so V8 can handle the
+# deep CJS resolver recursion caused by @mlc-ai/web-llm in Vite builds.
+# pnpm is installed via corepack (ships with Node 24) to match the pinned
+# packageManager version in root package.json.
 
 WORKDIR /app
 
+RUN corepack enable && corepack prepare pnpm@11.0.0-rc.5 --activate
+
 # Copy workspace files
-COPY package.json bun.lock ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/client ./apps/client
 
-# Only build frontend when the "frontend" feature is enabled
+# Only build frontend when the "frontend" feature is enabled.
 # For headless builds (FEATURES=""), create an empty output directory
-# so the COPY --from=node-builder in the rust-builder stage still works
+# so the COPY --from=node-builder in the rust-builder stage still works.
 RUN if echo "$FEATURES" | grep -q "frontend"; then \
-      bun install --filter '@tileserver-rs/client' && \
-      cd apps/client && ulimit -s unlimited && bun run generate; \
+      pnpm install --filter @tileserver-rs/client --frozen-lockfile && \
+      cd apps/client && ulimit -s unlimited && pnpm run generate; \
     else \
       mkdir -p apps/client/.output/public; \
     fi
