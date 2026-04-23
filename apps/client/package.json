@@ -20,6 +20,7 @@
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
+    "@comark/nuxt": "catalog:client",
     "@deck.gl/aggregation-layers": "catalog:client",
     "@deck.gl/core": "catalog:client",
     "@deck.gl/geo-layers": "catalog:client",
@@ -46,7 +47,6 @@
     "lucide-vue-next": "catalog:default",
     "maplibre-gl": "catalog:default",
     "maplibre-gl-inspect": "catalog:client",
-    "markstream-vue": "catalog:client",
     "motion-v": "catalog:default",
     "nuxt": "catalog:default",
     "nuxt-workers": "catalog:client",

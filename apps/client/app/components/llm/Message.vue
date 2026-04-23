@@ -1,11 +1,5 @@
 <script setup lang="ts">
   import { Bot, User } from 'lucide-vue-next';
-  import {
-    MarkdownRender,
-    getMarkdown,
-    parseMarkdownToStructure,
-    type ParsedNode,
-  } from 'markstream-vue';
   import type { ReadonlyUIMessage } from '~/types/llm';
   import {
     getTextContent,
@@ -17,17 +11,7 @@
     isStreaming: boolean;
   }>();
 
-  const md = getMarkdown();
-
   const textContent = computed(() => getTextContent(props.message.parts));
-
-  const parsedNodes = computed<ParsedNode[]>(() => {
-    const content = textContent.value;
-    if (!content) return [];
-    return parseMarkdownToStructure(content, md, {
-      final: !props.isStreaming,
-    });
-  });
 </script>
 
 <template>
@@ -62,18 +46,20 @@
         {{ textContent }}
       </p>
 
-      <!-- Assistant: markdown rendered -->
+      <!-- Assistant: Comark renders streaming markdown (autoClose is default) -->
       <ClientOnly v-else>
         <div class="ai-prose max-w-none overflow-hidden">
-          <MarkdownRender
-            :nodes="parsedNodes"
-            :max-live-nodes="0"
-            :batch-rendering="true"
-            :render-batch-size="16"
-            :render-batch-delay="8"
-            :final="!isStreaming"
-            class="text-sm/relaxed"
-          />
+          <Suspense>
+            <Comark
+              :markdown="textContent"
+              :streaming="isStreaming"
+              :caret="isStreaming"
+              class="text-sm/relaxed"
+            />
+            <template #fallback>
+              <p class="whitespace-pre-wrap">{{ textContent }}</p>
+            </template>
+          </Suspense>
         </div>
         <template #fallback>
           <p class="whitespace-pre-wrap">{{ textContent }}</p>

@@ -7,6 +7,7 @@ export default defineNuxtConfig({
     '@nuxtjs/color-mode',
     'motion-v/nuxt',
     'nuxt-workers',
+    '@comark/nuxt',
   ],
 
   fonts: {
@@ -111,7 +112,6 @@ export default defineNuxtConfig({
     'maplibre-gl/dist/maplibre-gl.css',
     '@geoql/v-maplibre/dist/v-maplibre.css',
     'maplibre-gl-inspect/dist/style.css',
-    'markstream-vue/index.css',
   ],
 
   colorMode: {
@@ -164,7 +164,6 @@ export default defineNuxtConfig({
       external: [
         'maplibre-gl',
         '@geoql/v-maplibre',
-        'markstream-vue',
         '@tanstack/vue-db',
         '@tanstack/db',
       ],
