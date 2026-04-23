@@ -130,10 +130,17 @@ arrow-cast       = "58"
 #   - Their PR #201 merged the geo 0.31→0.32 bump at 15:49 same day
 #   - Their stale v0.5.4 release-plz PR #175 merged 15 min later and
 #     OVERWROTE Cargo.toml back to geo 0.31 (branch was 7 weeks old)
-#   - Result: cql2 0.5.4 on crates.io STILL declares `geo ^0.31.0`
-#   - Issue #199 was closed but functionally not resolved
-# Status as of Apr 21 2026: re-verified at cql2 0.5.4 — still blocked.
-# Will unblock only when cql2 cuts v0.5.5+ AFTER re-applying the geo bump.
+#   - Their PR #208 merged the geo 0.31→0.33.1 bump on Apr 21 23:34 UTC
+#   - Their cql2-v0.5.5 release tag was cut Apr 22 00:02 UTC, but the
+#     release-please PR #203 had been opened BEFORE PR #208 and shipped
+#     a Cargo.toml snapshot with the OLD `geo = "0.31.0"`. The release
+#     notes mention the geo bump (release-please scrapes commit log) but
+#     the actual published .crate on crates.io ships geo 0.31. Verified
+#     by downloading cql2-0.5.5.crate + inspecting Cargo.toml directly.
+#   - Even main branch on cql2-rs (Apr 22) still declares geo = "0.31.0"
+# Status as of Apr 22 2026: re-verified at cql2 0.5.5 — still blocked.
+# Will unblock only when cql2 cuts v0.5.6+ AFTER another geo bump PR
+# lands AND the release PR is rebased to include it.
 # DO NOT bump to 0.33 without verifying `cargo check --features "postgres
 # geoparquet"` resolves cleanly — the i_overlay conflict aborts resolution.
 geo              = "0.32"
