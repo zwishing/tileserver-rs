@@ -26,29 +26,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
         with:
-          bun-version: latest
+          version: 11.0.0-rc.5
+          run_install: false
 
-      - name: Cache Bun dependencies
-        uses: actions/cache@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
         with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-docs-${{ hashFiles('apps/docs/bun.lock', 'apps/docs/package.json') }}
-          restore-keys: ${{ runner.os }}-bun-docs-
+          node-version: '24'
+          cache: 'pnpm'
 
       - name: Install dependencies
-        working-directory: apps/docs
-        run: bun install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Build docs
-        working-directory: apps/docs
         run: |
           max_attempts=3
           for attempt in $(seq 1 $max_attempts); do
             echo "Build attempt $attempt/$max_attempts..."
-            if bun run build; then
+            if pnpm --filter @tileserver-rs/docs run build; then
               echo "Build succeeded on attempt $attempt"
               exit 0
             fi
@@ -64,7 +62,7 @@ jobs:
 
       - name: Deploy to Cloudflare Pages
         working-directory: apps/docs
-        run: bunx wrangler pages deploy dist --project-name=tileserver-rs-docs
+        run: pnpm dlx wrangler pages deploy dist --project-name=tileserver-rs-docs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

@@ -40,7 +40,7 @@ This project follows our [Code of Conduct](./CODE_OF_CONDUCT.md). By participati
 ### Prerequisites
 
 - [Rust 1.75+](https://www.rust-lang.org/tools/install)
-- [Bun 1.0+](https://bun.sh/)
+- [Node.js 24+](https://nodejs.org/) with [pnpm 11](https://pnpm.io/) (via `corepack enable`)
 - [Git](https://git-scm.com/)
 - (Optional) [Docker](https://www.docker.com/)
 
@@ -206,7 +206,7 @@ cargo clippy
 cargo fmt --all -- --check
 
 # Run frontend linter
-bun run lint
+pnpm run lint
 ```
 
 ### Code Style
@@ -273,7 +273,7 @@ chore(deps): upgrade axum to 0.8
 **PR Checklist:**
 - [ ] Code follows project style guidelines
 - [ ] Tests pass locally (`cargo test`)
-- [ ] Linters pass (`cargo clippy`, `cargo fmt --check`, `bun run lint`)
+- [ ] Linters pass (`cargo clippy`, `cargo fmt --check`, `pnpm run lint`)
 - [ ] Documentation updated (if applicable)
 - [ ] Commit messages follow conventional commits
 - [ ] Commits are signed
