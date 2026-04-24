@@ -141,7 +141,11 @@ const PROTOCOL_SUPPORT = {
 // MBTiles (Zurich): bounds [8.45, 47.32, 8.63, 47.44], zoom 0-14
 //   Center: lat=47.377, lon=8.538
 //
-// All coordinates verified to return 200 OK with real tile data
+// All coordinates verified to return 200 OK with real tile data.
+// NOTE for grid mode: GRID_TILES (below) is used instead because single-tile
+// zooms like z10 produce 4×4 grids that extend beyond the small fixture bounds
+// (Florence fixture is ~5 km wide; a z10 4×4 grid spans ~32 km). GRID_TILES
+// starts at zooms where the full 4×4 / 5×4 grid lives entirely inside the data.
 const TEST_TILES = {
   pmtiles: [
     { z: 10, x: 544, y: 373, desc: 'Florence z10' },
@@ -194,6 +198,45 @@ const TEST_TILES = {
     { z: 10, x: 534, y: 366, desc: 'Alps z10' },
     { z: 12, x: 2138, y: 1465, desc: 'Alps z12' },
     { z: 14, x: 8554, y: 5862, desc: 'Alps z14' },
+  ],
+};
+
+// Grid-mode tiles: center coordinates chosen so the default 4×4 / 5×4 grid
+// lives entirely inside fixture bounds. See TEST_TILES comment for why these
+// diverge from single-tile zooms. Numbers verified with `curl` against all
+// 16 tiles of each grid returning HTTP 200.
+const GRID_TILES = {
+  pmtiles: [
+    { z: 14, x: 8704, y: 5972, desc: 'Florence z14' },
+    { z: 15, x: 17408, y: 11944, desc: 'Florence z15' },
+  ],
+  mbtiles: [
+    { z: 12, x: 2145, y: 1434, desc: 'Zurich z12' },
+    { z: 13, x: 4290, y: 2868, desc: 'Zurich z13' },
+    { z: 14, x: 8580, y: 5737, desc: 'Zurich z14' },
+  ],
+  postgres: [
+    { z: 12, x: 2145, y: 1434, desc: 'Table z12' },
+    { z: 13, x: 4290, y: 2868, desc: 'Table z13' },
+    { z: 14, x: 8580, y: 5737, desc: 'Table z14' },
+  ],
+  postgres_function: [
+    { z: 12, x: 2145, y: 1434, desc: 'Function z12' },
+    { z: 13, x: 4290, y: 2868, desc: 'Function z13' },
+    { z: 14, x: 8580, y: 5737, desc: 'Function z14' },
+  ],
+  cog: [
+    { z: 2, x: 2, y: 1, desc: 'World z2' },
+    { z: 3, x: 4, y: 3, desc: 'World z3' },
+    { z: 4, x: 8, y: 6, desc: 'World z4' },
+  ],
+  raster: [
+    { z: 13, x: 4352, y: 2986, desc: 'Florence z13' },
+    { z: 14, x: 8704, y: 5972, desc: 'Florence z14' },
+  ],
+  stac: [
+    { z: 10, x: 534, y: 366, desc: 'Alps z10' },
+    { z: 12, x: 2138, y: 1465, desc: 'Alps z12' },
   ],
 };
 
@@ -444,7 +487,7 @@ async function benchmarkServerGrid(serverKey, format, gridConfig) {
     return [];
   }
 
-  const tiles = TEST_TILES[format];
+  const tiles = GRID_TILES[format] ?? TEST_TILES[format];
   if (!tiles) return [];
 
   const results = [];
