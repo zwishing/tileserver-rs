@@ -1,5 +1,6 @@
 packages:
   - apps/client
+  - apps/docs
   - apps/marketing
   - benchmarks
 

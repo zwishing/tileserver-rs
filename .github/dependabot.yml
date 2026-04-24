@@ -26,28 +26,17 @@ updates:
       prefix-development: chore
       include: scope
 
-  # pnpm - Root workspace (covers apps/client + apps/marketing + benchmarks via
-  # pnpm-workspace.yaml packages list). Dependabot pnpm ecosystem is GA since
-  # Feb 2025; parses pnpm-lock.yaml and bumps BOTH package.json AND pnpm-lock.yaml
-  # in the same PR. apps/docs has its own separate block (standalone workspace).
+  # npm ecosystem covers the pnpm workspace (apps/client + apps/docs +
+  # apps/marketing + benchmarks via pnpm-workspace.yaml packages list).
+  # Dependabot's `package-ecosystem: pnpm` is NOT supported yet — tracked in
+  # dependabot-core#14794 (opened Apr 22 2026, feature-request). Meanwhile the
+  # `npm` ecosystem auto-detects pnpm-lock.yaml and atomically updates BOTH
+  # package.json AND pnpm-lock.yaml in the same PR (pnpm catalog support
+  # went GA in Feb 2025 under the npm ecosystem).
   # Ref: https://github.blog/changelog/2025-02-04-dependabot-now-supports-pnpm-workspace-catalogs-ga/
-  - package-ecosystem: pnpm
+  # Ref: https://github.com/dependabot/dependabot-core/issues/14794
+  - package-ecosystem: npm
     directory: "/"
-    schedule:
-      interval: daily
-      time: "00:00"
-    assignees:
-      - vinayakkulkarni
-    commit-message:
-      prefix: fix
-      prefix-development: chore
-      include: scope
-
-  # pnpm - apps/docs (standalone workspace with its own pnpm-workspace.yaml +
-  # pnpm-lock.yaml, not part of the root workspace). apps/marketing does NOT
-  # need its own block because it IS in the root workspace above.
-  - package-ecosystem: pnpm
-    directory: "/apps/docs"
     schedule:
       interval: daily
       time: "00:00"
