@@ -58,6 +58,22 @@ jobs:
             --no-default-features \
             --features "geoparquet"
 
+      - name: Coverage — raster
+        run: |
+          cargo llvm-cov \
+            --no-report \
+            --lib \
+            --no-default-features \
+            --features "raster"
+
+      - name: Coverage — stac
+        run: |
+          cargo llvm-cov \
+            --no-report \
+            --lib \
+            --no-default-features \
+            --features "stac"
+
       - name: Generate merged coverage report
         run: |
           cargo llvm-cov report \

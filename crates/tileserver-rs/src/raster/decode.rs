@@ -60,4 +60,32 @@ mod tests {
         let err = from_bytes(b"not an image").unwrap_err();
         assert!(matches!(err, DecodeError::Image(_)));
     }
+
+    #[test]
+    fn from_bytes_format_round_trips_png() {
+        let data = array![[[10.0_f32, 20.0], [30.0, 40.0]]];
+        let original = RasterImage::from_opaque(data, None);
+        let png = encode::to_png(&original).unwrap();
+        let decoded = from_bytes_format(&png, ImageFormat::Png).unwrap();
+        assert_eq!(decoded.width(), 2);
+        assert_eq!(decoded.height(), 2);
+    }
+
+    #[test]
+    fn from_bytes_format_rejects_wrong_format_hint() {
+        let data = array![[[10.0_f32, 20.0]]];
+        let original = RasterImage::from_opaque(data, None);
+        let png = encode::to_png(&original).unwrap();
+        let err = from_bytes_format(&png, ImageFormat::Jpeg).unwrap_err();
+        assert!(matches!(err, DecodeError::Image(_)));
+    }
+
+    #[test]
+    fn decode_error_display_matches_format() {
+        let img_err = image::ImageError::Limits(image::error::LimitError::from_kind(
+            image::error::LimitErrorKind::DimensionError,
+        ));
+        let err: DecodeError = img_err.into();
+        assert!(err.to_string().contains("image decoding failed"));
+    }
 }

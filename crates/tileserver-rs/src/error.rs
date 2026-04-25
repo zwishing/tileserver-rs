@@ -306,4 +306,158 @@ mod tests {
         let response = err.into_response();
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     }
+
+    #[test]
+    fn test_sprite_not_found_display_and_status() {
+        let err = TileServerError::SpriteNotFound("icon".to_string());
+        assert_eq!(err.to_string(), "sprite not found: icon");
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn test_font_not_found_display_and_status() {
+        let err = TileServerError::FontNotFound("Roboto".to_string());
+        assert_eq!(err.to_string(), "font not found: Roboto");
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn test_not_found_display_and_status() {
+        let err = TileServerError::NotFound("/foo".to_string());
+        assert_eq!(err.to_string(), "not found: /foo");
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn test_method_not_allowed_display_and_status() {
+        let err = TileServerError::MethodNotAllowed("POST".to_string());
+        assert_eq!(err.to_string(), "method not allowed: POST");
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+    }
+
+    #[test]
+    fn test_metadata_error_display_and_status() {
+        let err = TileServerError::MetadataError("bad json".to_string());
+        assert_eq!(err.to_string(), "failed to parse metadata: bad json");
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn test_config_error_status_code() {
+        let err = TileServerError::ConfigError("bad config".to_string());
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn test_mbtiles_error_display_and_status() {
+        let err = TileServerError::MbTilesError("sqlite locked".to_string());
+        assert_eq!(err.to_string(), "MBTiles error: sqlite locked");
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn test_mlt_encode_error_display_and_status() {
+        let err = TileServerError::MltEncodeError("layer overflow".to_string());
+        assert_eq!(err.to_string(), "MLT encode error: layer overflow");
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn test_mlt_decode_error_display_and_status() {
+        let err = TileServerError::MltDecodeError("bad header".to_string());
+        assert_eq!(err.to_string(), "MLT decode error: bad header");
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn test_internal_error_status_code() {
+        let err = TileServerError::Internal(anyhow::anyhow!("kaboom"));
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn test_tile_not_found_status_code() {
+        let err = TileServerError::TileNotFound { z: 1, x: 2, y: 3 };
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn test_invalid_tile_request_status_code() {
+        let err = TileServerError::InvalidTileRequest;
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn test_style_not_found_status_code() {
+        let err = TileServerError::StyleNotFound("dark".to_string());
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[cfg(feature = "raster")]
+    #[test]
+    fn test_raster_error_display_and_status() {
+        let err = TileServerError::RasterError("gdal failed".to_string());
+        assert_eq!(err.to_string(), "raster error: gdal failed");
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[cfg(feature = "postgres")]
+    #[test]
+    fn test_postgres_error_variants() {
+        let err = TileServerError::PostgresError("conn refused".to_string());
+        assert_eq!(err.to_string(), "PostgreSQL error: conn refused");
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+
+        let err = TileServerError::PostgresPoolError("exhausted".to_string());
+        assert_eq!(err.to_string(), "PostgreSQL pool error: exhausted");
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+
+        let err = TileServerError::PostgresVersionError("too old".to_string());
+        assert_eq!(err.to_string(), "PostgreSQL version error: too old");
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[cfg(feature = "duckdb")]
+    #[test]
+    fn test_duckdb_error_display_and_status() {
+        let err = TileServerError::DuckDbError("syntax".to_string());
+        assert_eq!(err.to_string(), "DuckDB error: syntax");
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[cfg(feature = "geoparquet")]
+    #[test]
+    fn test_geoparquet_error_display_and_status() {
+        let err = TileServerError::GeoParquetError("parse fail".to_string());
+        assert_eq!(err.to_string(), "GeoParquet error: parse fail");
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[cfg(feature = "stac")]
+    #[test]
+    fn test_stac_error_display_and_status() {
+        let err = TileServerError::StacError("api 500".to_string());
+        assert_eq!(err.to_string(), "stac error: api 500");
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
 }
