@@ -1359,5 +1359,149 @@ entries = [
             let mode = RescaleMode::default();
             assert_eq!(mode, RescaleMode::Static);
         }
+
+        #[test]
+        fn test_resampling_method_display_round_trip() {
+            for method in [
+                ResamplingMethod::Nearest,
+                ResamplingMethod::Bilinear,
+                ResamplingMethod::Cubic,
+                ResamplingMethod::CubicSpline,
+                ResamplingMethod::Lanczos,
+                ResamplingMethod::Average,
+                ResamplingMethod::Mode,
+            ] {
+                let s = method.to_string();
+                let parsed: ResamplingMethod = s.parse().unwrap();
+                assert_eq!(parsed, method);
+            }
+        }
+
+        #[test]
+        fn test_resampling_method_from_str_case_insensitive() {
+            assert_eq!(
+                "NEAREST".parse::<ResamplingMethod>().unwrap(),
+                ResamplingMethod::Nearest
+            );
+            assert_eq!(
+                "Bilinear".parse::<ResamplingMethod>().unwrap(),
+                ResamplingMethod::Bilinear
+            );
+            assert_eq!(
+                "CUBICSPLINE".parse::<ResamplingMethod>().unwrap(),
+                ResamplingMethod::CubicSpline
+            );
+        }
+
+        #[test]
+        fn test_resampling_method_from_str_unknown_errors() {
+            let err = "garbage".parse::<ResamplingMethod>().unwrap_err();
+            assert!(err.contains("unknown"));
+            assert!(err.contains("garbage"));
+        }
+
+        #[test]
+        fn test_resampling_method_default_is_bilinear() {
+            assert_eq!(ResamplingMethod::default(), ResamplingMethod::Bilinear);
+        }
+
+        #[test]
+        fn test_pixel_selection_method_short_circuit_truth_table() {
+            assert!(PixelSelectionMethod::First.can_short_circuit());
+            assert!(PixelSelectionMethod::LowestCloudCover.can_short_circuit());
+
+            assert!(!PixelSelectionMethod::Highest.can_short_circuit());
+            assert!(!PixelSelectionMethod::Lowest.can_short_circuit());
+            assert!(!PixelSelectionMethod::Mean.can_short_circuit());
+            assert!(!PixelSelectionMethod::Median.can_short_circuit());
+            assert!(!PixelSelectionMethod::Stdev.can_short_circuit());
+            assert!(!PixelSelectionMethod::Count.can_short_circuit());
+        }
+
+        #[test]
+        fn test_pixel_selection_method_default_is_first() {
+            assert_eq!(PixelSelectionMethod::default(), PixelSelectionMethod::First);
+        }
+
+        #[test]
+        fn test_pixel_selection_method_serde_round_trip_all_variants() {
+            for method in [
+                PixelSelectionMethod::First,
+                PixelSelectionMethod::Highest,
+                PixelSelectionMethod::Lowest,
+                PixelSelectionMethod::Mean,
+                PixelSelectionMethod::Median,
+                PixelSelectionMethod::Stdev,
+                PixelSelectionMethod::Count,
+                PixelSelectionMethod::LowestCloudCover,
+            ] {
+                let json = serde_json::to_string(&method).unwrap();
+                let parsed: PixelSelectionMethod = serde_json::from_str(&json).unwrap();
+                assert_eq!(parsed, method);
+            }
+        }
+
+        #[test]
+        fn test_source_type_pmtiles_mbtiles_serde() {
+            assert_eq!(
+                serde_json::to_string(&SourceType::PMTiles).unwrap(),
+                "\"pmtiles\""
+            );
+            assert_eq!(
+                serde_json::to_string(&SourceType::MBTiles).unwrap(),
+                "\"mbtiles\""
+            );
+
+            let pmt: SourceType = serde_json::from_str("\"pmtiles\"").unwrap();
+            assert_eq!(pmt, SourceType::PMTiles);
+            let mbt: SourceType = serde_json::from_str("\"mbtiles\"").unwrap();
+            assert_eq!(mbt, SourceType::MBTiles);
+        }
+
+        #[cfg(feature = "raster")]
+        #[test]
+        fn test_source_type_cog_vrt_serde() {
+            assert_eq!(serde_json::to_string(&SourceType::Cog).unwrap(), "\"cog\"");
+            assert_eq!(serde_json::to_string(&SourceType::Vrt).unwrap(), "\"vrt\"");
+        }
+
+        #[cfg(feature = "geoparquet")]
+        #[test]
+        fn test_source_type_geoparquet_serde() {
+            assert_eq!(
+                serde_json::to_string(&SourceType::GeoParquet).unwrap(),
+                "\"geoparquet\""
+            );
+            let parsed: SourceType = serde_json::from_str("\"geoparquet\"").unwrap();
+            assert_eq!(parsed, SourceType::GeoParquet);
+        }
+
+        #[cfg(feature = "duckdb")]
+        #[test]
+        fn test_source_type_duckdb_serde() {
+            assert_eq!(
+                serde_json::to_string(&SourceType::DuckDB).unwrap(),
+                "\"duckdb\""
+            );
+            let parsed: SourceType = serde_json::from_str("\"duckdb\"").unwrap();
+            assert_eq!(parsed, SourceType::DuckDB);
+        }
+
+        #[cfg(feature = "stac")]
+        #[test]
+        fn test_source_type_stac_serde() {
+            assert_eq!(
+                serde_json::to_string(&SourceType::Stac).unwrap(),
+                "\"stac\""
+            );
+            let parsed: SourceType = serde_json::from_str("\"stac\"").unwrap();
+            assert_eq!(parsed, SourceType::Stac);
+        }
+
+        #[test]
+        fn test_source_type_unknown_string_errors() {
+            let result: Result<SourceType, _> = serde_json::from_str("\"banana\"");
+            assert!(result.is_err());
+        }
     }
 }
