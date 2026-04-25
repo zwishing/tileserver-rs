@@ -214,10 +214,10 @@ impl SourceManager {
             }
         }
 
-        #[cfg(feature = "raster")]
+        #[cfg(all(feature = "postgres", feature = "raster"))]
         let mut outdb_raster_sources: Vec<PostgresOutDbRasterSource> =
             Vec::with_capacity(config.outdb_rasters.len());
-        #[cfg(feature = "raster")]
+        #[cfg(all(feature = "postgres", feature = "raster"))]
         for outdb_config in &config.outdb_rasters {
             match PostgresOutDbRasterSource::new(pool.clone(), outdb_config).await {
                 Ok(source) => {
@@ -420,15 +420,19 @@ impl SourceManager {
             let resample = resampling.unwrap_or(cog.resampling());
             cog.get_tile_with_resampling(z, x, y, tile_size, resample)
                 .await
-        } else if let Some(outdb) = source
-            .as_ref()
-            .as_any()
-            .downcast_ref::<PostgresOutDbRasterSource>()
-        {
-            outdb
-                .get_tile_with_params(z, x, y, tile_size, resampling, query_params)
-                .await
         } else {
+            #[cfg(feature = "postgres")]
+            if let Some(outdb) = source
+                .as_ref()
+                .as_any()
+                .downcast_ref::<PostgresOutDbRasterSource>()
+            {
+                return outdb
+                    .get_tile_with_params(z, x, y, tile_size, resampling, query_params)
+                    .await;
+            }
+            #[cfg(not(feature = "postgres"))]
+            let _ = query_params;
             source.get_tile(z, x, y).await
         }
     }
