@@ -129,3 +129,32 @@ required-features = ["raster"]
 [[bench]]
 name = "styles"
 harness = false
+
+[[bench]]
+name = "stac"
+harness = false
+required-features = ["stac"]
+
+[[bench]]
+name = "cog"
+harness = false
+required-features = ["stac"]
+
+[[bench]]
+name = "postgres"
+harness = false
+required-features = ["postgres"]
+
+[[bench]]
+name = "frontend"
+harness = false
+
+[[bench]]
+name = "duckdb"
+harness = false
+required-features = ["duckdb"]
+
+[[bench]]
+name = "geoparquet"
+harness = false
+required-features = ["geoparquet"]

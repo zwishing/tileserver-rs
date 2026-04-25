@@ -543,7 +543,8 @@ pub async fn discover_assets_by_bbox(
 /// blocks for the entire file over HTTPS; the `/vsicurl/` VSI prefix
 /// switches it to HTTP range requests so only the COG header + requested
 /// overview bands are fetched. Non-HTTP paths pass through unchanged.
-fn to_gdal_cog_path(href: &str) -> String {
+#[must_use]
+pub fn to_gdal_cog_path(href: &str) -> String {
     if href.starts_with("http://") || href.starts_with("https://") {
         format!("/vsicurl/{href}")
     } else if let Some(rest) = href.strip_prefix("s3://") {
