@@ -4,12 +4,7 @@
 
 <template>
   <section data-label="Features" class="border-b border-border">
-    <div
-class="
-  px-6 pt-16 pb-10
-  md:px-12
-  lg:px-20
-">
+    <div class="px-6 pt-16 pb-10 md:px-12 lg:px-20">
       <p
         class="
           mb-3 font-mono text-[10px] tracking-[0.3em] text-muted-foreground
@@ -36,12 +31,7 @@ class="
       :key="group.category"
       class="border-t border-border"
     >
-      <div
-class="
-  px-6 py-3
-  md:px-12
-  lg:px-20
-">
+      <div class="px-6 py-3 md:px-12 lg:px-20">
         <h3
           class="
             font-mono text-[10px] tracking-[0.3em] text-muted-foreground
@@ -52,11 +42,7 @@ class="
           {{ group.category }}
         </h3>
       </div>
-      <div
-class="
-  grid gap-px border-t border-border bg-border
-  md:grid-cols-3
-">
+      <div class="grid gap-px border-t border-border bg-border md:grid-cols-3">
         <div
           v-for="feature in group.features"
           :key="feature.title"

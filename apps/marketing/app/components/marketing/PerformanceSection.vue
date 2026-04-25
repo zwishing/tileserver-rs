@@ -6,12 +6,7 @@
 
 <template>
   <section data-label="Performance" class="border-b border-border">
-    <div
-class="
-  px-6 pt-16 pb-10
-  md:px-12
-  lg:px-20
-">
+    <div class="px-6 pt-16 pb-10 md:px-12 lg:px-20">
       <p
         class="
           mb-3 font-mono text-[10px] tracking-[0.3em] text-muted-foreground
@@ -57,11 +52,7 @@ class="
         "
       >
         <component :is="stat.icon" class="mx-auto mb-3 size-5 text-primary" />
-        <p
-class="
-  font-display text-4xl font-bold text-primary
-  lg:text-5xl
-">
+        <p class="font-display text-4xl font-bold text-primary lg:text-5xl">
           <span v-if="stat.prefix">{{ stat.prefix }}</span>
           <CountUp :to="stat.value" :duration="2.5" />
         </p>
@@ -77,12 +68,7 @@ class="
       </div>
     </div>
 
-    <div
-class="
-  border-t border-border px-6 py-8
-  md:px-12
-  lg:px-20
-">
+    <div class="border-t border-border px-6 py-8 md:px-12 lg:px-20">
       <NuxtLink
         to="https://docs.tileserver.app/benchmarks/performance"
         external

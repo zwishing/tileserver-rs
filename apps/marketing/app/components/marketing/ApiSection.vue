@@ -33,11 +33,7 @@
         >
           RESTful API
         </h2>
-        <p
-class="
-  font-sans text-sm/relaxed text-muted-foreground
-  lg:text-base
-">
+        <p class="font-sans text-sm/relaxed text-muted-foreground lg:text-base">
           Simple, standards-compliant API with a built-in OpenAPI spec —
           something neither tileserver-gl nor martin offer.
           <NuxtLink
@@ -83,11 +79,7 @@ class="
     </div>
 
     <!-- Endpoint groups grid -->
-    <div
-class="
-  grid gap-px border-y border-border bg-border
-  sm:grid-cols-2
-">
+    <div class="grid gap-px border-y border-border bg-border sm:grid-cols-2">
       <div
         v-for="group in apiEndpoints"
         :key="group.title"

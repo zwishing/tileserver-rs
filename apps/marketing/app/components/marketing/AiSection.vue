@@ -11,12 +11,7 @@
 
 <template>
   <section data-label="AI Assistant" class="border-b border-border">
-    <div
-class="
-  px-6 pt-16 pb-10
-  md:px-12
-  lg:px-20
-">
+    <div class="px-6 pt-16 pb-10 md:px-12 lg:px-20">
       <p
         class="
           mb-3 font-mono text-[10px] tracking-[0.3em] text-muted-foreground
@@ -48,11 +43,7 @@ class="
     </div>
 
     <!-- Benefits grid -->
-    <div
-class="
-  grid gap-px border-y border-border bg-border
-  md:grid-cols-4
-">
+    <div class="grid gap-px border-y border-border bg-border md:grid-cols-4">
       <div
         v-for="benefit in aiBenefits"
         :key="benefit.title"

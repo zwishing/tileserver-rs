@@ -16,20 +16,12 @@
       <!-- Logo cell -->
       <div class="flex items-center justify-center border-r border-border">
         <NuxtLink to="/" class="flex items-center justify-center">
-          <Globe
-class="
-  size-6 text-primary
-  lg:size-7
-" />
+          <Globe class="size-6 text-primary lg:size-7" />
         </NuxtLink>
       </div>
 
       <!-- Nav + title -->
-      <div
-class="
-  flex items-center px-5
-  lg:px-6
-">
+      <div class="flex items-center px-5 lg:px-6">
         <NuxtLink to="/" class="flex items-center gap-2.5">
           <span
             class="
@@ -40,11 +32,7 @@ class="
             ><span class="text-primary"> RS</span>
           </span>
         </NuxtLink>
-        <div
-class="
-  ml-auto hidden items-center gap-6
-  lg:flex
-">
+        <div class="ml-auto hidden items-center gap-6 lg:flex">
           <NuxtLink
             to="https://docs.tileserver.app"
             external

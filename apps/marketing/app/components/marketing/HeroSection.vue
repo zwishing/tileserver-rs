@@ -178,11 +178,7 @@
           </GlareHover>
         </div>
 
-        <div
-class="
-  mx-auto mt-10 w-full
-  sm:mt-14 sm:max-w-xl
-">
+        <div class="mx-auto mt-10 w-full sm:mt-14 sm:max-w-xl">
           <div
             class="
               flex items-center gap-2 border border-border bg-muted/30 p-2.5

@@ -4,11 +4,7 @@
 
 <template>
   <footer>
-    <div
-class="
-  flex items-center justify-between px-5 py-6
-  lg:px-8
-">
+    <div class="flex items-center justify-between px-5 py-6 lg:px-8">
       <div class="flex items-center gap-3">
         <Globe class="size-4 text-muted-foreground" />
         <span

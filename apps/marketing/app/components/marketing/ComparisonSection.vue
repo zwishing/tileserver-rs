@@ -16,12 +16,7 @@
 
 <template>
   <section data-label="Compare" class="border-b border-border">
-    <div
-class="
-  px-6 pt-16 pb-10
-  md:px-12
-  lg:px-20
-">
+    <div class="px-6 pt-16 pb-10 md:px-12 lg:px-20">
       <p
         class="
           mb-3 font-mono text-[10px] tracking-[0.3em] text-muted-foreground
@@ -50,12 +45,7 @@ class="
       </p>
     </div>
 
-    <div
-class="
-  overflow-x-auto px-6 pb-12
-  md:px-12
-  lg:px-20
-">
+    <div class="overflow-x-auto px-6 pb-12 md:px-12 lg:px-20">
       <table class="w-full min-w-[640px] border-collapse">
         <thead>
           <tr class="border-b border-border">
