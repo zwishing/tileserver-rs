@@ -125,3 +125,7 @@ harness = false
 name = "raster"
 harness = false
 required-features = ["raster"]
+
+[[bench]]
+name = "styles"
+harness = false
