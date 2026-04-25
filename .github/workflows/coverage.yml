@@ -18,6 +18,18 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install system dependencies
+        # libgdal-dev + libclang-dev are required by gdal-sys (bindgen) when
+        # compiling the `raster` and `stac` feature combos. Other combos
+        # (postgres, mlt, duckdb, geoparquet) are pure Rust and don't need
+        # apt deps, but installing once for all combos keeps the matrix simple.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config \
+            libclang-dev \
+            libgdal-dev
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
