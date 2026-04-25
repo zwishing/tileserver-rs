@@ -333,28 +333,28 @@ export function useMarketingPage() {
 
   const performanceStats: PerformanceStat[] = [
     {
+      icon: Timer,
+      value: 3,
+      label: 'ms to fill 4×4 viewport',
+      detail: '4× faster than tileserver-gl',
+    },
+    {
       icon: Zap,
-      value: 1409,
-      label: 'PMTiles req/sec',
-      detail: '10% faster than tileserver-gl',
+      value: 358,
+      label: 'Grids/sec at z14',
+      detail: 'PMTiles 4×4 viewport load',
     },
     {
       icon: Database,
-      value: 3596,
-      label: 'PostGIS req/sec',
-      detail: 'Matches martin (PostGIS-bound)',
-    },
-    {
-      icon: BarChart3,
-      value: 13144,
+      value: 12682,
       label: 'PostGIS req/sec at z14',
-      detail: '7ms avg latency',
+      detail: '7.45ms avg, 410 MB/s throughput',
     },
     {
       icon: Layers,
-      value: 93,
+      value: 89,
       label: 'MB/s throughput',
-      detail: 'Consistent across zoom levels',
+      detail: 'Steady across the city zoom band',
       prefix: '~',
     },
   ];

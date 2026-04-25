@@ -392,10 +392,15 @@ pub fn extract_cog_asset_from_item(item: &stac::Item, asset_role: &str) -> Optio
 
 fn extract_datetime(item: &stac::Item) -> Option<String> {
     item.properties
-        .additional_fields
-        .get("datetime")
-        .and_then(|v| v.as_str())
-        .map(str::to_owned)
+        .datetime
+        .map(|dt| dt.to_rfc3339())
+        .or_else(|| {
+            item.properties
+                .additional_fields
+                .get("datetime")
+                .and_then(|v| v.as_str())
+                .map(str::to_owned)
+        })
 }
 
 fn extract_cloud_cover(item: &stac::Item) -> Option<f64> {
@@ -543,7 +548,8 @@ pub async fn discover_assets_by_bbox(
 /// blocks for the entire file over HTTPS; the `/vsicurl/` VSI prefix
 /// switches it to HTTP range requests so only the COG header + requested
 /// overview bands are fetched. Non-HTTP paths pass through unchanged.
-fn to_gdal_cog_path(href: &str) -> String {
+#[must_use]
+pub fn to_gdal_cog_path(href: &str) -> String {
     if href.starts_with("http://") || href.starts_with("https://") {
         format!("/vsicurl/{href}")
     } else if let Some(rest) = href.strip_prefix("s3://") {
@@ -1336,5 +1342,203 @@ mod tests {
             response.status(),
             axum::http::StatusCode::INTERNAL_SERVER_ERROR
         );
+    }
+
+    #[test]
+    fn test_to_gdal_cog_path_https() {
+        let result = to_gdal_cog_path("https://example.com/cog.tif");
+        assert_eq!(result, "/vsicurl/https://example.com/cog.tif");
+    }
+
+    #[test]
+    fn test_to_gdal_cog_path_http() {
+        let result = to_gdal_cog_path("http://example.com/cog.tif");
+        assert_eq!(result, "/vsicurl/http://example.com/cog.tif");
+    }
+
+    #[test]
+    fn test_to_gdal_cog_path_s3() {
+        let result = to_gdal_cog_path("s3://bucket/path/cog.tif");
+        assert_eq!(result, "/vsis3/bucket/path/cog.tif");
+    }
+
+    #[test]
+    fn test_to_gdal_cog_path_local_passthrough() {
+        let result = to_gdal_cog_path("/local/path/cog.tif");
+        assert_eq!(result, "/local/path/cog.tif");
+    }
+
+    #[test]
+    fn test_to_gdal_cog_path_relative_passthrough() {
+        let result = to_gdal_cog_path("relative/cog.tif");
+        assert_eq!(result, "relative/cog.tif");
+    }
+
+    fn make_asset_with_cloud_cover(id: &str, cloud_cover: Option<f64>) -> StacAsset {
+        StacAsset {
+            id: id.to_string(),
+            href: format!("https://example.com/{}.tif", id),
+            bbox: [-1.0, -1.0, 1.0, 1.0],
+            title: format!("title {}", id),
+            datetime: None,
+            cloud_cover,
+        }
+    }
+
+    #[test]
+    fn test_order_assets_for_method_first_preserves_order() {
+        let assets = vec![
+            make_asset_with_cloud_cover("a", Some(50.0)),
+            make_asset_with_cloud_cover("b", Some(10.0)),
+            make_asset_with_cloud_cover("c", Some(30.0)),
+        ];
+        let ordered = order_assets_for_method(&assets, crate::config::PixelSelectionMethod::First);
+        assert_eq!(ordered[0].id, "a");
+        assert_eq!(ordered[1].id, "b");
+        assert_eq!(ordered[2].id, "c");
+    }
+
+    #[test]
+    fn test_order_assets_for_method_lowest_cloud_cover_sorts() {
+        let assets = vec![
+            make_asset_with_cloud_cover("a", Some(50.0)),
+            make_asset_with_cloud_cover("b", Some(10.0)),
+            make_asset_with_cloud_cover("c", Some(30.0)),
+        ];
+        let ordered = order_assets_for_method(
+            &assets,
+            crate::config::PixelSelectionMethod::LowestCloudCover,
+        );
+        assert_eq!(ordered[0].id, "b");
+        assert_eq!(ordered[1].id, "c");
+        assert_eq!(ordered[2].id, "a");
+    }
+
+    #[test]
+    fn test_order_assets_for_method_lowest_cloud_cover_missing_treated_as_worst() {
+        let assets = vec![
+            make_asset_with_cloud_cover("a", None),
+            make_asset_with_cloud_cover("b", Some(20.0)),
+            make_asset_with_cloud_cover("c", Some(5.0)),
+        ];
+        let ordered = order_assets_for_method(
+            &assets,
+            crate::config::PixelSelectionMethod::LowestCloudCover,
+        );
+        assert_eq!(ordered[0].id, "c");
+        assert_eq!(ordered[1].id, "b");
+        assert_eq!(ordered[2].id, "a");
+    }
+
+    #[test]
+    fn test_extract_datetime_present() {
+        let item = sample_item("test", "data", "image/tiff");
+        let dt = extract_datetime(&item).expect("datetime should be present");
+        assert!(dt.starts_with("2023-01-15T00:00:00"), "got {}", dt);
+    }
+
+    #[test]
+    fn test_extract_datetime_missing() {
+        let json = serde_json::json!({
+            "id": "no-dt",
+            "type": "Feature",
+            "stac_version": "1.0.0",
+            "bbox": [-1.0, -1.0, 1.0, 1.0],
+            "geometry": null,
+            "properties": {"datetime": null},
+            "assets": {}
+        });
+        let item: stac::Item = serde_json::from_value(json).unwrap();
+        assert!(extract_datetime(&item).is_none());
+    }
+
+    #[test]
+    fn test_extract_cloud_cover_present() {
+        let json = serde_json::json!({
+            "id": "with-cc",
+            "type": "Feature",
+            "stac_version": "1.0.0",
+            "bbox": [-1.0, -1.0, 1.0, 1.0],
+            "geometry": null,
+            "properties": {"datetime": null, "eo:cloud_cover": 12.5},
+            "assets": {}
+        });
+        let item: stac::Item = serde_json::from_value(json).unwrap();
+        assert_eq!(extract_cloud_cover(&item), Some(12.5));
+    }
+
+    #[test]
+    fn test_extract_cloud_cover_missing() {
+        let json = serde_json::json!({
+            "id": "no-cc",
+            "type": "Feature",
+            "stac_version": "1.0.0",
+            "bbox": [-1.0, -1.0, 1.0, 1.0],
+            "geometry": null,
+            "properties": {"datetime": null},
+            "assets": {}
+        });
+        let item: stac::Item = serde_json::from_value(json).unwrap();
+        assert!(extract_cloud_cover(&item).is_none());
+    }
+
+    #[test]
+    fn test_extract_cloud_cover_non_numeric_returns_none() {
+        let json = serde_json::json!({
+            "id": "string-cc",
+            "type": "Feature",
+            "stac_version": "1.0.0",
+            "bbox": [-1.0, -1.0, 1.0, 1.0],
+            "geometry": null,
+            "properties": {"datetime": null, "eo:cloud_cover": "not-a-number"},
+            "assets": {}
+        });
+        let item: stac::Item = serde_json::from_value(json).unwrap();
+        assert!(extract_cloud_cover(&item).is_none());
+    }
+
+    #[test]
+    fn test_tile_to_wgs84_bbox_z0() {
+        let bbox = tile_to_wgs84_bbox(0, 0, 0);
+        assert!((bbox[0] - (-180.0)).abs() < 0.01);
+        assert!((bbox[2] - 180.0).abs() < 0.01);
+        assert!(bbox[1] < -85.0 && bbox[1] > -86.0);
+        assert!(bbox[3] > 85.0 && bbox[3] < 86.0);
+    }
+
+    #[test]
+    fn test_tile_to_wgs84_bbox_z2_corner() {
+        let bbox = tile_to_wgs84_bbox(2, 0, 0);
+        assert!((bbox[0] - (-180.0)).abs() < 0.01);
+        assert!((bbox[2] - (-90.0)).abs() < 0.01);
+        assert!(bbox[3] > 0.0);
+    }
+
+    #[test]
+    fn test_extract_assets_from_item_collection_basic() {
+        let item1 = sample_item_json(
+            "i1",
+            "data",
+            "image/tiff; application=geotiff; profile=cloud-optimized",
+        );
+        let collection = sample_item_collection(vec![item1]);
+        let assets = extract_assets_from_item_collection(&collection, "data").unwrap();
+        assert_eq!(assets.len(), 1);
+        assert_eq!(assets[0].id, "i1");
+    }
+
+    #[test]
+    fn test_extract_assets_from_item_collection_filters_non_cog() {
+        let item1 = sample_item_json("i1", "thumbnail", "image/png");
+        let collection = sample_item_collection(vec![item1]);
+        let result = extract_assets_from_item_collection(&collection, "data");
+        assert!(result.is_ok(), "result: {:?}", result);
+    }
+
+    #[test]
+    fn test_extract_assets_from_item_collection_empty_features() {
+        let collection = sample_item_collection(vec![]);
+        let assets = extract_assets_from_item_collection(&collection, "data").unwrap();
+        assert!(assets.is_empty());
     }
 }

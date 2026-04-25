@@ -1,13 +1,26 @@
 coverage:
+  precision: 2
+  round: down
+  range: 60..80
+
   status:
     project:
       default:
-        target: auto
+        # Codecov reports REGION coverage by default (not line coverage).
+        # Local `cargo llvm-cov report` shows: lines=66.05%, regions=67.76%.
+        # Codecov's project% matches the regions number. Floor sits at 67%
+        # (above current 67.76%, with 1% threshold absorbing minor swings).
+        # Stretch ladder: bump to 70% once postgres/table.rs + cog.rs gain
+        # DB-fixture / GDAL-fixture integration tests (separate follow-up).
+        target: 67%
         threshold: 1%
         if_not_found: success
     patch:
       default:
-        target: 70%
+        # New code must hit 75% region coverage. This is the disciplinary
+        # gate that bends the project% curve toward the 75% stretch goal
+        # organically (every PR moves the floor up).
+        target: 75%
         threshold: 5%
         if_not_found: success
 

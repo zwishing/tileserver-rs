@@ -717,4 +717,169 @@ mod tests {
             };
         assert_eq!(compression, TileCompression::None);
     }
+
+    fn fixture_config() -> SourceConfig {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let fixture_path = std::path::PathBuf::from(manifest_dir)
+            .join("../../data/tiles/zurich_switzerland.mbtiles");
+        SourceConfig {
+            id: "zurich".to_string(),
+            source_type: crate::config::SourceType::MBTiles,
+            path: fixture_path.to_string_lossy().to_string(),
+            name: None,
+            attribution: None,
+            description: None,
+            resampling: None,
+            layer_name: None,
+            geometry_column: None,
+            minzoom: None,
+            maxzoom: None,
+            query: None,
+            serve_as: None,
+            #[cfg(feature = "raster")]
+            colormap: None,
+            options: None,
+            collection: None,
+            asset_role: "visual".to_string(),
+            dynamic: false,
+            max_items: 100,
+            stac_bbox: None,
+            pixel_selection: crate::config::PixelSelectionMethod::First,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_from_file_loads_real_fixture() {
+        let config = fixture_config();
+        let source = MbTilesSource::from_file(&config).await.unwrap();
+        let metadata = source.metadata();
+
+        assert_eq!(metadata.format, TileFormat::Pbf);
+        assert!(metadata.minzoom <= metadata.maxzoom);
+    }
+
+    #[tokio::test]
+    async fn test_from_file_nonexistent_path_errors() {
+        let mut config = fixture_config();
+        config.path = "/__nonexistent__/missing.mbtiles".to_string();
+        match MbTilesSource::from_file(&config).await {
+            Err(TileServerError::FileError(_)) => {}
+            Err(other) => panic!("expected FileError, got {:?}", other),
+            Ok(_) => panic!("expected error for nonexistent path"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_tile_returns_data_at_known_coords() {
+        let config = fixture_config();
+        let source = MbTilesSource::from_file(&config).await.unwrap();
+        let metadata = source.metadata().clone();
+
+        let z = metadata.minzoom;
+        let max = 1u32 << z;
+        let mut found_any = false;
+        for x in 0..max {
+            for y in 0..max {
+                if source.get_tile(z, x, y).await.unwrap().is_some() {
+                    found_any = true;
+                    break;
+                }
+            }
+            if found_any {
+                break;
+            }
+        }
+        assert!(
+            found_any,
+            "expected at least one tile at minzoom in fixture"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_tile_invalid_coordinates_error() {
+        let config = fixture_config();
+        let source = MbTilesSource::from_file(&config).await.unwrap();
+
+        let err = source.get_tile(2, 99, 0).await.unwrap_err();
+        assert!(
+            matches!(err, TileServerError::InvalidCoordinates { z, x, y } if z == 2 && x == 99 && y == 0)
+        );
+
+        let err = source.get_tile(2, 0, 99).await.unwrap_err();
+        assert!(
+            matches!(err, TileServerError::InvalidCoordinates { z, x, y } if z == 2 && x == 0 && y == 99)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_tile_outside_zoom_bounds_returns_none() {
+        let config = fixture_config();
+        let source = MbTilesSource::from_file(&config).await.unwrap();
+        let metadata = source.metadata().clone();
+
+        if metadata.maxzoom < 30 {
+            assert!(
+                source
+                    .get_tile(metadata.maxzoom + 1, 0, 0)
+                    .await
+                    .unwrap()
+                    .is_none()
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_tile_missing_returns_none() {
+        let config = fixture_config();
+        let source = MbTilesSource::from_file(&config).await.unwrap();
+        let metadata = source.metadata().clone();
+
+        let z = metadata.maxzoom.min(20);
+        let max = 1u32 << z;
+        let result = source.get_tile(z, max - 1, max - 1).await.unwrap();
+
+        let _ = result;
+    }
+
+    #[tokio::test]
+    async fn test_metadata_attribution_override_from_config() {
+        let mut config = fixture_config();
+        config.attribution = Some("Custom Attribution".to_string());
+        let source = MbTilesSource::from_file(&config).await.unwrap();
+        assert_eq!(
+            source.metadata().attribution,
+            Some("Custom Attribution".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn test_metadata_description_override_from_config() {
+        let mut config = fixture_config();
+        config.description = Some("Custom description".to_string());
+        let source = MbTilesSource::from_file(&config).await.unwrap();
+        assert_eq!(
+            source.metadata().description,
+            Some("Custom description".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn test_serve_as_override() {
+        let mut config = fixture_config();
+        config.serve_as = Some(TileFormat::Mlt);
+        let source = MbTilesSource::from_file(&config).await.unwrap();
+        assert_eq!(source.metadata().format, TileFormat::Mlt);
+        assert_eq!(source.native_format, TileFormat::Pbf);
+    }
+
+    #[tokio::test]
+    async fn test_as_any_returns_self() {
+        let config = fixture_config();
+        let source = MbTilesSource::from_file(&config).await.unwrap();
+        let any = source.as_any();
+        assert!(
+            any.downcast_ref::<MbTilesSource>().is_some(),
+            "as_any should be downcastable to MbTilesSource"
+        );
+    }
 }

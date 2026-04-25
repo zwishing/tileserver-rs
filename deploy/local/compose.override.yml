@@ -1,3 +1,9 @@
+# Local development override: brings up a postgres-dev container with PostGIS,
+# pre-seeded data (data/postgres-dev/*.sql), and bound to 127.0.0.1:5432 only.
+#
+# Usage:
+#   docker compose -f deploy/local/compose.yml -f deploy/local/compose.override.yml up -d
+
 services:
   postgres-dev:
     image: postgis/postgis:16-3.4

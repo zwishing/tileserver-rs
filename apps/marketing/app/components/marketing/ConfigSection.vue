@@ -14,12 +14,19 @@
   >
     <div class="px-6 pt-16 pb-10 md:px-12 lg:px-20">
       <p
-        class="mb-3 font-mono text-[10px] tracking-[0.3em] text-muted-foreground uppercase lg:text-xs"
+        class="
+          mb-3 font-mono text-[10px] tracking-[0.3em] text-muted-foreground
+          uppercase
+          lg:text-xs
+        "
       >
         Configuration
       </p>
       <h2
-        class="max-w-2xl font-display text-3xl font-semibold lg:text-4xl"
+        class="
+          max-w-2xl font-display text-3xl font-semibold
+          lg:text-4xl
+        "
         style="letter-spacing: -0.03em; line-height: 1.15"
       >
         Simple Setup
@@ -30,7 +37,10 @@
       <!-- Left: description -->
       <div class="bg-background p-6 lg:p-8">
         <p
-          class="mb-6 font-sans text-sm/relaxed text-muted-foreground lg:text-base"
+          class="
+            mb-6 font-sans text-sm/relaxed text-muted-foreground
+            lg:text-base
+          "
         >
           Get started with a simple TOML configuration file. Define your tile
           sources, styles, and server settings in one place.

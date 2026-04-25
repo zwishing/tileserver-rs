@@ -40,6 +40,7 @@ export default createConfigForNuxt({
           ignore: ['^dark$'],
         },
       ],
+      'better-tailwindcss/enforce-consistent-line-wrapping': 'off',
     },
     settings: {
       'better-tailwindcss': {

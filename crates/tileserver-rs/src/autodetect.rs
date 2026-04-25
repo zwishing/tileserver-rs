@@ -414,4 +414,235 @@ mod tests {
         assert_eq!(source_type_suffix(&SourceType::PMTiles), "pmtiles");
         assert_eq!(source_type_suffix(&SourceType::MBTiles), "mbtiles");
     }
+
+    #[test]
+    fn test_detect_source_type_extensions() {
+        assert_eq!(
+            detect_source_type(Path::new("foo.pmtiles")),
+            Some(SourceType::PMTiles)
+        );
+        assert_eq!(
+            detect_source_type(Path::new("foo.mbtiles")),
+            Some(SourceType::MBTiles)
+        );
+        assert_eq!(
+            detect_source_type(Path::new("UPPER.PMTILES")),
+            Some(SourceType::PMTiles)
+        );
+        assert_eq!(detect_source_type(Path::new("foo.txt")), None);
+        assert_eq!(detect_source_type(Path::new("noext")), None);
+    }
+
+    #[cfg(feature = "geoparquet")]
+    #[test]
+    fn test_detect_source_type_geoparquet() {
+        assert_eq!(
+            detect_source_type(Path::new("a.parquet")),
+            Some(SourceType::GeoParquet)
+        );
+        assert_eq!(
+            detect_source_type(Path::new("a.geoparquet")),
+            Some(SourceType::GeoParquet)
+        );
+    }
+
+    #[cfg(feature = "duckdb")]
+    #[test]
+    fn test_detect_source_type_duckdb() {
+        assert_eq!(
+            detect_source_type(Path::new("a.duckdb")),
+            Some(SourceType::DuckDB)
+        );
+    }
+
+    #[test]
+    fn test_detect_style_id_style_json() {
+        assert_eq!(
+            detect_style_id(Path::new("/styles/osm-bright/style.json")),
+            Some("osm-bright".to_string())
+        );
+        assert_eq!(
+            detect_style_id(Path::new("/styles/dark/STYLE.JSON")),
+            Some("dark".to_string())
+        );
+    }
+
+    #[test]
+    fn test_detect_style_id_dotted_form() {
+        assert_eq!(
+            detect_style_id(Path::new("/styles/dark.style.json")),
+            Some("dark".to_string())
+        );
+    }
+
+    #[test]
+    fn test_detect_style_id_non_match() {
+        assert_eq!(detect_style_id(Path::new("/styles/foo.json")), None);
+        assert_eq!(detect_style_id(Path::new("/styles/style.txt")), None);
+        assert_eq!(detect_style_id(Path::new("/")), None);
+    }
+
+    #[test]
+    fn test_ensure_unique_id_no_conflict() {
+        let mut used = HashSet::new();
+        let (id, conflicted) = ensure_unique_id("foo", "pmtiles", &mut used);
+        assert_eq!(id, "foo");
+        assert!(!conflicted);
+    }
+
+    #[test]
+    fn test_ensure_unique_id_first_collision() {
+        let mut used = HashSet::new();
+        used.insert("foo".to_string());
+        let (id, conflicted) = ensure_unique_id("foo", "pmtiles", &mut used);
+        assert_eq!(id, "foo-pmtiles");
+        assert!(conflicted);
+    }
+
+    #[test]
+    fn test_ensure_unique_id_numbered_fallback() {
+        let mut used = HashSet::new();
+        used.insert("foo".to_string());
+        used.insert("foo-pmtiles".to_string());
+        let (id, conflicted) = ensure_unique_id("foo", "pmtiles", &mut used);
+        assert_eq!(id, "foo-pmtiles-2");
+        assert!(conflicted);
+
+        let (id2, _) = ensure_unique_id("foo", "pmtiles", &mut used);
+        assert_eq!(id2, "foo-pmtiles-3");
+    }
+
+    #[test]
+    fn test_detect_config_nonexistent_path_errors() {
+        let err = detect_config(PathBuf::from("/__definitely_does_not_exist__/x")).unwrap_err();
+        assert!(err.to_string().contains("does not exist"));
+    }
+
+    #[test]
+    fn test_detect_config_single_pmtiles_file() {
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("world.pmtiles");
+        std::fs::write(&path, b"mock").unwrap();
+
+        let (config, report) = detect_config(path.clone()).unwrap();
+
+        assert_eq!(config.sources.len(), 1);
+        assert_eq!(config.sources[0].id, "world");
+        assert_eq!(report.sources.len(), 1);
+        assert!(report.styles.is_empty());
+    }
+
+    #[test]
+    fn test_detect_config_single_style_json() {
+        let temp = TempDir::new().unwrap();
+        let style_dir = temp.path().join("custom");
+        std::fs::create_dir_all(&style_dir).unwrap();
+        let style_path = style_dir.join("style.json");
+        std::fs::write(&style_path, b"{}").unwrap();
+
+        let (config, report) = detect_config(style_path).unwrap();
+
+        assert_eq!(config.styles.len(), 1);
+        assert_eq!(config.styles[0].id, "custom");
+        assert_eq!(report.styles.len(), 1);
+    }
+
+    #[test]
+    fn test_detect_config_single_geojson() {
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("data.geojson");
+        std::fs::write(&path, b"{}").unwrap();
+
+        let (config, report) = detect_config(path).unwrap();
+
+        assert!(config.files.is_some());
+        assert_eq!(report.geojson_files.len(), 1);
+    }
+
+    #[test]
+    fn test_detect_config_single_unsupported_file_errors() {
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("data.xml");
+        std::fs::write(&path, b"<x/>").unwrap();
+
+        let err = detect_config(path).unwrap_err();
+        assert!(err.to_string().contains("Unsupported"));
+    }
+
+    #[test]
+    fn test_detect_config_directory_with_geojson() {
+        let temp = TempDir::new().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        std::fs::write(root.join("a.geojson"), b"{}").unwrap();
+        std::fs::write(root.join("b.geojson"), b"{}").unwrap();
+
+        let (config, report) = detect_config(root.clone()).unwrap();
+
+        assert_eq!(report.geojson_files.len(), 2);
+        assert_eq!(config.files, Some(root.clone()));
+    }
+
+    #[test]
+    fn test_detect_config_directory_with_sprites_dir() {
+        let temp = TempDir::new().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        std::fs::create_dir_all(root.join("sprites")).unwrap();
+        std::fs::write(root.join("a.pmtiles"), b"mock").unwrap();
+
+        let (_config, report) = detect_config(root.clone()).unwrap();
+
+        assert_eq!(report.sprites_dir, Some(root.join("sprites")));
+    }
+
+    #[test]
+    fn test_detect_config_styles_subdir_traversal() {
+        let temp = TempDir::new().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+
+        std::fs::create_dir_all(root.join("styles/light")).unwrap();
+        std::fs::create_dir_all(root.join("styles/dark")).unwrap();
+        std::fs::write(root.join("styles/light/style.json"), b"{}").unwrap();
+        std::fs::write(root.join("styles/dark/style.json"), b"{}").unwrap();
+
+        let (config, report) = detect_config(root.clone()).unwrap();
+
+        assert_eq!(config.styles.len(), 2);
+        let ids: HashSet<_> = config.styles.iter().map(|s| s.id.as_str()).collect();
+        assert!(ids.contains("light"));
+        assert!(ids.contains("dark"));
+        assert_eq!(report.styles.len(), 2);
+    }
+
+    #[test]
+    fn test_detect_config_dotted_style_files() {
+        let temp = TempDir::new().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        std::fs::write(root.join("light.style.json"), b"{}").unwrap();
+        std::fs::write(root.join("dark.style.json"), b"{}").unwrap();
+
+        let (config, _report) = detect_config(root).unwrap();
+
+        assert_eq!(config.styles.len(), 2);
+        let ids: HashSet<_> = config.styles.iter().map(|s| s.id.as_str()).collect();
+        assert!(ids.contains("light"));
+        assert!(ids.contains("dark"));
+    }
+
+    #[test]
+    fn test_detect_config_style_id_collision_disambiguation() {
+        let temp = TempDir::new().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+
+        std::fs::create_dir_all(root.join("styles/shared")).unwrap();
+        std::fs::write(root.join("styles/shared/style.json"), b"{}").unwrap();
+        std::fs::write(root.join("shared.style.json"), b"{}").unwrap();
+
+        let (config, report) = detect_config(root).unwrap();
+
+        assert_eq!(config.styles.len(), 2);
+        let ids: HashSet<_> = config.styles.iter().map(|s| s.id.as_str()).collect();
+        assert!(ids.contains("shared"));
+        assert!(ids.iter().any(|id| id.starts_with("shared-style")));
+        assert!(!report.conflicts.is_empty());
+    }
 }

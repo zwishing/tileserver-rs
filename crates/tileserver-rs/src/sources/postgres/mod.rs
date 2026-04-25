@@ -29,7 +29,7 @@ pub use cache::{TileCache, TileCacheKey};
 pub use outdb::PostgresOutDbRasterSource;
 pub use pool::{PoolSettings, PostgresPool};
 pub use source::PostgresFunctionSource;
-pub use table::{PostgresTableSource, TableInfo};
+pub use table::{PostgresTableSource, TableInfo, is_point_geometry, pg_type_to_json_schema};
 
 use semver::Version;
 

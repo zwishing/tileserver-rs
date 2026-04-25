@@ -47,7 +47,8 @@ fn encode_property_param(
 ///
 /// Used by `build_tile_query` to choose an unbuffered vs. buffered WHERE
 /// envelope — see the comment above that site for the rationale.
-fn is_point_geometry(geometry_type: &str) -> bool {
+#[must_use]
+pub fn is_point_geometry(geometry_type: &str) -> bool {
     let upper = geometry_type.trim().to_ascii_uppercase();
     upper.starts_with("POINT") || upper.starts_with("MULTIPOINT")
 }
@@ -55,7 +56,8 @@ fn is_point_geometry(geometry_type: &str) -> bool {
 /// Maps a PostgreSQL `data_type` (as reported by `information_schema`) to a
 /// JSON Schema type object + a boolean indicating whether the column is
 /// safely sortable in SQL `ORDER BY` (arrays/jsonb/records are not).
-fn pg_type_to_json_schema(data_type: &str) -> (serde_json::Value, bool) {
+#[must_use]
+pub fn pg_type_to_json_schema(data_type: &str) -> (serde_json::Value, bool) {
     let lower = data_type.to_ascii_lowercase();
     match lower.as_str() {
         "integer" | "bigint" | "smallint" => (serde_json::json!({"type": "integer"}), true),

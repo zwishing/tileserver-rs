@@ -1,0 +1,35 @@
+# Production base for tileserver-rs.
+#
+# Stand alone:        docker compose -f deploy/prod/compose.yml up
+# With prod overrides: docker compose -f deploy/prod/compose.yml -f deploy/prod/compose.override.yml up -d
+#
+# For local dev with postgres-dev sidecar, see deploy/local/.
+
+services:
+  tileserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tileserver
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PORT:-8080}:8080"
+    volumes:
+      - ./data:/data:ro
+      - ./config.toml:/app/config.toml:ro
+    environment:
+      - RUST_LOG=${RUST_LOG:-debug}
+      - HOST=0.0.0.0
+      - PORT=8080
+      - TILESERVER_PUBLIC_URL=${TILESERVER_PUBLIC_URL:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
