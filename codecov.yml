@@ -7,12 +7,12 @@ coverage:
     project:
       default:
         # Codecov reports REGION coverage by default (not line coverage).
-        # Local `cargo llvm-cov report` shows: lines=65.80%, regions=64.06%.
-        # Codecov's project% matches the regions number, so target floor sits
-        # at 64% (above current 64.03%, below 65% wall to leave headroom).
-        # Stretch ladder: bump to 66% once raster mosaic methods + cog source
-        # gain DB-fixture integration tests (follow-up PR).
-        target: 64%
+        # Local `cargo llvm-cov report` shows: lines=66.05%, regions=67.76%.
+        # Codecov's project% matches the regions number. Floor sits at 67%
+        # (above current 67.76%, with 1% threshold absorbing minor swings).
+        # Stretch ladder: bump to 70% once postgres/table.rs + cog.rs gain
+        # DB-fixture / GDAL-fixture integration tests (separate follow-up).
+        target: 67%
         threshold: 1%
         if_not_found: success
     patch:
