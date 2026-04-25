@@ -454,11 +454,18 @@ tileserver-rs/
 │   └── benchmark-raster.toml          # Raster benchmark config
 ├── package.json                       # Root workspace (bun workspaces)
 ├── Dockerfile                         # Multi-stage Docker build
-├── deploy/                            # Deployment manifests
-│   ├── compose.yml                    # Docker Compose base
-│   ├── compose.dev.yml                # Docker Compose dev overrides
-│   ├── compose.prod.yml               # Docker Compose prod overrides
-│   └── docker-entrypoint.sh
+├── deploy/                            # Deployment manifests (split by target)
+│   ├── README.md                      # Routing docs: which dir to use when
+│   ├── local/                         # Laptop dev with optional postgres-dev sidecar
+│   │   ├── compose.yml                # Base compose (build-from-source, mount ./data)
+│   │   ├── compose.override.yml       # postgres-dev sidecar override
+│   │   └── docker-entrypoint.sh
+│   ├── prod/                          # Production single-node deploys
+│   │   ├── compose.yml                # Base compose (uses ghcr.io image)
+│   │   ├── compose.override.yml       # Resource limits + 0.0.0.0 binding
+│   │   └── docker-entrypoint.sh
+│   └── benchmarks/                    # Pointer to benchmarks/ (canonical perf stack)
+│       └── README.md
 └── CLAUDE.md                          # This file
 ```
 

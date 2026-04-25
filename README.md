@@ -159,17 +159,20 @@ chmod +x tileserver-rs
 ### Using Docker
 
 ```bash
-# Development (builds locally, mounts ./data directory)
-docker compose -f deploy/compose.yml up -d
+# Local development (builds locally, mounts ./data directory)
+docker compose -f deploy/local/compose.yml up -d
+
+# Local development with PostGIS sidecar (for OGC API + STAC + features)
+docker compose -f deploy/local/compose.yml -f deploy/local/compose.override.yml up -d
 
 # Production (uses pre-built image with resource limits)
-docker compose -f deploy/compose.yml -f deploy/compose.prod.yml up -d
+docker compose -f deploy/prod/compose.yml -f deploy/prod/compose.override.yml up -d
 
 # View logs
-docker compose -f deploy/compose.yml logs -f tileserver
+docker compose -f deploy/local/compose.yml logs -f tileserver
 
 # Stop
-docker compose -f deploy/compose.yml down
+docker compose -f deploy/local/compose.yml down
 ```
 
 **Or run directly with Docker:**
@@ -453,7 +456,7 @@ Deploy a fully working tileserver-rs instance with sample data in minutes. No co
 | **DigitalOcean** | [![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/vinayakkulkarni/tileserver-rs/tree/main) | Uses `.do/deploy.template.yaml` |
 | **Railway** | [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/1u-LMi) | Uses `railway.toml` config |
 | **Fly.io** | `fly launch --copy-config` | Uses `fly.toml` — see below |
-| **Docker** | `docker compose -f deploy/compose.yml up -d` | Uses `deploy/compose.yml` (already included) |
+| **Docker** | `docker compose -f deploy/local/compose.yml up -d` | See `deploy/README.md` for local/prod variants |
 
 ### How Sample Data Works
 
