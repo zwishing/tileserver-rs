@@ -62,7 +62,18 @@ jobs:
 
       - name: Deploy to Cloudflare Pages
         working-directory: apps/marketing
-        run: pnpm dlx wrangler pages deploy dist --project-name=tileserver-marketing
+        # `pnpm dlx` runs an ephemeral install that does not consult
+        # pnpm-workspace.yaml's allowBuilds. Under pnpm 11's default
+        # strictDepBuilds=true, wrangler's transitive deps (esbuild, sharp,
+        # workerd) trigger ERR_PNPM_IGNORED_BUILDS. The --allow-build flags
+        # are pnpm 11's documented escape hatch for this case
+        # (https://pnpm.io/11.x/cli/dlx#--allow-build).
+        run: >-
+          pnpm dlx
+          --allow-build=esbuild
+          --allow-build=sharp
+          --allow-build=workerd
+          wrangler pages deploy dist --project-name=tileserver-marketing
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
