@@ -346,15 +346,15 @@ export function useMarketingPage() {
     },
     {
       icon: Database,
-      value: 13144,
+      value: 12682,
       label: 'PostGIS req/sec at z14',
-      detail: '7ms avg, outperforms martin',
+      detail: '7.45ms avg, 410 MB/s throughput',
     },
     {
       icon: Layers,
-      value: 93,
+      value: 89,
       label: 'MB/s throughput',
-      detail: 'Consistent across zoom levels',
+      detail: 'Steady across the city zoom band',
       prefix: '~',
     },
   ];
