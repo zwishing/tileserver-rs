@@ -207,8 +207,13 @@ WORKDIR /app
 # Copy Rust binary
 COPY --from=rust-builder /app/target/release/tileserver-rs ./tileserver-rs
 
-# Copy entrypoint script
-COPY deploy/docker-entrypoint.sh ./docker-entrypoint.sh
+# Copy entrypoint script. Path source is `deploy/prod/` because this is the
+# production runtime image; `deploy/local/docker-entrypoint.sh` is a separate
+# script kept identical today but reserved for laptop-dev divergence (see
+# commit 8ecfd2b which split the single deploy/ tree by deployment target).
+# DO NOT collapse back to `deploy/docker-entrypoint.sh` — that path no longer
+# exists and broke v2.27.0's Docker release (run 24964002714).
+COPY deploy/prod/docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 
 # Copy example config
