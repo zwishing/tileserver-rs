@@ -56,6 +56,18 @@ prost            = "0.14.3"
 geo-types        = "0.7.19"
 
 # MLT support
+# Pinned at 0.7.0 — DO NOT bump to 0.8.0 until cql2 0.5.6+ ships with geo
+# bumped to 0.33+. mlt-core 0.8.0 transitively requires `geo ^0.33.1` (which
+# pulls `i_overlay ^4.5`), but cql2 0.5.5 still requires `geo ^0.31.0` (which
+# pins `i_overlay ^4.0`). geo's `i_overlay` constraint participates in its
+# public API surface, so Cargo's resolver cannot select two `i_overlay`
+# versions side-by-side and aborts with a hard "failed to select version"
+# error during `cargo update`. The conflict is symmetric — neither can move
+# without the other. Verified Apr 25 2026: `mvt_to_feature_collection` API
+# we depend on (transcode.rs:200) is unchanged between 0.7.0 and 0.8.0, so
+# we lose only the upstream tessellation/wasm fixes by staying. Reference:
+# - mlt-core 0.8.0 release: https://github.com/maplibre/maplibre-tile-spec/releases/tag/rust-mlt-core-v0.8.0
+# - cql2 0.5.5 main still pins geo 0.31: https://github.com/developmentseed/cql2-rs/blob/main/Cargo.toml
 mlt-core         = { version = "0.7.0" }
 
 # MBTiles / SQLite
