@@ -142,8 +142,16 @@ jobs:
             RUSTFLAGS_EXTRA=${{ matrix.rustflags_extra || '' }}
           push: ${{ github.ref_name == 'main' || startsWith(github.ref, 'refs/tags/') }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.arch }}-${{ matrix.variant }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}-${{ matrix.variant }}
+          # Registry-backed buildkit cache (NOT type=gha). Stored in ghcr.io alongside
+          # the runtime images so v2.X+1.0 can reuse v2.X.0 layers — type=gha is scoped
+          # per-ref by GitHub Actions, which made every tag release write a fresh ~11 GB
+          # of buildkit blobs that subsequent tag releases could not read (eviction
+          # quota hit >10 GB constantly, all dead weight). ghcr storage is free for
+          # public repos and uncapped relative to GHA's 10 GB. DO NOT revert to
+          # type=gha — see https://github.com/vinayakkulkarni/tileserver-rs/actions/runs/24964002714
+          # for the failure mode this fix replaces (post-v2.27.0 cache audit, Apr 26 2026).
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ matrix.arch }}-${{ matrix.variant }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ matrix.arch }}-${{ matrix.variant }},mode=max,image-manifest=true,oci-mediatypes=true
           provenance: false
           sbom: false
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ github.ref_name == 'main' || startsWith(github.ref, 'refs/tags/') }}
