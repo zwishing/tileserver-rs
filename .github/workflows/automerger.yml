@@ -28,9 +28,25 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GITHUB_TOKEN: ${{ secrets.DEPENDABOT_TOKEN }}
 
+      # Dependabot PRs are squash-merged (NOT merge-committed) so the resulting
+      # commit on main has files attached. release-please's exclude-paths filter
+      # works by checking 'if all files of a commit belong to excluded paths,
+      # skip it'. Empty-files merge commits (created by --merge for fast-forward
+      # PRs that touch only catalog-referenced deps like maplibre-gl) leak past
+      # this filter and pollute Rust crate releases with JS-only dep bumps.
+      # Reproduced empty-files leak in PRs #843 (mbgl-sys 0.1.7) and #844
+      # (tileserver-rs 2.27.1) on 2026-04-30 — both opened with semantically
+      # empty releases (zero source changes in respective crate dirs). See
+      # https://github.com/vinayakkulkarni/tileserver-rs/issues for context.
+      # DO NOT change to --merge without first verifying release-please can
+      # path-filter merge commits with empty file lists (it cannot, as of v17).
+      # release-please's OWN Release PRs are unaffected by this — automerger.yml
+      # only runs for dependabot[bot] (see if-condition above), so release-please
+      # PRs continue to be merged via --merge per memory #1438 (load-bearing for
+      # release-please's tag-detection mechanism).
       - name: Auto-merge Dependabot PRs 🕺
         if: steps.metadata.outputs.update-type == 'version-update:semver-minor' || steps.metadata.outputs.update-type == 'version-update:semver-patch'
-        run: gh pr merge --auto --merge "$PR_URL"
+        run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GITHUB_TOKEN: ${{ secrets.DEPENDABOT_TOKEN }}
