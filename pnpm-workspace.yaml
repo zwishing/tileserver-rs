@@ -72,7 +72,7 @@ catalogs:
     '@geoql/v-maplibre': ^1.7.1
     '@luma.gl/engine': ~9.3.3
     '@maplibre/mlt': ^1.1.9
-    '@mlc-ai/web-llm': ^0.2.82
+    '@mlc-ai/web-llm': ^0.2.83
     '@tanstack/ai': ^0.14.0
     '@tanstack/ai-vue': ^0.7.0
     '@tanstack/query-db-collection': ^1.0.36
