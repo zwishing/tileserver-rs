@@ -59,6 +59,7 @@ opentelemetry_sdk = { workspace = true }
 opentelemetry-otlp = { workspace = true }
 opentelemetry-semantic-conventions = { workspace = true }
 tracing-opentelemetry = { workspace = true }
+opentelemetry-prometheus-text-exporter = { workspace = true }
 
 # MBTiles support (SQLite)
 rusqlite         = { workspace = true }
@@ -158,3 +159,7 @@ required-features = ["duckdb"]
 name = "geoparquet"
 harness = false
 required-features = ["geoparquet"]
+
+[[bench]]
+name = "metrics_overhead"
+harness = false
